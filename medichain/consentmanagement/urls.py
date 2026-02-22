@@ -1,8 +1,6 @@
-
-
-from django.urls import path, include
-from . import views
+from django.urls import path
+from .views import create_consent
 
 urlpatterns = [
-    path("", views.consent_request,name="consent_request")
+    path('request/', create_consent),
 ]
