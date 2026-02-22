@@ -44,3 +44,10 @@ class ConsentRequest(models.Model):
 
     def __str__(self):
         return f"{self.patient_id} | {self.requesting_hospital} → {self.requested_to_hospital} | {self.request_status}"
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['patient_id', 'requesting_hospital', 'requested_to_hospital', 'record_id'],
+                name='unique_consent_request'
+            )
+        ]
