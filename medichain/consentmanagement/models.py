@@ -47,7 +47,7 @@ class ConsentRequest(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=['patient_id', 'requesting_hospital', 'requested_to_hospital', 'record_id'],
-                name='unique_consent_request'
+                fields=['patient_id', 'requesting_hospital', 'requested_to_hospital'],
+                name='unique_patient_hospital_request'
             )
         ]
