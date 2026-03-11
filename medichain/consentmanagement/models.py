@@ -1,6 +1,6 @@
 from django.db import models
 import uuid #gives unique long id
-
+import secrets
 class ConsentRequest(models.Model):
     consent_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     STATUS_CHOICES = [
@@ -51,3 +51,19 @@ class ConsentRequest(models.Model):
                 name='unique_patient_hospital_request'
             )
         ]
+        
+        
+
+class HospitalIdentity(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    api_token = models.CharField(max_length=64, unique=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.api_token:
+            self.api_token = secrets.token_hex(32)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+    
+# !secrets.token_hex(32) find research paper 
