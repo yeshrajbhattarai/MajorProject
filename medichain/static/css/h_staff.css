@@ -1,0 +1,517 @@
+/* ═══════════════════════════════════════════════════
+   MediChain — Staff Pages (Doctors / Nurses / Patients)
+   Extends h_dashboard.css — import both
+═══════════════════════════════════════════════════ */
+
+/* ── Page wrapper ── */
+.staff-content {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Alert messages ── */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.alert svg          { width: 16px; height: 16px; flex-shrink: 0; }
+.alert-success      { background: rgba(56,217,169,0.1);  border: 1px solid rgba(56,217,169,0.3);  color: var(--success); }
+.alert-error        { background: rgba(247,96,79,0.1);   border: 1px solid rgba(247,96,79,0.3);   color: var(--error); }
+
+/* ── Page header row ── */
+.staff-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.staff-header-left h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.staff-header-left p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--accent);
+  color: white;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transition), transform var(--transition);
+  box-shadow: 0 4px 14px var(--accent-glow);
+  white-space: nowrap;
+}
+.add-btn svg        { width: 15px; height: 15px; }
+.add-btn:hover      { background: #3a7de8; transform: translateY(-1px); }
+
+.add-btn-nurse      { background: var(--accent-3); box-shadow: 0 4px 14px rgba(247,127,79,0.25); }
+.add-btn-nurse:hover{ background: #e86e3a; }
+
+.add-btn-patient    { background: var(--accent-4); box-shadow: 0 4px 14px rgba(167,139,250,0.25); }
+.add-btn-patient:hover { background: #9070e8; }
+
+/* ── Search + filter bar ── */
+.staff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.staff-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.staff-search-wrap svg {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.staff-search {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px 9px 36px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.staff-search:focus         { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.staff-search::placeholder  { color: var(--text-muted); }
+
+.staff-count {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Staff table card ── */
+.staff-table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.staff-table-wrap {
+  overflow-x: auto;
+}
+
+table.staff-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.staff-table thead tr {
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.staff-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  white-space: nowrap;
+}
+
+.staff-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background var(--transition);
+}
+
+.staff-table tbody tr:last-child { border-bottom: none; }
+.staff-table tbody tr:hover      { background: var(--bg-3); }
+
+.staff-table td {
+  padding: 14px 16px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+/* Name cell with avatar */
+.staff-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.staff-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.avatar-doctor  { background: rgba(56,217,169,0.2);  color: var(--accent-2); border: 1px solid rgba(56,217,169,0.3); }
+.avatar-nurse   { background: rgba(247,127,79,0.2);  color: var(--accent-3); border: 1px solid rgba(247,127,79,0.3); }
+.avatar-patient { background: rgba(167,139,250,0.2); color: var(--accent-4); border: 1px solid rgba(167,139,250,0.3); }
+
+.staff-name-info { display: flex; flex-direction: column; gap: 1px; }
+.staff-name      { font-weight: 600; color: var(--text-primary); font-size: 13.5px; }
+.staff-emp-id    { font-size: 11px; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+
+/* Status badge */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-family: 'DM Mono', monospace;
+}
+
+.status-pill::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+
+.pill-active   { background: rgba(56,217,169,0.12); color: var(--success); border: 1px solid rgba(56,217,169,0.25); }
+.pill-active::before   { background: var(--success); box-shadow: 0 0 5px var(--success); }
+
+.pill-inactive { background: rgba(74,85,120,0.2);  color: var(--text-muted); border: 1px solid rgba(74,85,120,0.3); }
+.pill-inactive::before { background: var(--text-muted); }
+
+/* Muted text (email, phone) */
+.td-muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.td-mono {
+  font-family: 'DM Mono', monospace;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.td-date {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Action buttons in table */
+.table-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tbl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.tbl-btn svg { width: 12px; height: 12px; }
+
+.tbl-btn-view:hover       { background: var(--accent-glow); border-color: rgba(79,142,247,0.3); color: var(--accent); }
+.tbl-btn-deactivate:hover { background: rgba(247,96,79,0.1); border-color: rgba(247,96,79,0.3); color: var(--error); }
+.tbl-btn-activate:hover   { background: rgba(56,217,169,0.1); border-color: rgba(56,217,169,0.3); color: var(--success); }
+
+/* Empty state */
+.staff-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 20px;
+  text-align: center;
+}
+
+.staff-empty svg  { width: 44px; height: 44px; color: var(--text-muted); opacity: 0.4; }
+.staff-empty h3   { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-secondary); }
+.staff-empty p    { font-size: 13px; color: var(--text-muted); }
+
+
+/* ═══════════════════════════════════════════════════
+   ADD STAFF FORM PAGE
+═══════════════════════════════════════════════════ */
+.add-staff-content {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.add-staff-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 680px;
+}
+
+.add-staff-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.add-staff-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.add-staff-icon svg { width: 16px; height: 16px; }
+
+.icon-doctor  { background: rgba(56,217,169,0.15);  color: var(--accent-2); }
+.icon-nurse   { background: rgba(247,127,79,0.15);  color: var(--accent-3); }
+.icon-patient { background: rgba(167,139,250,0.15); color: var(--accent-4); }
+
+.add-staff-card-head h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.add-staff-card-head p {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.add-staff-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Two column row */
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* Input group */
+.sf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sf-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sf-input-wrap {
+  position: relative;
+}
+
+.sf-input-wrap svg.sf-icon {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 15px; height: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.sf-input-wrap input,
+.sf-input-wrap select {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px 10px 38px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  appearance: none;
+}
+
+.sf-input-wrap input:focus,
+.sf-input-wrap select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.sf-input-wrap input::placeholder { color: var(--text-muted); }
+
+/* Select arrow */
+.sf-select-arrow {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  width: 14px; height: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* Error state */
+.sf-group.has-error .sf-input-wrap input,
+.sf-group.has-error .sf-input-wrap select {
+  border-color: var(--error);
+}
+
+.sf-error {
+  font-size: 12px;
+  color: var(--error);
+  min-height: 16px;
+}
+
+/* Password info box */
+.pw-info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: rgba(79,142,247,0.07);
+  border: 1px solid rgba(79,142,247,0.2);
+  border-radius: var(--radius-sm);
+}
+
+.pw-info-box svg    { width: 16px; height: 16px; color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+.pw-info-box p      { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
+.pw-info-box strong { color: var(--accent); }
+
+/* Form footer */
+.add-staff-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+
+.sf-btn-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition);
+}
+
+.sf-btn-submit svg { width: 15px; height: 15px; }
+.sf-btn-submit:hover { transform: translateY(-1px); }
+
+.btn-doctor  { background: var(--accent-2); box-shadow: 0 4px 14px rgba(56,217,169,0.25); }
+.btn-doctor:hover  { background: #2bc99a; }
+
+.btn-nurse   { background: var(--accent-3); box-shadow: 0 4px 14px rgba(247,127,79,0.25); }
+.btn-nurse:hover   { background: #e86e3a; }
+
+.btn-patient { background: var(--accent-4); box-shadow: 0 4px 14px rgba(167,139,250,0.25); }
+.btn-patient:hover { background: #9070e8; }
+
+.sf-btn-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transition: background var(--transition), color var(--transition);
+}
+
+.sf-btn-cancel:hover { background: var(--surface-2); color: var(--text-primary); }
+
+/* Breadcrumb link */
+.breadcrumb-link {
+  color: var(--accent);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+.breadcrumb-link:hover { text-decoration: underline; }
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .staff-content, .add-staff-content { padding: 16px; }
+  .form-row-2 { grid-template-columns: 1fr; }
+  .add-staff-card { max-width: 100%; }
+  .staff-table th:nth-child(4),
+  .staff-table td:nth-child(4) { display: none; }
+}
+
+@media (max-width: 480px) {
+  .staff-table th:nth-child(3),
+  .staff-table td:nth-child(3) { display: none; }
+}

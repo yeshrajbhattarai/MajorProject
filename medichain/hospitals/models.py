@@ -34,8 +34,48 @@ class Hospital(models.Model):
     state            = models.CharField(max_length=100, null=True, blank=True)
     country          = models.CharField(max_length=100, null=True, blank=True)
 
+    name_locked    = models.BooleanField(default=False)
+    license_locked = models.BooleanField(default=False)
+    email_verified     = models.BooleanField(default=False)
+    email_verify_otp        = models.CharField(max_length=6, null=True, blank=True)
+    email_verify_otp_expiry = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         db_table = 'hospitals'  # exact table name in your medichain DB
 
     def __str__(self):
         return self.hospital_name
+    
+
+
+class HospitalUser(models.Model):
+
+    ROLE_CHOICES = [
+        ('doctor', 'Doctor'),
+        ('nurse',  'Nurse'),
+    ]
+
+    STATUS_CHOICES = [
+        ('active',   'Active'),
+        ('inactive', 'Inactive'),
+    ]
+
+    id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    hospital       = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name='staff')
+    full_name      = models.CharField(max_length=255)
+    email          = models.EmailField(unique=True)
+    phone          = models.CharField(max_length=10, unique=True)
+    employee_id    = models.CharField(max_length=50)
+    role           = models.CharField(max_length=10, choices=ROLE_CHOICES)
+    specialization = models.CharField(max_length=255, null=True, blank=True)  # doctors only
+    password_hash  = models.CharField(max_length=255)
+    status         = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    created_by     = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'hospital_users'
+
+    def __str__(self):
+        return f"{self.full_name} ({self.role})"

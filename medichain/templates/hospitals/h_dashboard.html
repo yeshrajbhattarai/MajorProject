@@ -1,11 +1,354 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
 </head>
 <body>
-    Dashboard 
+
+  <!-- ══════════════════════════════════════
+       SIDEBAR
+  ══════════════════════════════════════ -->
+
+{% include 'hospitals/partials/sidebar.html' with active_page='dashboard' %}
+
+  <!-- ══════════════════════════════════════
+       MAIN CONTENT
+  ══════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="page-title">
+          <h1>Dashboard</h1>
+          <span class="breadcrumb">Overview</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar">
+          {{ hospital_name|default:"A"|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+
+    <!-- ── DASHBOARD CONTENT ── -->
+    <div class="dashboard-content">
+
+      <!-- ┌─────────────────────────────────────┐
+           │  ROW 1 — Status + Profile            │
+           │  Only shown when account is pending  │
+           └─────────────────────────────────────┘ -->
+      {% if account_status != 'active' %}
+      <div class="dash-row dash-row-top">
+
+        <!-- 1. Hospital Status -->
+        <div class="dash-card card-status">
+          <div class="card-head">
+            <span class="card-icon card-icon-status">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+              </svg>
+            </span>
+            <span class="card-title">Hospital Status</span>
+          </div>
+          <div class="card-body">
+            <div class="status-row">
+              <span class="status-label">Account Status</span>
+              <!-- Django will set the class: status-badge-pending / active / suspended -->
+              <span class="status-badge status-badge-{{ account_status|default:'pending' }}">
+                {{ account_status|default:"Pending"|title }}
+              </span>
+            </div>
+            <div class="status-row">
+              <span class="status-label">External Data Sharing</span>
+              {% if account_status == 'active' %}
+                <span class="status-badge status-badge-active">Enabled</span>
+              {% else %}
+                <span class="status-badge status-badge-disabled">Disabled</span>
+              {% endif %}
+            </div>
+            <div class="status-row">
+              <span class="status-label">API Access</span>
+              {% if account_status == 'active' %}
+                <span class="status-badge status-badge-active">Enabled</span>
+              {% else %}
+                <span class="status-badge status-badge-disabled">Disabled</span>
+              {% endif %}
+            </div>
+            {% if account_status != 'active' %}
+            <p class="status-note">
+              Complete your hospital profile to activate your account and enable all features.
+            </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- 2. Hospital Profile Summary -->
+        <div class="dash-card card-profile">
+          <div class="card-head">
+            <span class="card-icon card-icon-profile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </span>
+            <span class="card-title">Hospital Profile</span>
+          </div>
+          <div class="card-body">
+            <div class="profile-row">
+              <span class="profile-key">Hospital Name</span>
+              <span class="profile-val">{{ hospital_name|default:"—" }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-key">Email</span>
+              <span class="profile-val">{{ hospital_email|default:"—" }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-key">Contact</span>
+              <span class="profile-val">{{ hospital_contact|default:"—" }}</span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-key">License No.</span>
+              <span class="profile-val {% if not hospital_license %}profile-val-missing{% endif %}">
+                {{ hospital_license|default:"Not Added" }}
+              </span>
+            </div>
+            <div class="profile-row">
+              <span class="profile-key">Address</span>
+              <span class="profile-val {% if not hospital_address %}profile-val-missing{% endif %}">
+                {{ hospital_address|default:"Not Added" }}
+              </span>
+            </div>
+            <a href="/profile/" class="card-btn">Complete Profile →</a>
+          </div>
+        </div>
+
+      </div>
+      {% endif %}
+      <!-- end dash-row-top -->
+
+
+      <!-- ┌─────────────────────────────────────┐
+           │  ROW 2 — Stats (5 stat chips)        │
+           └─────────────────────────────────────┘ -->
+           
+      <div class="dash-card card-stats">
+        <div class="card-head">
+          <span class="card-icon card-icon-stats">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6"  y1="20" x2="6"  y2="14"/>
+            </svg>
+          </span>
+          <span class="card-title">System Overview</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-chip">
+            <div class="stat-chip-icon stat-icon-patients">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              </svg>
+            </div>
+            <div class="stat-chip-num">{{ total_patients|default:"0" }}</div>
+            <div class="stat-chip-label">Patients</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-icon stat-icon-records">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <div class="stat-chip-num">{{ total_records|default:"0" }}</div>
+            <div class="stat-chip-label">Medical Records</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-icon stat-icon-reports">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </div>
+            <div class="stat-chip-num">{{ total_reports|default:"0" }}</div>
+            <div class="stat-chip-label">Test Reports</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-icon stat-icon-doctors">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+            <div class="stat-chip-num">{{ total_doctors|default:"0" }}</div>
+            <div class="stat-chip-label">Doctors</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-icon stat-icon-nurses">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <div class="stat-chip-num">{{ total_nurses|default:"0" }}</div>
+            <div class="stat-chip-label">Nurses</div>
+          </div>
+        </div>
+         
+      </div>
+
+
+      <!-- ┌─────────────────────────────────────┐
+           │  ROW 3 — Quick Actions + Activity    │
+           └─────────────────────────────────────┘ -->
+      <div class="dash-row dash-row-bottom">
+
+        <!-- 4. Quick Actions -->
+        <div class="dash-card card-actions">
+          <div class="card-head">
+            <span class="card-icon card-icon-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </span>
+            <span class="card-title">Quick Actions</span>
+          </div>
+          <div class="card-body actions-grid">
+            <a href="#" class="action-btn action-btn-doctor">
+              <span class="action-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </span>
+              Add Doctor
+            </a>
+            <a href="#" class="action-btn action-btn-nurse">
+              <span class="action-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </span>
+              Add Nurse
+            </a>
+            <a href="#" class="action-btn action-btn-patient">
+              <span class="action-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+              </span>
+              Register Patient
+            </a>
+            <a href="#" class="action-btn action-btn-record">
+              <span class="action-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="18" x2="12" y2="12"/>
+                  <line x1="9"  y1="15" x2="15" y2="15"/>
+                </svg>
+              </span>
+              Create Record
+            </a>
+          </div>
+        </div>
+
+        <!-- 5. Recent Activity -->
+        <div class="dash-card card-activity">
+          <div class="card-head">
+            <span class="card-icon card-icon-activity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </span>
+            <span class="card-title">Recent Activity</span>
+          </div>
+          <div class="card-body">
+            {% if recent_logs %}
+              <ul class="activity-list">
+                {% for log in recent_logs %}
+                <li class="activity-item">
+                  <span class="activity-dot activity-dot-{{ log.user_role }}"></span>
+                  <div class="activity-info">
+                    <span class="activity-desc">{{ log.description }}</span>
+                    <span class="activity-time">{{ log.timestamp|timesince }} ago</span>
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="activity-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p>No activity yet</p>
+                <span>Actions taken by your team will appear here</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+
+    </div>
+    <!-- /.dashboard-content -->
+
+  </main>
+  <!-- /.main -->
+
+
+  <script>
+  /* ─── Live clock in topbar ─── */
+  function updateTime() {
+    const now  = new Date();
+    const opts = { hour: '2-digit', minute: '2-digit', hour12: true,
+                   weekday: 'short', month: 'short', day: 'numeric' };
+    document.getElementById('topbarTime').textContent =
+      now.toLocaleDateString('en-IN', opts);
+  }
+  updateTime();
+  setInterval(updateTime, 60000);
+
+  /* ─── Sidebar toggle (mobile) ─── */
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  /* ─── Active nav item ─── */
+ document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    // Let logout and real links navigate normally
+    if (this.classList.contains('nav-logout')) return;
+    if (this.getAttribute('href') && this.getAttribute('href') !== '#') return;
+
+    // Only block # placeholder links
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+  </script>
+
 </body>
 </html>

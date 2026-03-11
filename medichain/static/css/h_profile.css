@@ -1,0 +1,485 @@
+/* ═══════════════════════════════════════════════════
+   MediChain — Hospital Profile Page
+   Extends h_dashboard.css — import both
+═══════════════════════════════════════════════════ */
+
+/* ── Page layout ── */
+.profile-page-content {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Alert messages (Django messages framework) ── */
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.alert-success {
+  background: rgba(56,217,169,0.1);
+  border: 1px solid rgba(56,217,169,0.3);
+  color: var(--success);
+}
+
+.alert-error {
+  background: rgba(247,96,79,0.1);
+  border: 1px solid rgba(247,96,79,0.3);
+  color: var(--error);
+}
+
+/* ── Two-column grid ── */
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.profile-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Profile section card ── */
+.profile-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: border-color var(--transition);
+}
+
+.profile-section:hover { border-color: var(--border-hover); }
+
+/* Section header */
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.section-note {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.once-warning {
+  color: #f7c94f !important;
+  font-weight: 500;
+}
+
+/* Locked badge in section head */
+.section-locked-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.section-locked-badge svg { width: 10px; height: 10px; }
+
+
+/* ─────────────────────────────────────────────────
+   READ-ONLY FIELDS (email, contact)
+───────────────────────────────────────────────── */
+.readonly-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.readonly-field:last-child { border-bottom: none; }
+
+.readonly-label {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.readonly-value {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.lock-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lock-badge svg { width: 9px; height: 9px; }
+
+
+/* ─────────────────────────────────────────────────
+   LOCKED FIELD (once-editable, now locked)
+───────────────────────────────────────────────── */
+.locked-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.locked-value {
+  font-size: 13.5px;
+  color: var(--text-muted);  /* greyed out as requested */
+  font-style: italic;
+}
+
+.locked-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(74,85,120,0.2);
+  border: 1px solid rgba(74,85,120,0.3);
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+
+.locked-note {
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+
+/* ─────────────────────────────────────────────────
+   FORM INPUTS
+───────────────────────────────────────────────── */
+.pf-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.pf-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pf-input-wrap input,
+.pf-input-wrap textarea {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+  resize: none;
+}
+
+.pf-input-wrap input:focus,
+.pf-input-wrap textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.pf-input-wrap input::placeholder,
+.pf-input-wrap textarea::placeholder { color: var(--text-muted); }
+
+/* Password field with toggle */
+.pf-pw-wrap {
+  position: relative;
+}
+
+.pf-pw-wrap input { padding-right: 42px; }
+
+.pf-toggle-pw {
+  position: absolute;
+  right: 12px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex; align-items: center;
+  transition: color var(--transition);
+}
+
+.pf-toggle-pw:hover { color: var(--text-secondary); }
+.pf-toggle-pw svg   { width: 15px; height: 15px; }
+
+/* Error state */
+.pf-has-error .pf-input-wrap input,
+.pf-has-error .pf-input-wrap textarea {
+  border-color: var(--error);
+}
+
+.pf-field-error {
+  font-size: 12px;
+  color: var(--error);
+  min-height: 16px;
+}
+
+/* Two-column row inside a section */
+.pf-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+
+/* ─────────────────────────────────────────────────
+   ONCE-CONFIRM CHECKBOX
+   Appears when user starts editing a once-only field
+───────────────────────────────────────────────── */
+.once-confirm-row {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: rgba(247,201,79,0.06);
+  border: 1px solid rgba(247,201,79,0.2);
+  border-radius: var(--radius-sm);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+.once-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 12.5px;
+  color: #f7c94f;
+  line-height: 1.5;
+  user-select: none;
+}
+
+.once-checkbox-label input[type="checkbox"] { display: none; }
+
+.once-checkbox-box {
+  width: 16px; height: 16px;
+  border: 1.5px solid rgba(247,201,79,0.5);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.once-checkbox-label input:checked + .once-checkbox-box {
+  background: #f7c94f;
+  border-color: #f7c94f;
+}
+
+.once-checkbox-label input:checked + .once-checkbox-box::after {
+  content: '';
+  display: block;
+  width: 9px; height: 5px;
+  border-left: 2px solid #0a0e1a;
+  border-bottom: 2px solid #0a0e1a;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+
+/* ─────────────────────────────────────────────────
+   FILE UPLOAD DROP ZONE
+───────────────────────────────────────────────── */
+.file-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 16px;
+  background: var(--bg-3);
+  border: 1.5px dashed var(--border-hover);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  position: relative;
+}
+
+.file-drop-zone:hover,
+.file-drop-zone.drop-hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.file-drop-zone svg {
+  width: 28px; height: 28px;
+  color: var(--text-muted);
+}
+
+.file-input {
+  /* Hidden — triggered by click on drop zone */
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+
+.drop-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.drop-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* File selected state */
+.file-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(79,142,247,0.08);
+  border: 1px solid rgba(79,142,247,0.25);
+  border-radius: var(--radius-sm);
+}
+
+.file-selected svg {
+  width: 16px; height: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.file-selected span {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-selected button {
+  background: none; border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color var(--transition), background var(--transition);
+}
+
+.file-selected button:hover {
+  color: var(--error);
+  background: rgba(247,96,79,0.1);
+}
+
+
+/* ─────────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────────── */
+.pf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: var(--radius-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition), transform var(--transition), opacity var(--transition);
+  width: 100%;
+  margin-top: 4px;
+}
+
+.pf-btn-primary {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.pf-btn-primary:hover:not(:disabled) {
+  background: #3a7de8;
+  transform: translateY(-1px);
+}
+
+.pf-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+
+/* ─────────────────────────────────────────────────
+   BREADCRUMB LINK
+───────────────────────────────────────────────── */
+.breadcrumb-link {
+  color: var(--accent);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.breadcrumb-link:hover { text-decoration: underline; }
+
+
+/* ─────────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .profile-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 768px) {
+  .profile-page-content { padding: 16px; }
+  .pf-row-2             { grid-template-columns: 1fr; }
+}
