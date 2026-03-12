@@ -1,0 +1,476 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | {{ doctor.full_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    /* ── Detail page extras ── */
+    .detail-content {
+      flex: 1;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 860px;
+    }
+
+    /* Hero card */
+    .detail-hero {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+
+    .detail-photo {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(56,217,169,0.3);
+      flex-shrink: 0;
+    }
+
+    .detail-photo-placeholder {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      background: rgba(56,217,169,0.12);
+      border: 2px solid rgba(56,217,169,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--accent-2);
+      flex-shrink: 0;
+    }
+
+    .detail-hero-info { flex: 1; min-width: 200px; }
+
+    .detail-hero-info h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .detail-hero-info .detail-role {
+      font-size: 13px;
+      color: var(--accent-2);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 10px;
+    }
+
+    .detail-hero-info .detail-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .detail-joined {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .detail-hero-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    /* Info cards */
+    .detail-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .detail-card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-card-head h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .detail-card-head .detail-card-badge {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* Info grid */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+
+    .detail-field {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+
+    .detail-field:nth-child(even) { border-right: none; }
+    .detail-field:nth-last-child(-n+2) { border-bottom: none; }
+
+    /* Full width field */
+    .detail-field-full {
+      grid-column: 1 / -1;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .detail-field-full:last-child { border-bottom: none; }
+
+    .detail-field-key {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 5px;
+    }
+
+    .detail-field-val {
+      font-size: 14px;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .detail-field-val.mono {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+    }
+
+    .detail-field-val.empty {
+      color: var(--text-muted);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 13px;
+    }
+
+    /* Empty profile section notice */
+    .profile-empty-notice {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 20px;
+      background: rgba(79,142,247,0.06);
+      border-bottom: 1px solid var(--border);
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+
+    .profile-empty-notice svg {
+      width: 15px; height: 15px;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* Deactivate button */
+    .btn-deactivate {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid rgba(247,96,79,0.3);
+      background: rgba(247,96,79,0.08);
+      color: var(--error);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+    }
+
+    .btn-deactivate:hover { background: rgba(247,96,79,0.15); border-color: var(--error); }
+    .btn-deactivate svg   { width: 14px; height: 14px; }
+
+    .btn-activate {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid rgba(56,217,169,0.3);
+      background: rgba(56,217,169,0.08);
+      color: var(--success);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+    }
+
+    .btn-activate:hover { background: rgba(56,217,169,0.15); border-color: var(--success); }
+    .btn-activate svg   { width: 14px; height: 14px; }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      text-decoration: none;
+      transition: background var(--transition), color var(--transition);
+    }
+
+    .btn-back:hover { background: var(--surface-2); color: var(--text-primary); }
+    .btn-back svg   { width: 14px; height: 14px; }
+
+    @media (max-width: 768px) {
+      .detail-content  { padding: 16px; }
+      .detail-grid     { grid-template-columns: 1fr; }
+      .detail-field    { border-right: none; }
+      .detail-field:nth-last-child(-n+2) { border-bottom: 1px solid var(--border); }
+      .detail-field:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+
+  {% include 'hospitals/partials/sidebar.html' with active_page='doctors' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Doctor Detail</h1>
+          <span class="breadcrumb">
+            <a href="/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; <a href="/staff/doctors/" class="breadcrumb-link">Doctors</a>
+            &nbsp;/&nbsp; {{ doctor.full_name }}
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar">{{ hospital_name|slice:":1"|upper }}</div>
+      </div>
+    </header>
+
+    <div class="detail-content">
+
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {% if message.tags == 'success' %}<polyline points="20 6 9 17 4 12"/>
+            {% else %}<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>{% endif %}
+          </svg>
+          {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Hero -->
+      <div class="detail-hero">
+        {% if doctor.profile_photo %}
+          <img src="{{ doctor.profile_photo.url }}" alt="{{ doctor.full_name }}" class="detail-photo">
+        {% else %}
+          <div class="detail-photo-placeholder">{{ doctor.full_name|slice:":1"|upper }}</div>
+        {% endif %}
+
+        <div class="detail-hero-info">
+          <h2>{{ doctor.full_name }}</h2>
+          <div class="detail-role">
+            {% if doctor.specialization %}{{ doctor.specialization }} · {% endif %}Doctor
+          </div>
+          <div class="detail-meta">
+            <span class="status-pill {% if doctor.status == 'active' %}pill-active{% else %}pill-inactive{% endif %}">
+              {{ doctor.status|title }}
+            </span>
+            <span class="detail-joined">Joined {{ doctor.created_at|date:"d M Y" }}</span>
+          </div>
+        </div>
+
+        <div class="detail-hero-actions">
+          <a href="/staff/doctors/" class="btn-back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+            </svg>
+            Back
+          </a>
+          <form method="POST" action="/staff/doctors/{{ doctor.id }}/toggle/">
+            {% csrf_token %}
+            {% if doctor.status == 'active' %}
+            <button type="submit" class="btn-deactivate">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+              </svg>
+              Deactivate
+            </button>
+            {% else %}
+            <button type="submit" class="btn-activate">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+              Activate
+            </button>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+      <!-- Section 1: Admin-created info -->
+      <div class="detail-card">
+        <div class="detail-card-head">
+          <div class="add-staff-icon icon-doctor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <h3>Account Information</h3>
+          <span class="detail-card-badge">Set by Admin</span>
+        </div>
+        <div class="detail-grid">
+          <div class="detail-field">
+            <div class="detail-field-key">Full Name</div>
+            <div class="detail-field-val">{{ doctor.full_name }}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Employee ID</div>
+            <div class="detail-field-val mono">{{ doctor.employee_id }}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Email Address</div>
+            <div class="detail-field-val mono">{{ doctor.email }}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Phone Number</div>
+            <div class="detail-field-val mono">{{ doctor.phone }}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Specialization</div>
+            <div class="detail-field-val">{{ doctor.specialization|default:"—" }}</div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Account Status</div>
+            <div class="detail-field-val">
+              <span class="status-pill {% if doctor.status == 'active' %}pill-active{% else %}pill-inactive{% endif %}">
+                {{ doctor.status|title }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Doctor's own profile -->
+      <div class="detail-card">
+        <div class="detail-card-head">
+          <div class="add-staff-icon icon-doctor">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+          </div>
+          <h3>Personal Profile</h3>
+          <span class="detail-card-badge">Filled by Doctor</span>
+        </div>
+
+        {% if not doctor.date_of_birth and not doctor.gender and not doctor.home_address and not doctor.years_experience and not doctor.license_number and not doctor.bio %}
+        <div class="profile-empty-notice">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          The doctor has not filled in their personal profile yet. They can do so after logging in with their credentials.
+        </div>
+        {% endif %}
+
+        <div class="detail-grid">
+          <div class="detail-field">
+            <div class="detail-field-key">Date of Birth</div>
+            <div class="detail-field-val {% if not doctor.date_of_birth %}empty{% endif %}">
+              {{ doctor.date_of_birth|date:"d M Y"|default:"Not added yet" }}
+            </div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Gender</div>
+            <div class="detail-field-val {% if not doctor.gender %}empty{% endif %}">
+              {{ doctor.gender|default:"Not added yet" }}
+            </div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Years of Experience</div>
+            <div class="detail-field-val {% if not doctor.years_experience %}empty{% endif %}">
+              {% if doctor.years_experience %}{{ doctor.years_experience }} years{% else %}Not added yet{% endif %}
+            </div>
+          </div>
+          <div class="detail-field">
+            <div class="detail-field-key">Medical License No.</div>
+            <div class="detail-field-val mono {% if not doctor.license_number %}empty{% endif %}">
+              {{ doctor.license_number|default:"Not added yet" }}
+            </div>
+          </div>
+          <div class="detail-field-full">
+            <div class="detail-field-key">Home Address</div>
+            <div class="detail-field-val {% if not doctor.home_address %}empty{% endif %}">
+              {{ doctor.home_address|default:"Not added yet" }}
+            </div>
+          </div>
+          <div class="detail-field-full" style="border-bottom: none;">
+            <div class="detail-field-key">Bio / About</div>
+            <div class="detail-field-val {% if not doctor.bio %}empty{% endif %}" style="line-height: 1.7;">
+              {{ doctor.bio|default:"Not added yet" }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  function updateTime() {
+    const el = document.getElementById('topbarTime');
+    if (el) el.textContent = new Date().toLocaleDateString('en-IN', {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+  updateTime(); setInterval(updateTime, 60000);
+  </script>
+
+</body>
+</html>

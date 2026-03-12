@@ -2,6 +2,7 @@
 import uuid
 from django.db import models
 
+#####################################
 class Hospital(models.Model):
 
     # ── Account Status Choices ──
@@ -47,7 +48,7 @@ class Hospital(models.Model):
         return self.hospital_name
     
 
-
+###################################
 class HospitalUser(models.Model):
 
     ROLE_CHOICES = [
@@ -74,8 +75,58 @@ class HospitalUser(models.Model):
     created_at     = models.DateTimeField(auto_now_add=True)
     updated_at     = models.DateTimeField(auto_now=True)
 
+    # Doctor/Nurse fills these from their own profile
+    date_of_birth    = models.DateField(null=True, blank=True)
+    gender           = models.CharField(max_length=10, null=True, blank=True)
+    home_address     = models.TextField(null=True, blank=True)
+    years_experience = models.PositiveIntegerField(null=True, blank=True)
+    license_number   = models.CharField(max_length=100, null=True, blank=True)
+    bio              = models.TextField(null=True, blank=True)
+    profile_photo    = models.ImageField(upload_to='staff_photos/', null=True, blank=True)
+
     class Meta:
         db_table = 'hospital_users'
 
     def __str__(self):
         return f"{self.full_name} ({self.role})"
+    
+    
+
+######################################
+class Patient(models.Model):
+        
+    GOV_ID_CHOICES = [
+        ('aadhar', 'Aadhar Card'),
+        ('voter',  'Voter ID'),
+    ]
+
+    id              = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    gov_id_type     = models.CharField(max_length=10, choices=GOV_ID_CHOICES)
+    gov_id_number = models.CharField(max_length=500)
+    gov_id_hash     = models.CharField(max_length=64, unique=True)
+
+    # Phase 1 — hospital fills
+    full_name       = models.CharField(max_length=255)
+    gender          = models.CharField(max_length=10, null=True, blank=True)
+    phone           = models.CharField(max_length=10, null=True, blank=True)
+    email           = models.EmailField(null=True, blank=True)
+    address         = models.TextField(null=True, blank=True)
+
+    # Phase 2 — patient fills themselves
+    date_of_birth   = models.DateField(null=True, blank=True)
+    blood_group     = models.CharField(max_length=5, null=True, blank=True)
+    profile_photo   = models.ImageField(upload_to='patient_photos/', null=True, blank=True)
+    password_hash   = models.CharField(max_length=255, null=True, blank=True)
+
+    # Meta
+    registered_by   = models.ForeignKey(Hospital, on_delete=models.SET_NULL, null=True, blank=True, related_name='registered_patients')
+    registered_by_self = models.BooleanField(default=False)
+    is_active       = models.BooleanField(default=True)  # only MediChain super-admin controls this
+    created_at      = models.DateTimeField(auto_now_add=True)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'patients'
+
+    def __str__(self):
+        return self.full_name

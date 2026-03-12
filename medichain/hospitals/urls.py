@@ -18,12 +18,19 @@ urlpatterns = [
         # Staff — Doctors
     path('staff/doctors/',         views.doctors_list,   name='doctors_list'),
     path('staff/doctors/add/',     views.add_doctor,     name='add_doctor'),
+    path('staff/doctors/<uuid:pk>/', views.doctor_detail, name='doctor_detail'),
     path('staff/doctors/<uuid:pk>/toggle/', views.toggle_doctor, name='toggle_doctor'),
     
     # Staff — Nurses
     path('staff/nurses/',          views.nurses_list,    name='nurses_list'),
     path('staff/nurses/add/',      views.add_nurse,      name='add_nurse'),
     path('staff/nurses/<uuid:pk>/toggle/',  views.toggle_nurse,  name='toggle_nurse'),
+    path('staff/nurses/<uuid:pk>/',  views.nurse_detail,  name='nurse_detail'),
+
+    #patients 
+    path('staff/patients/',          views.patients_list,  name='patients_list'),
+    path('staff/patients/add/',      views.add_patient,    name='add_patient'),
+    path('staff/patients/<uuid:pk>/', views.patient_detail, name='patient_detail'),
    
  
 ]   

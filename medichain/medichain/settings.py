@@ -144,3 +144,6 @@ EMAIL_USE_TLS       = True
 EMAIL_HOST_USER     = 'samarpandahal39@gmail.com'        # your Gmail
 EMAIL_HOST_PASSWORD = 'nwdakeseiinfbyst'   # the 16-char app password
 DEFAULT_FROM_EMAIL  = 'MediChain <samarpandahal39@gmail.com>'
+
+#Encription key 
+FERNET_KEYS = ['go24p6yn1MhIQ2CBEbxLoKEXeDSAE39d_06Wwpcpo7M=']
