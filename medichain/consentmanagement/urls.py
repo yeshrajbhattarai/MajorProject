@@ -3,7 +3,7 @@ from .views import create_consent, view_consent, sent_requests, consent_detail, 
 
 urlpatterns = [
     path('request/', create_consent),
-    path('view/', view_consent),
+    path('view/', view_consent), #! this is for dev only not prod
     
     # Filtered View:
     path('sent/', sent_requests, name='sent_requests'),
