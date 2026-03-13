@@ -1,14 +1,13 @@
 from django.test import TestCase
-from django.urls import reverse
 from rest_framework.test import APIClient
-from .models import ConsentRequest, HospitalIdentity
+from .models import ConsentRequest
 from .serializers import ConsentCreateSerializer, PatientDecisionSerializer, HospitalDecisionSerializer
+from hospitals.models import Hospital
 import uuid
 
 
-# ============================================================
-# HELPER - creates a basic consent request for reuse in tests
-# ============================================================
+# ── HELPER ────────────────────────────────────────────────────────────────────
+# Creates a basic consent request so we don't repeat this in every test
 def make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis", record_id=None):
     return ConsentRequest.objects.create(
         patient_id=patient_id,
@@ -17,113 +16,106 @@ def make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis", 
         record_id=record_id
     )
 
+# Creates a real Hospital in the test database and returns it
+def make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210"):
+    return Hospital.objects.create(
+        hospital_name=name,
+        email=email,
+        password_hash="fakehash",
+        contact_number=contact
+    )
 
-# ============================================================
-# 1. MODEL TESTS (12 tests)
-# ============================================================
+
+# ── MODEL TESTS ───────────────────────────────────────────────────────────────
 class ConsentRequestModelTests(TestCase):
 
-    # Test 1
+    # Test 1 - when a consent is created, all choices start as PENDING
     def test_consent_starts_in_pending_state(self):
-        """When a consent is created, all statuses should be PENDING by default"""
         consent = make_consent()
         self.assertEqual(consent.request_status, 'PENDING')
         self.assertEqual(consent.patient_choice, 'PENDING')
         self.assertEqual(consent.hospital_choice, 'PENDING')
 
-    # Test 2
+    # Test 2 - final status becomes APPROVED only when both sides approve
     def test_status_approved_when_both_approve(self):
-        """Final status should become APPROVED only when both patient and hospital approve"""
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
         consent.hospital_choice = 'APPROVED'
         consent.save()
         self.assertEqual(consent.request_status, 'APPROVED')
 
-    # Test 3
+    # Test 3 - final status is REJECTED if patient rejects, even if hospital approves
     def test_status_rejected_when_patient_rejects(self):
-        """Final status should be REJECTED if patient rejects, regardless of hospital decision"""
         consent = make_consent()
         consent.patient_choice = 'REJECTED'
         consent.hospital_choice = 'APPROVED'
         consent.save()
         self.assertEqual(consent.request_status, 'REJECTED')
 
-    # Test 4
+    # Test 4 - final status is REJECTED if hospital rejects, even if patient approves
     def test_status_rejected_when_hospital_rejects(self):
-        """Final status should be REJECTED if hospital rejects, regardless of patient decision"""
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
         consent.hospital_choice = 'REJECTED'
         consent.save()
         self.assertEqual(consent.request_status, 'REJECTED')
 
-    # Test 5
+    # Test 5 - status stays PENDING if only patient has approved, hospital has not responded yet
     def test_status_pending_when_only_patient_approves(self):
-        """Final status should stay PENDING if only patient has approved"""
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
         consent.save()
         self.assertEqual(consent.request_status, 'PENDING')
 
-    # Test 6
+    # Test 6 - status stays PENDING if only hospital has approved, patient has not responded yet
     def test_status_pending_when_only_hospital_approves(self):
-        """Final status should stay PENDING if only hospital has approved"""
         consent = make_consent()
         consent.hospital_choice = 'APPROVED'
         consent.save()
         self.assertEqual(consent.request_status, 'PENDING')
 
-    # Test 7
+    # Test 7 - consent_id must be a valid UUID, not a plain integer or string
     def test_consent_id_is_uuid(self):
-        """consent_id should be auto-generated as a valid UUID"""
         consent = make_consent()
         self.assertIsInstance(consent.consent_id, uuid.UUID)
 
-    # Test 8
+    # Test 8 - the string representation of a consent should follow the expected format
     def test_consent_str_representation(self):
-        """__str__ should return the expected string format"""
         consent = make_consent()
         expected = "P001 | Apollo → Fortis | PENDING"
         self.assertEqual(str(consent), expected)
 
-    # Test 9
+    # Test 9 - record_id is optional, a consent should be created fine without it
     def test_record_id_is_optional(self):
-        """Creating a consent without record_id should work fine"""
         consent = make_consent(record_id=None)
         self.assertIsNone(consent.record_id)
 
-    # Test 10
+    # Test 10 - same patient cannot have two consents between the exact same pair of hospitals
     def test_unique_constraint_same_patient_hospitals(self):
-        """Creating duplicate consent for same patient + same hospitals should raise error"""
         from django.db import IntegrityError
         make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis")
         with self.assertRaises(IntegrityError):
             make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis")
 
-    # Test 11
+    # Test 11 - same patient can have consents with different hospital combinations
     def test_same_patient_different_hospitals_allowed(self):
-        """Same patient can have consents between different hospital pairs"""
         c1 = make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis")
         c2 = make_consent(patient_id="P001", requesting="Apollo", requested_to="AIIMS")
         self.assertNotEqual(c1.consent_id, c2.consent_id)
 
-    # Test 12
-    def test_hospital_identity_token_auto_generated(self):
-        """HospitalIdentity should auto-generate an api_token if not provided"""
-        hospital = HospitalIdentity.objects.create(name="TestHospital")
-        self.assertIsNotNone(hospital.api_token)
-        self.assertEqual(len(hospital.api_token), 64)  # secrets.token_hex(32) = 64 chars
+    # Test 12 - every hospital should get a unique api_key automatically when created
+    def test_hospital_api_key_auto_generated(self):
+        hospital = make_hospital()
+        self.assertIsNotNone(hospital.api_key)
 
 
-# ============================================================
-# 2. SERIALIZER TESTS (8 tests)
-# ============================================================
+# ── SERIALIZER TESTS ──────────────────────────────────────────────────────────
 class ConsentSerializerTests(TestCase):
 
-    # Test 13
+    # Test 13 - serializer should pass when both hospitals exist and are different
     def test_create_serializer_valid_data(self):
-        """ConsentCreateSerializer should be valid with correct data"""
+        make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
         data = {
             "patient_id": "P001",
             "requesting_hospital": "Apollo",
@@ -132,9 +124,9 @@ class ConsentSerializerTests(TestCase):
         serializer = ConsentCreateSerializer(data=data)
         self.assertTrue(serializer.is_valid())
 
-    # Test 14
+    # Test 14 - serializer should reject if requesting and requested_to hospital are the same
     def test_create_serializer_same_hospital_rejected(self):
-        """ConsentCreateSerializer should reject if requesting and requested_to are the same hospital"""
+        make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
         data = {
             "patient_id": "P001",
             "requesting_hospital": "Apollo",
@@ -144,9 +136,10 @@ class ConsentSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("non_field_errors", serializer.errors)
 
-    # Test 15
+    # Test 15 - serializer should fail if patient_id is missing from the request
     def test_create_serializer_missing_patient_id(self):
-        """ConsentCreateSerializer should fail if patient_id is missing"""
+        make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
         data = {
             "requesting_hospital": "Apollo",
             "requested_to_hospital": "Fortis"
@@ -155,88 +148,79 @@ class ConsentSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
         self.assertIn("patient_id", serializer.errors)
 
-    # Test 16
+    # Test 16 - serializer should accept APPROVED as a valid patient choice
     def test_patient_decision_valid_approved(self):
-        """PatientDecisionSerializer should accept APPROVED"""
         consent = make_consent()
         serializer = PatientDecisionSerializer(consent, data={"patient_choice": "APPROVED"}, partial=True)
         self.assertTrue(serializer.is_valid())
 
-    # Test 17
+    # Test 17 - serializer should accept REJECTED as a valid patient choice
     def test_patient_decision_valid_rejected(self):
-        """PatientDecisionSerializer should accept REJECTED"""
         consent = make_consent()
         serializer = PatientDecisionSerializer(consent, data={"patient_choice": "REJECTED"}, partial=True)
         self.assertTrue(serializer.is_valid())
 
-    # Test 18
+    # Test 18 - serializer should reject any value other than APPROVED or REJECTED
     def test_patient_decision_invalid_value(self):
-        """PatientDecisionSerializer should reject any value other than APPROVED or REJECTED"""
         consent = make_consent()
         serializer = PatientDecisionSerializer(consent, data={"patient_choice": "MAYBE"}, partial=True)
         self.assertFalse(serializer.is_valid())
 
-    # Test 19
+    # Test 19 - hospital decision serializer should accept APPROVED
     def test_hospital_decision_valid(self):
-        """HospitalDecisionSerializer should accept APPROVED"""
         consent = make_consent()
         serializer = HospitalDecisionSerializer(consent, data={"hospital_choice": "APPROVED"}, partial=True)
         self.assertTrue(serializer.is_valid())
 
-    # Test 20
+    # Test 20 - hospital decision serializer should reject values other than APPROVED or REJECTED
     def test_hospital_decision_invalid_value(self):
-        """HospitalDecisionSerializer should reject invalid values"""
         consent = make_consent()
         serializer = HospitalDecisionSerializer(consent, data={"hospital_choice": "YES"}, partial=True)
         self.assertFalse(serializer.is_valid())
 
 
-# ============================================================
-# 3. VIEW / API TESTS (8 tests)
-# ============================================================
+# ── VIEW / API TESTS ──────────────────────────────────────────────────────────
 class ConsentViewTests(TestCase):
 
     def setUp(self):
-        # APIClient is like a fake browser that sends requests to our APIs
+        # APIClient works like a fake browser that can send HTTP requests to our APIs
         self.client = APIClient()
 
-    # Test 21
+    # Test 21 - valid POST with correct token and existing hospitals should return 201
     def test_create_consent_valid(self):
-        """POST to create_consent with valid data should return 201"""
-        data = {
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
+        response = self.client.post('/api/consent/request/', {
             "patient_id": "P001",
-            "requesting_hospital": "Apollo",
-            "requested_to_hospital": "Fortis"
-        }
-        response = self.client.post('/api/consent/request/', data, format='json')
+            "requested_to_hospital": "Fortis",
+            "record_id": ""
+        }, HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}")
         self.assertEqual(response.status_code, 201)
 
-    # Test 22
+    # Test 22 - POST with missing required fields should return 400 even with valid token
     def test_create_consent_missing_fields(self):
-        """POST with missing fields should return 400"""
-        data = {"patient_id": "P001"}
-        response = self.client.post('/api/consent/request/', data, format='json')
+        apollo = make_hospital(name="Apollo", email="apollo2@test.com", contact="9876543212")
+        response = self.client.post('/api/consent/request/', {
+            "patient_id": ""
+        }, HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}")
         self.assertEqual(response.status_code, 400)
 
-    # Test 23
+    # Test 23 - GET to view all consents should return 200 and a list
     def test_view_all_consents(self):
-        """GET to view_consent should return 200 and a list"""
         make_consent()
         response = self.client.get('/api/consent/view/')
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.data, list)
 
-    # Test 24
+    # Test 24 - patient approving a pending consent should return 200
     def test_patient_decision_approve(self):
-        """PATCH patient-decision with APPROVED should return 200"""
         consent = make_consent()
         url = f'/api/consent/{consent.consent_id}/patient-decision/'
         response = self.client.patch(url, {"patient_choice": "APPROVED"}, format='json')
         self.assertEqual(response.status_code, 200)
 
-    # Test 25
+    # Test 25 - patient trying to respond again after already responding should return 400
     def test_patient_decision_already_responded(self):
-        """PATCH patient-decision after patient already responded should return 400"""
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
         consent.save()
@@ -244,25 +228,28 @@ class ConsentViewTests(TestCase):
         response = self.client.patch(url, {"patient_choice": "REJECTED"}, format='json')
         self.assertEqual(response.status_code, 400)
 
-    # Test 26
+    # Test 26 - owner hospital approving with valid token should return 200
     def test_hospital_decision_approve(self):
-        """PATCH hospital-decision with APPROVED should return 200"""
-        consent = make_consent()
+        fortis = make_hospital(name="Fortis", email="fortis@test.com", contact="9876543213")
+        consent = make_consent(requested_to="Fortis")
         url = f'/api/consent/{consent.consent_id}/hospital-decision/'
-        response = self.client.patch(url, {"hospital_choice": "APPROVED"}, format='json')
+        response = self.client.patch(
+            url,
+            {"hospital_choice": "APPROVED"},
+            format='json',
+            HTTP_AUTHORIZATION=f"Bearer {fortis.api_key}"
+        )
         self.assertEqual(response.status_code, 200)
 
-    # Test 27
+    # Test 27 - deleting a PENDING consent should return 200
     def test_delete_pending_consent(self):
-        """DELETE a PENDING consent should return 200"""
         consent = make_consent()
         url = f'/api/consent/{consent.consent_id}/delete/'
         response = self.client.delete(url)
         self.assertEqual(response.status_code, 200)
 
-    # Test 28
+    # Test 28 - deleting an APPROVED consent should be blocked and return 400
     def test_delete_approved_consent_blocked(self):
-        """DELETE an APPROVED consent should return 400 - cannot delete finalized consent"""
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
         consent.hospital_choice = 'APPROVED'

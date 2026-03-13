@@ -1,6 +1,6 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import ConsentRequest, HospitalIdentity
+from .models import ConsentRequest
 from .serializers import (
     ConsentRequestSerializer,
     ConsentCreateSerializer,
@@ -8,21 +8,39 @@ from .serializers import (
     HospitalDecisionSerializer
 )
 from django.shortcuts import get_object_or_404
-
+#! Samarpans Model Testing
+from hospitals.models import Hospital
+from django.core.exceptions import ValidationError
 
 #? ── HELPER ──────────────────────────────────────────────────────────────────
 def get_hospital_from_token(request):
-    # Returns (hospital, error_response) ( if error, hospital is None)
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith("Bearer "):
         return None, Response({"error": "Missing or invalid token"}, status=401)
 
     token = auth_header.split(" ")[1]
-    hospital = HospitalIdentity.objects.filter(api_token=token).first()
-    if not hospital:
-        return None, Response({"error": "Invalid hospital token"}, status=403)
+    try:
+        hospital = Hospital.objects.get(api_key=token)
+    except (Hospital.DoesNotExist, ValidationError):
+        return None, Response({"error": "Invalid hospital token"}, status=401)
 
     return hospital, None
+
+
+@api_view(['GET'])
+def hospital_directory(request):
+    hospital, error = get_hospital_from_token(request)
+    if error:
+        return error
+    
+    hospitals = Hospital.objects.filter(
+        account_status='active'
+    ).exclude(
+        hospital_name=hospital.hospital_name  # hide my own hospital...
+    ).values('hospital_name', 'city', 'state')
+    
+    return Response(list(hospitals), status=200)
+
 
 
 #? ── CONSENT MANAGEMENT APIs ──────────────────────────────────────────────────
@@ -34,7 +52,7 @@ def create_consent(request):
         return error
 
     data = request.data.copy()
-    data['requesting_hospital'] = hospital.name  #! override with real hospital name
+    data['requesting_hospital'] = hospital.hospital_name  #! override with real hospital name
 
     serializer = ConsentCreateSerializer(data=data)
     if serializer.is_valid():
@@ -148,7 +166,7 @@ def fetch_record(request, consent_id):
         return Response({"error": "Consent not approved"}, status=403)
 
     #* Step 4 - ensure requesting hospital matches token identity
-    if hospital.name != consent.requesting_hospital:
+    if hospital.hospital_name != consent.requesting_hospital:
         return Response({"error": "Unauthorized hospital"}, status=403)
 
     #! TODO: replace with real record fetch
