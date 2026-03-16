@@ -1,43 +1,9 @@
 /* ═══════════════════════════════════════════════════
-   MediChain — Admin Dashboard
-   Matches the dark theme of register.html
+   MediChain — h_dashboard.css
+   All colors via variables from theme.css.
+   Zero hardcoded rgba or hex values.
    Font: Syne (headings) + DM Sans (body) + DM Mono (numbers)
 ═══════════════════════════════════════════════════ */
-
-/* ── CSS Variables ── */
-:root {
-  --bg:           #0a0e1a;
-  --bg-2:         #0f1424;
-  --bg-3:         #141929;
-  --surface:      #161c2e;
-  --surface-2:    #1c2340;
-  --border:       rgba(255,255,255,0.07);
-  --border-hover: rgba(255,255,255,0.14);
-
-  --text-primary:   #f0f4ff;
-  --text-secondary: #8892b0;
-  --text-muted:     #4a5578;
-
-  --accent:       #4f8ef7;
-  --accent-glow:  rgba(79,142,247,0.18);
-  --accent-2:     #38d9a9;   /* teal — doctors */
-  --accent-3:     #f77f4f;   /* orange — nurses */
-  --accent-4:     #a78bfa;   /* purple — patients */
-  --accent-5:     #f7c94f;   /* gold — records */
-
-  --success:      #38d9a9;
-  --warning:      #f7c94f;
-  --error:        #f7604f;
-  --pending:      #f7c94f;
-  --disabled:     #4a5578;
-
-  --sidebar-w:    260px;
-  --topbar-h:     64px;
-  --radius:       14px;
-  --radius-sm:    8px;
-  --shadow:       0 4px 24px rgba(0,0,0,0.4);
-  --transition:   0.22s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -190,10 +156,11 @@ body {
   color: var(--text-primary);
 }
 
+/* active nav item uses accent bg + border */
 .nav-item.active {
-  background: var(--accent-glow);
+  background: var(--accent-bg);
   color: var(--accent);
-  border: 1px solid rgba(79,142,247,0.2);
+  border: 1px solid var(--accent-border);
 }
 
 .nav-icon {
@@ -215,8 +182,9 @@ body {
   color: var(--text-muted);
 }
 
+/* logout hover uses error color */
 .nav-logout:hover {
-  background: rgba(247,96,79,0.1);
+  background: var(--error-hover-bg);
   color: var(--error);
 }
 
@@ -348,12 +316,11 @@ body {
 
 .card-icon svg { width: 15px; height: 15px; }
 
-/* Icon colour variants */
-.card-icon-status   { background: rgba(79,142,247,0.15); color: var(--accent); }
-.card-icon-profile  { background: rgba(167,139,250,0.15); color: var(--accent-4); }
-.card-icon-stats    { background: rgba(247,201,79,0.15); color: var(--warning); }
-.card-icon-actions  { background: rgba(56,217,169,0.15); color: var(--accent-2); }
-.card-icon-activity { background: rgba(247,127,79,0.15); color: var(--accent-3); }
+/* Icon colour variants — all via variables */
+.card-icon-status   { background: var(--accent-bg);  color: var(--accent); }
+.card-icon-stats    { background: var(--a5-bg);      color: var(--warning); }
+.card-icon-actions  { background: var(--a2-bg);      color: var(--accent-2); }
+.card-icon-activity { background: var(--a3-bg);      color: var(--accent-3); }
 
 .card-title {
   font-family: 'Syne', sans-serif;
@@ -367,13 +334,14 @@ body {
   padding: 18px 20px;
 }
 
+/* card-btn uses accent bg + border */
 .card-btn {
   display: inline-flex;
   align-items: center;
   margin-top: 14px;
   padding: 8px 16px;
-  background: var(--accent-glow);
-  border: 1px solid rgba(79,142,247,0.3);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border-strong);
   border-radius: var(--radius-sm);
   font-size: 12.5px;
   font-weight: 600;
@@ -382,7 +350,7 @@ body {
 }
 
 .card-btn:hover {
-  background: rgba(79,142,247,0.25);
+  background: var(--accent-bg-strong);
   border-color: var(--accent);
 }
 
@@ -390,11 +358,7 @@ body {
 /* ═══════════════════════════════════════════════════
    ROW LAYOUTS
 ═══════════════════════════════════════════════════ */
-.dash-row {
-  display: grid;
-  gap: 20px;
-}
-
+.dash-row { display: grid; gap: 20px; }
 .dash-row-top    { grid-template-columns: 1fr 1.4fr; }
 .dash-row-bottom { grid-template-columns: 1fr 1.4fr; }
 
@@ -417,7 +381,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* Status badges */
+/* Status badges — all via variables */
 .status-badge {
   font-family: 'DM Mono', monospace;
   font-size: 11px;
@@ -427,16 +391,17 @@ body {
   text-transform: capitalize;
 }
 
-.status-badge-pending  { background: rgba(247,201,79,0.15); color: var(--warning); border: 1px solid rgba(247,201,79,0.3); }
-.status-badge-active   { background: rgba(56,217,169,0.15); color: var(--success); border: 1px solid rgba(56,217,169,0.3); }
-.status-badge-suspended{ background: rgba(247,96,79,0.15);  color: var(--error);   border: 1px solid rgba(247,96,79,0.3); }
-.status-badge-disabled { background: rgba(74,85,120,0.2);   color: var(--disabled);border: 1px solid rgba(74,85,120,0.3); }
+.status-badge-pending   { background: var(--a5-bg);       color: var(--warning);  border: 1px solid var(--a5-border-strong); }
+.status-badge-active    { background: var(--success-bg);   color: var(--success);  border: 1px solid var(--success-border); }
+.status-badge-suspended { background: var(--error-bg);     color: var(--error);    border: 1px solid var(--error-border); }
+.status-badge-disabled  { background: var(--disabled-bg);  color: var(--disabled); border: 1px solid var(--disabled-border); }
 
+/* status note uses warning/gold colors */
 .status-note {
   margin-top: 14px;
   padding: 10px 12px;
-  background: rgba(247,201,79,0.07);
-  border: 1px solid rgba(247,201,79,0.2);
+  background: var(--a5-bg-subtle);
+  border: 1px solid var(--a5-border);
   border-radius: var(--radius-sm);
   font-size: 12px;
   color: var(--warning);
@@ -515,11 +480,12 @@ body {
 
 .stat-chip-icon svg { width: 16px; height: 16px; }
 
-.stat-icon-patients { background: rgba(167,139,250,0.15); color: var(--accent-4); }
-.stat-icon-records  { background: rgba(247,201,79,0.15);  color: var(--warning); }
-.stat-icon-reports  { background: rgba(79,142,247,0.15);  color: var(--accent); }
-.stat-icon-doctors  { background: rgba(56,217,169,0.15);  color: var(--accent-2); }
-.stat-icon-nurses   { background: rgba(247,127,79,0.15);  color: var(--accent-3); }
+/* stat icon backgrounds — all via variables */
+.stat-icon-patients { background: var(--a4-bg); color: var(--accent-4); }
+.stat-icon-records  { background: var(--a5-bg); color: var(--warning); }
+.stat-icon-reports  { background: var(--accent-bg); color: var(--accent); }
+.stat-icon-doctors  { background: var(--a2-bg); color: var(--accent-2); }
+.stat-icon-nurses   { background: var(--a3-bg); color: var(--accent-3); }
 
 .stat-chip-num {
   font-family: 'Syne', sans-serif;
@@ -570,21 +536,22 @@ body {
 
 .action-btn-icon svg { width: 14px; height: 14px; }
 
+/* action button variants — all via variables */
 .action-btn-doctor { color: var(--accent-2); }
-.action-btn-doctor .action-btn-icon { background: rgba(56,217,169,0.15); color: var(--accent-2); }
-.action-btn-doctor:hover { background: rgba(56,217,169,0.08); border-color: rgba(56,217,169,0.3); }
+.action-btn-doctor .action-btn-icon { background: var(--a2-bg); color: var(--accent-2); }
+.action-btn-doctor:hover { background: var(--a2-hover-bg); border-color: var(--a2-hover-border); }
 
 .action-btn-nurse  { color: var(--accent-3); }
-.action-btn-nurse .action-btn-icon { background: rgba(247,127,79,0.15); color: var(--accent-3); }
-.action-btn-nurse:hover { background: rgba(247,127,79,0.08); border-color: rgba(247,127,79,0.3); }
+.action-btn-nurse .action-btn-icon { background: var(--a3-bg); color: var(--accent-3); }
+.action-btn-nurse:hover { background: var(--a3-hover-bg); border-color: var(--a3-hover-border); }
 
 .action-btn-patient { color: var(--accent-4); }
-.action-btn-patient .action-btn-icon { background: rgba(167,139,250,0.15); color: var(--accent-4); }
-.action-btn-patient:hover { background: rgba(167,139,250,0.08); border-color: rgba(167,139,250,0.3); }
+.action-btn-patient .action-btn-icon { background: var(--a4-bg); color: var(--accent-4); }
+.action-btn-patient:hover { background: var(--a4-hover-bg); border-color: var(--a4-hover-border); }
 
 .action-btn-record { color: var(--warning); }
-.action-btn-record .action-btn-icon { background: rgba(247,201,79,0.15); color: var(--warning); }
-.action-btn-record:hover { background: rgba(247,201,79,0.08); border-color: rgba(247,201,79,0.3); }
+.action-btn-record .action-btn-icon { background: var(--a5-bg); color: var(--warning); }
+.action-btn-record:hover { background: var(--a5-hover-bg); border-color: var(--a5-hover-border); }
 
 
 /* ═══════════════════════════════════════════════════
@@ -614,7 +581,7 @@ body {
   margin-top: 5px;
 }
 
-/* Dot colour by role */
+/* dot colors by role */
 .activity-dot-admin  { background: var(--accent);   box-shadow: 0 0 6px var(--accent); }
 .activity-dot-doctor { background: var(--accent-2); box-shadow: 0 0 6px var(--accent-2); }
 .activity-dot-nurse  { background: var(--accent-3); box-shadow: 0 0 6px var(--accent-3); }
@@ -636,7 +603,7 @@ body {
   font-family: 'DM Mono', monospace;
 }
 
-/* Empty state */
+/* empty state */
 .activity-empty {
   display: flex;
   flex-direction: column;
@@ -646,22 +613,9 @@ body {
   text-align: center;
 }
 
-.activity-empty svg {
-  width: 36px; height: 36px;
-  color: var(--text-muted);
-  opacity: 0.5;
-}
-
-.activity-empty p {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.activity-empty span {
-  font-size: 12px;
-  color: var(--text-muted);
-}
+.activity-empty svg   { width: 36px; height: 36px; color: var(--text-muted); opacity: 0.5; }
+.activity-empty p     { font-size: 14px; font-weight: 600; color: var(--text-secondary); }
+.activity-empty span  { font-size: 12px; color: var(--text-muted); }
 
 
 /* ═══════════════════════════════════════════════════
@@ -681,20 +635,13 @@ body {
     transform: translateX(-100%);
     transition: transform var(--transition);
   }
-
   .sidebar.sidebar-open { transform: translateX(0); }
-
-  .main { margin-left: 0; }
-
-  .sidebar-toggle { display: flex; }
-
-  .topbar { padding: 0 16px; }
-
+  .main              { margin-left: 0; }
+  .sidebar-toggle    { display: flex; }
+  .topbar            { padding: 0 16px; }
   .dashboard-content { padding: 16px; }
-
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-
-  .topbar-time { display: none; }
+  .stats-grid        { grid-template-columns: repeat(2, 1fr); }
+  .topbar-time       { display: none; }
 }
 
 @media (max-width: 480px) {

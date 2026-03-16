@@ -13,6 +13,7 @@ def generate_temp_password(length=12):
 # ─── Hospital Activation ──────────────────────────────────────────────────────
 
 # auto-activate hospital when license is locked and address is fully filled
+# used in session-based views — also updates session status
 def check_and_activate(request, hospital):
     if (
         hospital.license_locked and
@@ -25,3 +26,17 @@ def check_and_activate(request, hospital):
         hospital.account_status = 'active'
         hospital.save()
         request.session['account_status'] = 'active'
+
+
+# same activation logic but without session — used in services.py and API views
+def check_and_activate_without_session(hospital):
+    if (
+        hospital.license_locked and
+        hospital.address and
+        hospital.city and
+        hospital.state and
+        hospital.country and
+        hospital.account_status == 'pending'
+    ):
+        hospital.account_status = 'active'
+        hospital.save()

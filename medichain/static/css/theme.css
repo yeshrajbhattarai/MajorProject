@@ -1,0 +1,324 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MediChain — theme.css
+   SINGLE SOURCE OF TRUTH for every color in the entire app.
+   To change any color: edit ONLY this file.
+   To change a theme:   edit the matching :root block below.
+
+   Variable naming convention:
+   --accent-X-bg       subtle tinted background (icon boxes, badges)
+   --accent-X-border   subtle tinted border
+   --accent-X-hover-bg stronger tint used on hover states
+   --accent-X-glow     box-shadow glow value
+
+   Dark theme  = default (:root)
+   Light theme = :root[data-theme="light"]
+   Both blocks have IDENTICAL variable names — swapping data-theme
+   on <html> instantly changes every color with zero JS.
+═══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ─── Dark Theme (default) ────────────────────────────────────────────────── */
+:root {
+
+  /* ── Page backgrounds ───────────────────────────────────────────────────── */
+  --bg:           #0a0e1a;
+  --bg-2:         #0f1424;
+  --bg-3:         #141929;
+  --surface:      #161c2e;
+  --surface-2:    #1c2340;
+
+  /* ── Borders ────────────────────────────────────────────────────────────── */
+  --border:       rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.14);
+
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --text-primary:   #f0f4ff;
+  --text-secondary: #8892b0;
+  --text-muted:     #4a5578;
+
+  /* ── Core accents ───────────────────────────────────────────────────────── */
+  --accent:      #4f8ef7;               /* blue — primary */
+  --accent-glow: rgba(79,142,247,0.18);
+  --accent-2:    #38d9a9;               /* teal   — doctors */
+  --accent-3:    #f77f4f;               /* orange — nurses */
+  --accent-4:    #a78bfa;               /* purple — patients */
+  --accent-5:    #f7c94f;               /* gold   — records */
+
+  /* ── Semantic ───────────────────────────────────────────────────────────── */
+  --success:  #38d9a9;
+  --warning:  #f7c94f;
+  --error:    #f7604f;
+  --pending:  #f7c94f;
+  --disabled: #4a5578;
+
+  /* ── Blue (accent) derived tokens ──────────────────────────────────────── */
+  --accent-bg:            rgba(79,142,247,0.10);
+  --accent-bg-strong:     rgba(79,142,247,0.25);
+  --accent-border:        rgba(79,142,247,0.20);
+  --accent-border-strong: rgba(79,142,247,0.30);
+  --accent-hover-bg:      rgba(79,142,247,0.08);
+  --accent-info-bg:       rgba(79,142,247,0.07);
+  --accent-info-border:   rgba(79,142,247,0.20);
+
+  /* ── Teal (accent-2 — doctors) derived tokens ───────────────────────────── */
+  --a2-bg:           rgba(56,217,169,0.15);
+  --a2-bg-subtle:    rgba(56,217,169,0.10);
+  --a2-border:       rgba(56,217,169,0.25);
+  --a2-border-subtle: rgba(56,217,169,0.30);
+  --a2-hover-bg:     rgba(56,217,169,0.08);
+  --a2-hover-border: rgba(56,217,169,0.30);
+  --a2-glow:         rgba(56,217,169,0.25);
+  --a2-hover:        #2bc99a;           /* darker teal for :hover */
+
+  /* ── Orange (accent-3 — nurses) derived tokens ──────────────────────────── */
+  --a3-bg:           rgba(247,127,79,0.15);
+  --a3-bg-subtle:    rgba(247,127,79,0.10);
+  --a3-border:       rgba(247,127,79,0.25);
+  --a3-hover-bg:     rgba(247,127,79,0.08);
+  --a3-hover-border: rgba(247,127,79,0.30);
+  --a3-glow:         rgba(247,127,79,0.25);
+  --a3-hover:        #e86e3a;           /* darker orange for :hover */
+
+  /* ── Purple (accent-4 — patients) derived tokens ────────────────────────── */
+  --a4-bg:           rgba(167,139,250,0.15);
+  --a4-bg-subtle:    rgba(167,139,250,0.10);
+  --a4-border:       rgba(167,139,250,0.25);
+  --a4-hover-bg:     rgba(167,139,250,0.08);
+  --a4-hover-border: rgba(167,139,250,0.30);
+  --a4-glow:         rgba(167,139,250,0.25);
+  --a4-hover:        #9070e8;           /* darker purple for :hover */
+
+  /* ── Gold (accent-5 — records/warning) derived tokens ───────────────────── */
+  --a5-bg:            rgba(247,201,79,0.15);
+  --a5-bg-subtle:     rgba(247,201,79,0.07);
+  --a5-border:        rgba(247,201,79,0.20);
+  --a5-border-strong: rgba(247,201,79,0.30);
+  --a5-border-half:   rgba(247,201,79,0.50);
+  --a5-hover-bg:      rgba(247,201,79,0.08);
+  --a5-hover-border:  rgba(247,201,79,0.30);
+
+  /* ── Error/red derived tokens ────────────────────────────────────────────── */
+  --error-bg:       rgba(247,96,79,0.10);
+  --error-border:   rgba(247,96,79,0.30);
+  --error-hover-bg: rgba(247,96,79,0.10);
+
+  /* ── Success/teal derived tokens (semantic alias) ───────────────────────── */
+  --success-bg:     rgba(56,217,169,0.10);
+  --success-border: rgba(56,217,169,0.25);
+
+  /* ── Disabled/slate derived tokens ─────────────────────────────────────── */
+  --disabled-bg:     rgba(74,85,120,0.20);
+  --disabled-border: rgba(74,85,120,0.30);
+
+  /* ── Register page specific ─────────────────────────────────────────────── */
+  --reg-page-bg:         #0a0f1e;              /* login page background — same as dark bg */
+  --reg-surface:         rgba(255,255,255,0.02);
+  --reg-border:          rgba(99,179,237,0.12);
+  --reg-border-focus:    rgba(56,189,248,0.45);
+  --reg-accent:          #38bdf8;
+  --reg-accent2:         #818cf8;
+  --reg-accent-glow:     rgba(56,189,248,0.22);
+  --reg-text:            #e2e8f0;
+  --reg-muted:           #64748b;
+  --reg-hint:            #475569;
+  --reg-success:         #34d399;
+  --reg-error:           #f87171;
+  --reg-warning:         #fbbf24;
+  --reg-grid-line:       rgba(56,189,248,0.07);
+  --reg-glow-1:          rgba(56,189,248,0.10);
+  --reg-glow-2:          rgba(129,140,248,0.08);
+  --reg-input-hover:     rgba(56,189,248,0.04);
+  --reg-input-shadow:    rgba(56,189,248,0.07);
+  --reg-placeholder:     #1e2d45;
+  --reg-ph-line:         rgba(255,255,255,0.08);
+  --reg-ph-line-soft:    rgba(255,255,255,0.04);
+  --reg-ph-stat:         rgba(255,255,255,0.07);
+  --reg-skeleton-bg:     rgba(255,255,255,0.07);
+  --reg-dashed-border:   rgba(56,189,248,0.20);
+  --reg-panel-bg:        rgba(56,189,248,0.06);
+  --reg-panel-border:    rgba(56,189,248,0.18);
+  --reg-info-bg:         rgba(56,189,248,0.10);
+  --reg-info-border:     rgba(56,189,248,0.20);
+  --reg-btn-glow:        rgba(56,189,248,0.22);
+  --reg-btn-hover-glow:  rgba(56,189,248,0.35);
+  --reg-error-border:    rgba(248,113,113,0.50);
+  --reg-error-bg:        rgba(248,113,113,0.03);
+  --reg-success-border:  rgba(52,211,153,0.40);
+
+  /* ── Profile page specific ──────────────────────────────────────────────── */
+  --once-color:          #f7c94f;
+  --once-bg:             rgba(247,201,79,0.06);
+  --once-border:         rgba(247,201,79,0.20);
+  --once-checkbox-bg:    #f7c94f;
+  --once-checkbox-check: #0a0e1a;      /* checkmark on filled checkbox */
+
+  /* ── Layout / misc ──────────────────────────────────────────────────────── */
+  --sidebar-w:      260px;
+  --topbar-h:       64px;
+  --radius:         14px;
+  --radius-sm:      8px;
+  --radius-md:      10px;
+  --radius-lg:      14px;
+  --shadow:         0 4px 24px rgba(0,0,0,0.40);
+  --shadow-sm:      0 4px 20px rgba(0,0,0,0.20);
+  --transition:     0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --slide-duration: 0.52s;
+  --slide-ease:     cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+
+/* ─── Light Theme ──────────────────────────────────────────────────────────── */
+:root[data-theme="light"] {
+
+  /* ── Page backgrounds ───────────────────────────────────────────────────── */
+  --bg:           #f3f4f6;          /* slightly darker so cards pop as white */
+  --bg-2:         #ffffff;          /* sidebar, topbar — pure white */
+  --bg-3:         #e9ebee;          /* input backgrounds, table headers — clearly distinct */
+  --surface:      #ffffff;          /* cards — pure white */
+  --surface-2:    #f9fafb;          /* secondary surfaces */
+
+  /* ── Borders — more visible on white so cards have clear edges ──────────── */
+  --border:       rgba(0,0,0,0.13);
+  --border-hover: rgba(0,0,0,0.22);
+
+  /* ── Typography ─────────────────────────────────────────────────────────── */
+  --text-primary:   #111827;
+  --text-secondary: #374151;
+  --text-muted:     #6b7280;        /* darker muted — was too light to read */
+
+  /* ── Core accents ───────────────────────────────────────────────────────── */
+  --accent:      #1d4ed8;
+  --accent-glow: rgba(29,78,216,0.12);
+  --accent-2:    #047857;
+  --accent-3:    #c2410c;
+  --accent-4:    #6d28d9;
+  --accent-5:    #b45309;
+
+  /* ── Semantic ───────────────────────────────────────────────────────────── */
+  --success:  #047857;
+  --warning:  #b45309;
+  --error:    #b91c1c;
+  --pending:  #b45309;
+  --disabled: #9ca3af;
+
+  /* ── Blue (accent) derived tokens ──────────────────────────────────────── */
+  --accent-bg:            rgba(29,78,216,0.09);
+  --accent-bg-strong:     rgba(29,78,216,0.16);
+  --accent-border:        rgba(29,78,216,0.22);
+  --accent-border-strong: rgba(29,78,216,0.35);
+  --accent-hover-bg:      rgba(29,78,216,0.12);
+  --accent-info-bg:       rgba(29,78,216,0.07);
+  --accent-info-border:   rgba(29,78,216,0.20);
+
+  /* ── Teal (accent-2 — doctors) — boosted opacity for visibility ─────────── */
+  --a2-bg:            rgba(4,120,87,0.12);
+  --a2-bg-subtle:     rgba(4,120,87,0.08);
+  --a2-border:        rgba(4,120,87,0.28);
+  --a2-border-subtle: rgba(4,120,87,0.35);
+  --a2-hover-bg:      rgba(4,120,87,0.18);
+  --a2-hover-border:  rgba(4,120,87,0.40);
+  --a2-glow:          rgba(4,120,87,0.20);
+  --a2-hover:         #065f46;
+
+  /* ── Orange (accent-3 — nurses) ────────────────────────────────────────── */
+  --a3-bg:           rgba(194,65,12,0.10);
+  --a3-bg-subtle:    rgba(194,65,12,0.07);
+  --a3-border:       rgba(194,65,12,0.26);
+  --a3-hover-bg:     rgba(194,65,12,0.15);
+  --a3-hover-border: rgba(194,65,12,0.38);
+  --a3-glow:         rgba(194,65,12,0.20);
+  --a3-hover:        #9a3412;
+
+  /* ── Purple (accent-4 — patients) ──────────────────────────────────────── */
+  --a4-bg:           rgba(109,40,217,0.10);
+  --a4-bg-subtle:    rgba(109,40,217,0.07);
+  --a4-border:       rgba(109,40,217,0.26);
+  --a4-hover-bg:     rgba(109,40,217,0.15);
+  --a4-hover-border: rgba(109,40,217,0.38);
+  --a4-glow:         rgba(109,40,217,0.20);
+  --a4-hover:        #5b21b6;
+
+  /* ── Gold (accent-5 — records/warning) ─────────────────────────────────── */
+  --a5-bg:            rgba(180,83,9,0.10);
+  --a5-bg-subtle:     rgba(180,83,9,0.07);
+  --a5-border:        rgba(180,83,9,0.24);
+  --a5-border-strong: rgba(180,83,9,0.35);
+  --a5-border-half:   rgba(180,83,9,0.45);
+  --a5-hover-bg:      rgba(180,83,9,0.15);
+  --a5-hover-border:  rgba(180,83,9,0.38);
+
+  /* ── Error/red ──────────────────────────────────────────────────────────── */
+  --error-bg:       rgba(185,28,28,0.09);
+  --error-border:   rgba(185,28,28,0.26);
+  --error-hover-bg: rgba(185,28,28,0.13);
+
+  /* ── Success ────────────────────────────────────────────────────────────── */
+  --success-bg:     rgba(4,120,87,0.09);
+  --success-border: rgba(4,120,87,0.26);
+
+  /* ── Disabled ───────────────────────────────────────────────────────────── */
+  --disabled-bg:     rgba(156,163,175,0.18);
+  --disabled-border: rgba(156,163,175,0.35);
+
+  /* ── Register page ─────────────────────────────────────────────────────────
+     Key fixes:
+     - reg-text must be dark and readable
+     - reg-surface must be visibly different from page background
+     - input backgrounds must be clearly white on grey page
+     - placeholder must be readable but not as dark as text
+     - feature card placeholders need visible lines
+  ── */
+  --reg-page-bg:         #eef0f3;              /* login page background — slightly darker than surface */
+  --reg-surface:         #ffffff;              /* inputs/cards — pure white, clearly visible */
+  --reg-border:          rgba(0,0,0,0.13);     /* visible border on white inputs */
+  --reg-border-focus:    rgba(29,78,216,0.55);
+  --reg-accent:          #1d4ed8;
+  --reg-accent2:         #4f46e5;
+  --reg-accent-glow:     rgba(29,78,216,0.18);
+  --reg-text:            #0d1117;              /* near black — maximum readability */
+  --reg-muted:           #374151;              /* dark grey — clearly visible on any bg */
+  --reg-hint:            #4b5563;              /* medium grey — visible hints */
+  --reg-success:         #047857;
+  --reg-error:           #b91c1c;
+  --reg-warning:         #b45309;
+  --reg-grid-line:       rgba(29,78,216,0.05);
+  --reg-glow-1:          rgba(29,78,216,0.08);
+  --reg-glow-2:          rgba(79,70,229,0.06);
+  --reg-input-hover:     rgba(29,78,216,0.04);
+  --reg-input-shadow:    rgba(29,78,216,0.10);
+  --reg-placeholder:     #6b7280;              /* visible placeholder — dark enough to read */
+  --reg-ph-line:         rgba(0,0,0,0.12);     /* feature card skeleton lines — now visible */
+  --reg-ph-line-soft:    rgba(0,0,0,0.07);
+  --reg-ph-stat:         rgba(0,0,0,0.10);
+  --reg-skeleton-bg:     rgba(0,0,0,0.08);
+  --reg-dashed-border:   rgba(29,78,216,0.22);
+  --reg-panel-bg:        rgba(29,78,216,0.05);
+  --reg-panel-border:    rgba(29,78,216,0.18);
+  --reg-info-bg:         rgba(29,78,216,0.07);
+  --reg-info-border:     rgba(29,78,216,0.18);
+  --reg-btn-glow:        rgba(29,78,216,0.22);
+  --reg-btn-hover-glow:  rgba(29,78,216,0.35);
+  --reg-error-border:    rgba(185,28,28,0.40);
+  --reg-error-bg:        rgba(185,28,28,0.05);
+  --reg-success-border:  rgba(4,120,87,0.38);
+
+  /* ── Profile page ───────────────────────────────────────────────────────── */
+  --once-color:          #b45309;
+  --once-bg:             rgba(180,83,9,0.07);
+  --once-border:         rgba(180,83,9,0.24);
+  --once-checkbox-bg:    #b45309;
+  --once-checkbox-check: #ffffff;
+
+  /* ── Layout / misc ──────────────────────────────────────────────────────── */
+  --sidebar-w:      260px;
+  --topbar-h:       64px;
+  --radius:         14px;
+  --radius-sm:      8px;
+  --radius-md:      10px;
+  --radius-lg:      14px;
+  --shadow:         0 1px 3px rgba(0,0,0,0.10), 0 4px 16px rgba(0,0,0,0.07);
+  --shadow-sm:      0 1px 2px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05);
+  --transition:     0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --slide-duration: 0.52s;
+  --slide-ease:     cubic-bezier(0.65, 0, 0.35, 1);
+}

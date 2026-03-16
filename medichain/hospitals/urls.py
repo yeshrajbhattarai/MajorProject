@@ -31,6 +31,8 @@ urlpatterns = [
     path('staff/patients/',          views.patients_list,  name='patients_list'),
     path('staff/patients/add/',      views.add_patient,    name='add_patient'),
     path('staff/patients/<uuid:pk>/', views.patient_detail, name='patient_detail'),
-   
+
  
-]   
+]
+
+

@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════
-   MEDICHAIN — auth.css
-   100% custom CSS. Zero frameworks.
-   Covers both register & login in one file.
+   MediChain — register.css
+   Register & Login pages.
+   All colors via variables from theme.css.
+   Zero hardcoded rgba or hex values.
    Fonts: Syne (headings) · DM Sans (body)
 ═══════════════════════════════════════════ */
 
@@ -12,41 +13,13 @@
   box-sizing: border-box;
 }
 
-/* ── Design tokens ──────────────────────── */
-:root {
-  --bg:           #0a0f1e;
-  --surface:      rgba(255, 255, 255, 0.02);
-  --border:       rgba(99, 179, 237, 0.12);
-  --border-focus: rgba(56, 189, 248, 0.45);
-  --accent:       #38bdf8;
-  --accent2:      #818cf8;
-  --accent-glow:  rgba(56, 189, 248, 0.22);
-  --text:         #e2e8f0;
-  --muted:        #64748b;
-  --hint:         #475569;
-  --success:      #34d399;
-  --error:        #f87171;
-  --warning:      #fbbf24;
-
-  --font-display: 'Syne', sans-serif;
-  --font-body:    'DM Sans', sans-serif;
-
-  --radius-sm:    6px;
-  --radius-md:    10px;
-  --radius-lg:    14px;
-
-  /* Slide duration — change this one value to speed up / slow down */
-  --slide-duration: 0.52s;
-  --slide-ease:     cubic-bezier(0.65, 0, 0.35, 1);
-}
-
 /* ── Base ───────────────────────────────── */
 body {
-  background:  var(--bg);
+  background:  var(--reg-page-bg);
   min-height:  100vh;
   display:     flex;
-  font-family: var(--font-body);
-  color:       var(--text);
+  font-family: 'DM Sans', sans-serif;
+  color:       var(--reg-text);
   overflow:    hidden;
 }
 
@@ -57,8 +30,8 @@ body {
   position:   fixed;
   inset:      0;
   background-image:
-    linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+    linear-gradient(var(--reg-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--reg-grid-line) 1px, transparent 1px);
   background-size: 48px 48px;
   z-index: 0;
   pointer-events: none;
@@ -75,14 +48,14 @@ body {
 }
 
 .bg-glow-1 {
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--reg-glow-1) 0%, transparent 70%);
   top:   -200px;
   right: -100px;
   animation: drift1 12s ease-in-out infinite alternate;
 }
 
 .bg-glow-2 {
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, var(--reg-glow-2) 0%, transparent 70%);
   bottom: -200px;
   left:   -100px;
   animation: drift2 14s ease-in-out infinite alternate;
@@ -112,12 +85,14 @@ body {
 /* ════════════════════════════════════════
    LEFT PANEL
 ════════════════════════════════════════ */
+/* both panels transparent — body/page bg shows through so grid is visible */
 .left-panel {
   display:         flex;
   flex-direction:  column;
   justify-content: center;
   padding:         60px 64px;
-  border-right:    1px solid var(--border);
+  border-right:    1px solid var(--reg-border);
+  background:      transparent;
   animation:       slideInLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
@@ -138,36 +113,37 @@ body {
   height:          42px;
   flex-shrink:     0;
   border-radius:   12px;
-  background:      linear-gradient(135deg, var(--accent), var(--accent2));
+  background:      linear-gradient(135deg, var(--reg-accent), var(--reg-accent2));
   display:         flex;
   align-items:     center;
   justify-content: center;
-  box-shadow:      0 0 20px var(--accent-glow);
+  box-shadow:      0 0 20px var(--reg-accent-glow);
 }
 
 .logo-icon svg { width: 22px; height: 22px; fill: white; }
 
 .brand-name {
-  font-family:             var(--font-display);
+  font-family:             'Syne', sans-serif;
   font-size:               20px;
   font-weight:             800;
-  background:              linear-gradient(90deg, var(--accent), var(--accent2));
+  background:              linear-gradient(90deg, var(--reg-accent), var(--reg-accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip:         text;
 }
 
 .left-headline {
-  font-family:    var(--font-display);
+  font-family:    'Syne', sans-serif;
   font-size:      clamp(28px, 2.8vw, 42px);
   font-weight:    700;
   line-height:    1.15;
   letter-spacing: -1.2px;
   margin-bottom:  16px;
+  color:          var(--reg-text);
 }
 
 .left-headline span {
-  background:              linear-gradient(90deg, var(--accent), var(--accent2));
+  background:              linear-gradient(90deg, var(--reg-accent), var(--reg-accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip:         text;
@@ -175,7 +151,7 @@ body {
 
 .left-sub {
   font-size:     15px;
-  color:         var(--muted);
+  color:         var(--reg-muted);
   line-height:   1.7;
   max-width:     360px;
   margin-bottom: 44px;
@@ -194,9 +170,9 @@ body {
   align-items:   center;
   gap:           14px;
   padding:       14px 16px;
-  border:        1px dashed rgba(56, 189, 248, 0.2);
+  border:        1px dashed var(--reg-dashed-border);
   border-radius: var(--radius-lg);
-  background:    var(--surface);
+  background:    var(--reg-surface);
   opacity:       0;
   animation:     fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -215,13 +191,13 @@ body {
   height:        38px;
   flex-shrink:   0;
   border-radius: var(--radius-sm);
-  background:    rgba(56, 189, 248, 0.06);
-  border:        1px dashed rgba(56, 189, 248, 0.18);
+  background:    var(--reg-panel-bg);
+  border:        1px dashed var(--reg-panel-border);
 }
 
 .ph-text  { flex: 1; display: flex; flex-direction: column; gap: 6px; }
-.ph-title { height: 10px; width: 60%; border-radius: 99px; background: rgba(255,255,255,0.08); }
-.ph-desc  { height: 8px;  width: 80%; border-radius: 99px; background: rgba(255,255,255,0.04); }
+.ph-title { height: 10px; width: 60%; border-radius: 99px; background: var(--reg-ph-line); }
+.ph-desc  { height: 8px;  width: 80%; border-radius: 99px; background: var(--reg-ph-line-soft); }
 
 /* Stats row */
 .stats-row {
@@ -230,26 +206,19 @@ body {
   gap:         20px;
 }
 
-.stat-item  { display: flex; flex-direction: column; gap: 4px; }
-.stat-num   { display: block; width: 52px; height: 18px; border-radius: 4px;  background: rgba(255,255,255,0.07); }
-.stat-label { display: block; width: 48px; height: 8px;  border-radius: 99px; background: rgba(255,255,255,0.04); }
-.stat-divider { width: 1px; height: 32px; background: var(--border); }
+.stat-item    { display: flex; flex-direction: column; gap: 4px; }
+.stat-num     { display: block; width: 52px; height: 18px; border-radius: 4px;  background: var(--reg-ph-stat); }
+.stat-label   { display: block; width: 48px; height: 8px;  border-radius: 99px; background: var(--reg-ph-line-soft); }
+.stat-divider { width: 1px; height: 32px; background: var(--reg-border); }
 
 
 /* ════════════════════════════════════════
    RIGHT PANEL — STACKED SLIDE
-
-   Architecture:
-   • .right-panel   → position relative, overflow hidden
-   • .panel-track   → same size as right-panel, position relative
-   • .auth-card     → position absolute, full width & height
-   • Register sits at translateX(0), Login at translateX(100%)
-   • .show-login    → Register goes to -100%, Login comes to 0
-   Only one card is ever visible at a time. No peeking.
 ════════════════════════════════════════ */
 .right-panel {
-  position: relative;
-  overflow: hidden;
+  position:   relative;
+  overflow:   hidden;
+  background: transparent;
 }
 
 .panel-track {
@@ -272,8 +241,6 @@ body {
   will-change: transform;
 }
 
-/* ── Default state (showing register) ── */
-
 /* Register: visible, in place */
 #registerCard {
   transform: translateX(0);
@@ -288,23 +255,20 @@ body {
   pointer-events: none;
 }
 
-/* ── show-login state ── */
-
-/* Register: slide out to the left */
+/* show-login state */
 .panel-track.show-login #registerCard {
   transform: translateX(-100%);
   opacity:   0;
   pointer-events: none;
 }
 
-/* Login: slide in from the right */
 .panel-track.show-login #loginCard {
   transform: translateX(0);
   opacity:   1;
   pointer-events: all;
 }
 
-/* Inner content wrapper — caps width nicely */
+/* Inner content wrapper */
 .auth-card > * {
   max-width:    420px;
   width:        100%;
@@ -312,26 +276,25 @@ body {
   margin-right: auto;
 }
 
-/* ── Card header ──────────────────────── */
-.card-header {
-  margin-bottom: 26px;
-}
+/* Card header */
+.card-header { margin-bottom: 26px; }
 
 .card-header h2 {
-  font-family:    var(--font-display);
+  font-family:    'Syne', sans-serif;
   font-size:      24px;
   font-weight:    700;
   letter-spacing: -0.6px;
   margin-bottom:  4px;
+  color:          var(--reg-text);
 }
 
 .card-header p {
   font-size: 13px;
-  color:     var(--muted);
+  color:     var(--reg-muted);
 }
 
 /* ════════════════════════════════════════
-   FORM FIELDS  (shared by both forms)
+   FORM FIELDS
 ════════════════════════════════════════ */
 .input-group {
   margin-bottom: 16px;
@@ -346,31 +309,31 @@ body {
   font-weight:    600;
   letter-spacing: 0.7px;
   text-transform: uppercase;
-  color:          var(--muted);
+  color:          var(--reg-muted);
   margin-bottom:  7px;
   transition:     color 0.2s;
 }
 
+/* label badge uses accent info tokens */
 .label-badge {
   font-size:      9px;
   font-weight:    600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
-  color:          var(--accent);
-  background:     rgba(56, 189, 248, 0.1);
-  border:         1px solid rgba(56, 189, 248, 0.2);
+  color:          var(--reg-accent);
+  background:     var(--reg-info-bg);
+  border:         1px solid var(--reg-info-border);
   border-radius:  4px;
   padding:        2px 6px;
 }
 
-/* "Forgot password?" link — sits in label row, pushed right */
 .forgot-link {
   margin-left:     auto;
   font-size:       11px;
   font-weight:     500;
   letter-spacing:  0;
   text-transform:  none;
-  color:           var(--accent);
+  color:           var(--reg-accent);
   text-decoration: none;
   opacity:         0.8;
   transition:      opacity 0.2s;
@@ -386,7 +349,7 @@ body {
 .input-icon {
   position:       absolute;
   left:           13px;
-  color:          var(--muted);
+  color:          var(--reg-muted);
   pointer-events: none;
   display:        flex;
   transition:     color 0.2s;
@@ -398,7 +361,7 @@ body {
   left:           40px;
   font-size:      13px;
   font-weight:    500;
-  color:          var(--accent);
+  color:          var(--reg-accent);
   pointer-events: none;
   z-index:        1;
   letter-spacing: 0.3px;
@@ -407,38 +370,38 @@ body {
 .input-wrap input {
   width:         100%;
   padding:       11px 40px 11px 40px;
-  background:    var(--surface);
-  border:        1px solid var(--border);
+  background:    var(--reg-surface);
+  border:        1px solid var(--reg-border);
   border-radius: var(--radius-md);
-  color:         var(--text);
+  color:         var(--reg-text);
   font-size:     14px;
-  font-family:   var(--font-body);
+  font-family:   'DM Sans', sans-serif;
   outline:       none;
   transition:    background 0.2s, border-color 0.2s, box-shadow 0.2s;
-  caret-color:   var(--accent);
+  caret-color:   var(--reg-accent);
 }
 
 #contact_number { padding-left: 74px; }
 
-.input-wrap input::placeholder { color: #1e2d45; }
+.input-wrap input::placeholder { color: var(--reg-placeholder); }
 
 .input-wrap input:focus {
-  background:   rgba(56, 189, 248, 0.04);
-  border-color: var(--border-focus);
-  box-shadow:   0 0 0 3px rgba(56, 189, 248, 0.07);
+  background:   var(--reg-input-hover);
+  border-color: var(--reg-border-focus);
+  box-shadow:   0 0 0 3px var(--reg-input-shadow);
 }
 
 /* Validation states */
-.input-group.has-error   .input-wrap input { border-color: rgba(248,113,113,0.5); background: rgba(248,113,113,0.03); }
-.input-group.has-error   label             { color: var(--error); }
-.input-group.has-success .input-wrap input { border-color: rgba(52,211,153,0.4); }
-.input-group.has-success label             { color: var(--success); }
+.input-group.has-error   .input-wrap input { border-color: var(--reg-error-border); background: var(--reg-error-bg); }
+.input-group.has-error   label             { color: var(--reg-error); }
+.input-group.has-success .input-wrap input { border-color: var(--reg-success-border); }
+.input-group.has-success label             { color: var(--reg-success); }
 
 .field-status {
   position:       absolute;
   right:          13px;
   font-size:      13px;
-  color:          var(--success);
+  color:          var(--reg-success);
   font-weight:    600;
   pointer-events: none;
 }
@@ -446,7 +409,7 @@ body {
 .field-error {
   display:    block;
   font-size:  11px;
-  color:      var(--error);
+  color:      var(--reg-error);
   margin-top: 5px;
   min-height: 14px;
 }
@@ -454,7 +417,7 @@ body {
 .field-hint {
   display:    block;
   font-size:  11px;
-  color:      var(--hint);
+  color:      var(--reg-hint);
   margin-top: 4px;
 }
 
@@ -465,52 +428,53 @@ body {
   background:  none;
   border:      none;
   cursor:      pointer;
-  color:       var(--muted);
+  color:       var(--reg-muted);
   display:     flex;
   align-items: center;
   padding:     4px;
   transition:  color 0.2s;
   z-index:     1;
 }
-.toggle-pw:hover { color: var(--accent); }
+.toggle-pw:hover { color: var(--reg-accent); }
 
 /* Password strength */
 .pw-strength         { display: none; margin-top: 8px; }
 .pw-strength.visible { display: block; }
 .pw-bars             { display: flex; gap: 4px; margin-bottom: 4px; }
+
 .pw-bar {
   height:        3px;
   flex:          1;
   border-radius: 99px;
-  background:    rgba(255,255,255,0.07);
+  background:    var(--reg-skeleton-bg);
   transition:    background 0.3s;
 }
-.pw-bar.weak   { background: var(--error); }
-.pw-bar.medium { background: var(--warning); }
-.pw-bar.strong { background: var(--success); }
-.pw-label      { font-size: 11px; color: var(--muted); transition: color 0.3s; }
+
+.pw-bar.weak   { background: var(--reg-error); }
+.pw-bar.medium { background: var(--reg-warning); }
+.pw-bar.strong { background: var(--reg-success); }
+.pw-label      { font-size: 11px; color: var(--reg-muted); transition: color 0.3s; }
 
 /* Match hint */
 .match-hint         { display: none; font-size: 11px; margin-top: 5px; }
 .match-hint.visible { display: block; }
-.match-hint.ok      { color: var(--success); }
-.match-hint.fail    { color: var(--error); }
+.match-hint.ok      { color: var(--reg-success); }
+.match-hint.fail    { color: var(--reg-error); }
 
-/* ── Remember me checkbox ─────────────── */
+/* Remember me checkbox */
 .remember-row {
   margin-bottom: 18px;
   margin-top:    -4px;
 }
 
 .checkbox-label {
-  display:     flex;
-  align-items: center;
-  gap:         10px;
-  font-size:   13px;
-  color:       var(--muted);
-  cursor:      pointer;
-  user-select: none;
-  /* override the uppercase label style for this one */
+  display:         flex;
+  align-items:     center;
+  gap:             10px;
+  font-size:       13px;
+  color:           var(--reg-muted);
+  cursor:          pointer;
+  user-select:     none;
   text-transform:  none;
   letter-spacing:  normal;
   font-weight:     400;
@@ -518,7 +482,6 @@ body {
 }
 
 .checkbox-label input[type="checkbox"] {
-  /* visually hidden — replaced by .checkbox-custom */
   position: absolute;
   opacity:  0;
   width:    0;
@@ -526,20 +489,19 @@ body {
 }
 
 .checkbox-custom {
-  width:         18px;
-  height:        18px;
-  flex-shrink:   0;
-  border:        1px solid var(--border);
-  border-radius: 5px;
-  background:    var(--surface);
-  display:       flex;
-  align-items:   center;
+  width:           18px;
+  height:          18px;
+  flex-shrink:     0;
+  border:          1px solid var(--reg-border);
+  border-radius:   5px;
+  background:      var(--reg-surface);
+  display:         flex;
+  align-items:     center;
   justify-content: center;
-  transition:    border-color 0.2s, background 0.2s;
-  position:      relative;
+  transition:      border-color 0.2s, background 0.2s;
+  position:        relative;
 }
 
-/* Tick drawn with CSS — no image needed */
 .checkbox-custom::after {
   content:      '';
   display:      block;
@@ -554,8 +516,8 @@ body {
 }
 
 .checkbox-label input[type="checkbox"]:checked ~ .checkbox-custom {
-  background:    linear-gradient(135deg, var(--accent), var(--accent2));
-  border-color:  transparent;
+  background:   linear-gradient(135deg, var(--reg-accent), var(--reg-accent2));
+  border-color: transparent;
 }
 
 .checkbox-label input[type="checkbox"]:checked ~ .checkbox-custom::after {
@@ -569,11 +531,11 @@ body {
   width:           100%;
   padding:         13px 20px;
   margin-top:      8px;
-  background:      linear-gradient(135deg, var(--accent), var(--accent2));
+  background:      linear-gradient(135deg, var(--reg-accent), var(--reg-accent2));
   border:          none;
   border-radius:   var(--radius-md);
   color:           white;
-  font-family:     var(--font-display);
+  font-family:     'Syne', sans-serif;
   font-size:       15px;
   font-weight:     700;
   letter-spacing:  0.2px;
@@ -583,30 +545,29 @@ body {
   justify-content: center;
   gap:             8px;
   transition:      transform 0.2s, box-shadow 0.2s;
-  box-shadow:      0 4px 20px rgba(56, 189, 248, 0.22);
+  box-shadow:      0 4px 20px var(--reg-btn-glow);
 }
 
-.auth-btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(56, 189, 248, 0.35); }
+.auth-btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 28px var(--reg-btn-hover-glow); }
 .auth-btn:active { transform: translateY(0); }
 
 /* ════════════════════════════════════════
-   SWITCH LINK  ("Already registered? Login")
+   SWITCH LINK
 ════════════════════════════════════════ */
 .switch-link {
   text-align:  center;
   margin-top:  18px;
   font-size:   13px;
-  color:       var(--muted);
+  color:       var(--reg-muted);
 }
 
-/* The button that triggers the slide — looks like a link */
 .switch-btn {
   background:      none;
   border:          none;
   padding:         0;
   margin-left:     4px;
-  color:           var(--accent);
-  font-family:     var(--font-body);
+  color:           var(--reg-accent);
+  font-family:     'DM Sans', sans-serif;
   font-size:       13px;
   font-weight:     500;
   cursor:          pointer;
@@ -623,9 +584,7 @@ body {
   body        { overflow: auto; }
   .page       { grid-template-columns: 1fr; }
   .left-panel { display: none; }
-
   .panel-track { min-height: 100vh; }
-
   .auth-card {
     padding:         32px 20px;
     justify-content: flex-start;

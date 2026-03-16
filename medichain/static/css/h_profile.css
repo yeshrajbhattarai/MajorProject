@@ -1,6 +1,9 @@
 /* ═══════════════════════════════════════════════════
-   MediChain — Hospital Profile Page
-   Extends h_dashboard.css — import both
+   MediChain — h_profile.css
+   Hospital Profile Page
+   All colors via variables from theme.css.
+   Zero hardcoded rgba or hex values.
+   Extends h_dashboard.css — import both.
 ═══════════════════════════════════════════════════ */
 
 /* ── Page layout ── */
@@ -12,7 +15,7 @@
   gap: 20px;
 }
 
-/* ── Alert messages (Django messages framework) ── */
+/* ── Alert messages ── */
 .alert {
   display: flex;
   align-items: center;
@@ -23,19 +26,10 @@
   font-weight: 500;
 }
 
-.alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+.alert svg     { width: 16px; height: 16px; flex-shrink: 0; }
+.alert-success { background: var(--success-bg);  border: 1px solid var(--success-border); color: var(--success); }
+.alert-error   { background: var(--error-bg);    border: 1px solid var(--error-border);   color: var(--error); }
 
-.alert-success {
-  background: rgba(56,217,169,0.1);
-  border: 1px solid rgba(56,217,169,0.3);
-  color: var(--success);
-}
-
-.alert-error {
-  background: rgba(247,96,79,0.1);
-  border: 1px solid rgba(247,96,79,0.3);
-  color: var(--error);
-}
 
 /* ── Two-column grid ── */
 .profile-grid {
@@ -85,8 +79,9 @@
   margin-left: auto;
 }
 
+/* warning text uses once-color variable */
 .once-warning {
-  color: #f7c94f !important;
+  color: var(--once-color) !important;
   font-weight: 500;
 }
 
@@ -110,7 +105,7 @@
 
 
 /* ─────────────────────────────────────────────────
-   READ-ONLY FIELDS (email, contact)
+   READ-ONLY FIELDS
 ───────────────────────────────────────────────── */
 .readonly-field {
   display: flex;
@@ -170,7 +165,7 @@
 
 .locked-value {
   font-size: 13.5px;
-  color: var(--text-muted);  /* greyed out as requested */
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -179,8 +174,8 @@
   font-size: 10.5px;
   font-weight: 500;
   color: var(--text-muted);
-  background: rgba(74,85,120,0.2);
-  border: 1px solid rgba(74,85,120,0.3);
+  background: var(--disabled-bg);
+  border: 1px solid var(--disabled-border);
   padding: 2px 10px;
   border-radius: 20px;
 }
@@ -236,10 +231,7 @@
 .pf-input-wrap textarea::placeholder { color: var(--text-muted); }
 
 /* Password field with toggle */
-.pf-pw-wrap {
-  position: relative;
-}
-
+.pf-pw-wrap { position: relative; }
 .pf-pw-wrap input { padding-right: 42px; }
 
 .pf-toggle-pw {
@@ -258,15 +250,9 @@
 
 /* Error state */
 .pf-has-error .pf-input-wrap input,
-.pf-has-error .pf-input-wrap textarea {
-  border-color: var(--error);
-}
+.pf-has-error .pf-input-wrap textarea { border-color: var(--error); }
 
-.pf-field-error {
-  font-size: 12px;
-  color: var(--error);
-  min-height: 16px;
-}
+.pf-field-error { font-size: 12px; color: var(--error); min-height: 16px; }
 
 /* Two-column row inside a section */
 .pf-row-2 {
@@ -278,18 +264,21 @@
 
 /* ─────────────────────────────────────────────────
    ONCE-CONFIRM CHECKBOX
-   Appears when user starts editing a once-only field
+   Appears when user edits a once-only field
 ───────────────────────────────────────────────── */
 .once-confirm-row {
   margin-bottom: 14px;
   padding: 12px 14px;
-  background: rgba(247,201,79,0.06);
-  border: 1px solid rgba(247,201,79,0.2);
+  background: var(--once-bg);
+  border: 1px solid var(--once-border);
   border-radius: var(--radius-sm);
   animation: fadeIn 0.2s ease;
 }
 
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .once-checkbox-label {
   display: flex;
@@ -297,7 +286,7 @@
   gap: 10px;
   cursor: pointer;
   font-size: 12.5px;
-  color: #f7c94f;
+  color: var(--once-color);
   line-height: 1.5;
   user-select: none;
 }
@@ -306,7 +295,7 @@
 
 .once-checkbox-box {
   width: 16px; height: 16px;
-  border: 1.5px solid rgba(247,201,79,0.5);
+  border: 1.5px solid var(--a5-border-half);
   border-radius: 4px;
   flex-shrink: 0;
   margin-top: 1px;
@@ -315,16 +304,16 @@
 }
 
 .once-checkbox-label input:checked + .once-checkbox-box {
-  background: #f7c94f;
-  border-color: #f7c94f;
+  background: var(--once-checkbox-bg);
+  border-color: var(--once-checkbox-bg);
 }
 
 .once-checkbox-label input:checked + .once-checkbox-box::after {
   content: '';
   display: block;
   width: 9px; height: 5px;
-  border-left: 2px solid #0a0e1a;
-  border-bottom: 2px solid #0a0e1a;
+  border-left: 2px solid var(--once-checkbox-check);
+  border-bottom: 2px solid var(--once-checkbox-check);
   transform: rotate(-45deg) translate(1px, -1px);
 }
 
@@ -349,16 +338,12 @@
 .file-drop-zone:hover,
 .file-drop-zone.drop-hover {
   border-color: var(--accent);
-  background: var(--accent-glow);
+  background: var(--accent-bg);
 }
 
-.file-drop-zone svg {
-  width: 28px; height: 28px;
-  color: var(--text-muted);
-}
+.file-drop-zone svg { width: 28px; height: 28px; color: var(--text-muted); }
 
 .file-input {
-  /* Hidden — triggered by click on drop zone */
   position: absolute;
   inset: 0;
   opacity: 0;
@@ -367,16 +352,8 @@
   height: 100%;
 }
 
-.drop-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.drop-sub {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
+.drop-title { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.drop-sub   { font-size: 11.5px; color: var(--text-muted); }
 
 /* File selected state */
 .file-selected {
@@ -384,8 +361,8 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: rgba(79,142,247,0.08);
-  border: 1px solid rgba(79,142,247,0.25);
+  background: var(--accent-info-bg);
+  border: 1px solid var(--accent-info-border);
   border-radius: var(--radius-sm);
 }
 
@@ -416,7 +393,7 @@
 
 .file-selected button:hover {
   color: var(--error);
-  background: rgba(247,96,79,0.1);
+  background: var(--error-hover-bg);
 }
 
 
@@ -435,7 +412,7 @@
   font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: background var(--transition), transform var(--transition), opacity var(--transition);
+  transition: filter var(--transition), transform var(--transition), opacity var(--transition);
   width: 100%;
   margin-top: 4px;
 }
@@ -447,7 +424,7 @@
 }
 
 .pf-btn-primary:hover:not(:disabled) {
-  background: #3a7de8;
+  filter: brightness(0.9);
   transform: translateY(-1px);
 }
 
