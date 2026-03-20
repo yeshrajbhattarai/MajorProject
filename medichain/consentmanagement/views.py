@@ -12,18 +12,19 @@ from django.shortcuts import get_object_or_404
 from hospitals.models import Hospital
 from django.core.exceptions import ValidationError
 
+# ! Auditlog module
+from auditlog.utils import log_action
+
 #? ── HELPER ──────────────────────────────────────────────────────────────────
 def get_hospital_from_token(request):
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith("Bearer "):
         return None, Response({"error": "Missing or invalid token"}, status=401)
-
     token = auth_header.split(" ")[1]
     try:
         hospital = Hospital.objects.get(api_key=token)
     except (Hospital.DoesNotExist, ValidationError):
         return None, Response({"error": "Invalid hospital token"}, status=401)
-
     return hospital, None
 
 
@@ -57,6 +58,7 @@ def create_consent(request):
     serializer = ConsentCreateSerializer(data=data)
     if serializer.is_valid():
         consent = serializer.save()
+        log_action('CONSENT_CREATED', hospital.hospital_name, consent.consent_id)
         return Response(ConsentRequestSerializer(consent).data, status=201)  #* full object back
     return Response(serializer.errors, status=400)
 
@@ -71,27 +73,26 @@ def view_consent(request):
 
 @api_view(['GET'])
 def sent_requests(request):
-    #! Dev only - later will use token auth
-    hospital_name = request.GET.get('hospital_name')
-    if not hospital_name:
-        return Response({"error": "Please provide hospital_name"}, status=400)
+    hospital, error = get_hospital_from_token(request)
+    if error:
+        return error
 
     consents = ConsentRequest.objects.filter(
-        requesting_hospital=hospital_name
+        requesting_hospital=hospital.hospital_name
     ).order_by('-created_at')
     serializer = ConsentRequestSerializer(consents, many=True)
     return Response(serializer.data)
 
 
+
 @api_view(['GET'])
 def received_requests(request):
-    #! Dev only - later will use token auth
-    hospital_name = request.GET.get('hospital_name')
-    if not hospital_name:
-        return Response({"error": "Please provide hospital_name"}, status=400)
+    hospital, error = get_hospital_from_token(request)
+    if error:
+        return error
 
     consents = ConsentRequest.objects.filter(
-        requested_to_hospital=hospital_name
+        requested_to_hospital=hospital.hospital_name
     ).order_by('-created_at')
     serializer = ConsentRequestSerializer(consents, many=True)
     return Response(serializer.data)
@@ -117,13 +118,22 @@ def patient_decision(request, consent_id):
     serializer = PatientDecisionSerializer(consent, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
+        action = 'PATIENT_APPROVED' if request.data.get('patient_choice') == 'APPROVED' else 'PATIENT_REJECTED'
+        log_action(action, f"Patient of consent {consent_id}", consent.consent_id)
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
 
 @api_view(['PATCH'])
 def hospital_decision(request, consent_id):
+    hospital, error = get_hospital_from_token(request)  # add this
+    if error:
+        return error
+
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
+
+    if hospital.hospital_name != consent.requested_to_hospital:  # add this security check
+        return Response({"error": "Unauthorized - you are not the owner hospital"}, status=403)
 
     if consent.request_status != 'PENDING':
         return Response({"error": "Consent already finalized"}, status=400)
@@ -134,17 +144,28 @@ def hospital_decision(request, consent_id):
     serializer = HospitalDecisionSerializer(consent, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
+        action = 'HOSPITAL_APPROVED' if request.data.get('hospital_choice') == 'APPROVED' else 'HOSPITAL_REJECTED'
+        log_action(action, hospital.hospital_name, consent.consent_id)
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
-
 @api_view(['DELETE'])
 def delete_consent(request, consent_id):
+    hospital, error = get_hospital_from_token(request)
+    if error:
+        return error
+
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
+
+    # only requesting hospital can delete their own consent
+    if hospital.hospital_name != consent.requesting_hospital:
+        return Response({"error": "Unauthorized - only requesting hospital can delete"}, status=403)
 
     if consent.request_status != 'PENDING':
         return Response({"error": "Cannot delete approved/rejected consent"}, status=400)
 
+    log_action('CONSENT_DELETED', hospital.hospital_name, consent.consent_id,
+        extra_info=f"Consent between {consent.requesting_hospital} and {consent.requested_to_hospital}")
     consent.delete()
     return Response({"message": "Consent deleted successfully"}, status=200)
 
@@ -157,7 +178,7 @@ def fetch_record(request, consent_id):
     hospital, error = get_hospital_from_token(request)
     if error:
         return error
-
+    log_action('RECORD_ACCESS_ATTEMPT', hospital.hospital_name, consent_id)
     #* Step 2 - get the consent
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
@@ -176,4 +197,5 @@ def fetch_record(request, consent_id):
         "treatment": "Lifestyle modification + Medication",
         "owner_hospital": consent.requested_to_hospital
     }
+    log_action('RECORD_ACCESS_SUCCESS', hospital.hospital_name, consent.consent_id)
     return Response(dummy_record, status=200)

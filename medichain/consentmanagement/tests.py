@@ -241,19 +241,27 @@ class ConsentViewTests(TestCase):
         )
         self.assertEqual(response.status_code, 200)
 
-    # Test 27 - deleting a PENDING consent should return 200
-    def test_delete_pending_consent(self):
-        consent = make_consent()
-        url = f'/api/consent/{consent.consent_id}/delete/'
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, 200)
+# Test 27 - deleting a PENDING consent should return 200
+def test_delete_pending_consent(self):
+    apollo = make_hospital(name="Apollo", email="apollo_del@test.com", contact="9876543220")
+    consent = make_consent(requesting="Apollo")
+    url = f'/api/consent/{consent.consent_id}/delete/'
+    response = self.client.delete(
+        url,
+        HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}"
+    )
+    self.assertEqual(response.status_code, 200)
 
-    # Test 28 - deleting an APPROVED consent should be blocked and return 400
-    def test_delete_approved_consent_blocked(self):
-        consent = make_consent()
-        consent.patient_choice = 'APPROVED'
-        consent.hospital_choice = 'APPROVED'
-        consent.save()
-        url = f'/api/consent/{consent.consent_id}/delete/'
-        response = self.client.delete(url)
-        self.assertEqual(response.status_code, 400)
+# Test 28 - deleting an APPROVED consent should be blocked and return 400
+def test_delete_approved_consent_blocked(self):
+    apollo = make_hospital(name="Apollo", email="apollo_del2@test.com", contact="9876543221")
+    consent = make_consent(requesting="Apollo")
+    consent.patient_choice = 'APPROVED'
+    consent.hospital_choice = 'APPROVED'
+    consent.save()
+    url = f'/api/consent/{consent.consent_id}/delete/'
+    response = self.client.delete(
+        url,
+        HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}"
+    )
+    self.assertEqual(response.status_code, 400)

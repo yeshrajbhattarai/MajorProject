@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "hospitals",
     "consentmanagement",
     'rest_framework',
+    'auditlog',
 ]
 
 MIDDLEWARE = [
