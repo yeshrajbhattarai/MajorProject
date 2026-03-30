@@ -104,6 +104,27 @@ class AddNurseSerializer(serializers.Serializer):
         return value
 
 
+# used when hospital admin adds a new technician
+class AddTechnicianSerializer(serializers.Serializer):
+    full_name   = serializers.CharField(max_length=255)
+    email       = serializers.EmailField()
+    phone       = serializers.CharField(max_length=10)
+    employee_id = serializers.CharField(max_length=50)
+
+    def validate_email(self, value):
+        if HospitalUser.objects.filter(email=value.lower()).exists():
+            raise serializers.ValidationError('A staff member with this email already exists')
+        return value.lower()
+
+    def validate_phone(self, value):
+        import re
+        if not re.match(r'^[6-9]\d{9}$', value):
+            raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
+        if HospitalUser.objects.filter(phone=value).exists():
+            raise serializers.ValidationError('This phone number is already registered')
+        return value
+
+
 # ─── Patient Serializers ──────────────────────────────────────────────────────
 
 # used when returning patient data — gov_id_number is never exposed, only masked
@@ -139,3 +160,97 @@ class AddPatientSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         return value.lower() if value else value
+
+
+# ─── Lab Serializers ──────────────────────────────────────────────────────────
+
+class LabSerializer(serializers.ModelSerializer):
+    hospital_name = serializers.CharField(source='hospital.hospital_name', read_only=True)
+
+    class Meta:
+        model  = 'hospitals.Lab'
+        fields = ['id', 'hospital_name', 'lab_type', 'name', 'is_active', 'created_at']
+
+
+class CreateLabSerializer(serializers.Serializer):
+    lab_type = serializers.CharField(max_length=50)
+    name = serializers.CharField(max_length=255)
+
+
+# ─── Lab Request Serializers ──────────────────────────────────────────────────
+
+class LabRequestSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='patient.full_name', read_only=True)
+    doctor_name = serializers.CharField(source='requested_by.full_name', read_only=True)
+    lab_name = serializers.CharField(source='lab.name', read_only=True)
+
+    class Meta:
+        model  = 'hospitals.LabRequest'
+        fields = [
+            'id', 'patient_name', 'doctor_name', 'lab_name',
+            'status', 'chest_pain_type', 'diagnosis', 'treatment_plan',
+            'notes', 'created_at', 'completed_at',
+        ]
+
+
+class SendToLabSerializer(serializers.Serializer):
+    lab_id = serializers.CharField()
+    chest_pain_type = serializers.CharField()
+    diagnosis = serializers.CharField()
+    treatment_plan = serializers.CharField()
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class DoctorReassessSerializer(serializers.Serializer):
+    chest_pain_type = serializers.CharField()
+    diagnosis = serializers.CharField()
+    treatment_plan = serializers.CharField()
+    notes = serializers.CharField(required=False, allow_blank=True)
+    reason = serializers.CharField()
+
+
+# ─── Lab Request Revision Serializer ──────────────────────────────────────────
+
+class LabRequestRevisionSerializer(serializers.ModelSerializer):
+    revised_by_name = serializers.CharField(source='revised_by.full_name', read_only=True)
+
+    class Meta:
+        model  = 'hospitals.LabRequestRevision'
+        fields = [
+            'id', 'lab_request_id', 'revised_by_name', 'changed_fields',
+            'reason', 'created_at',
+        ]
+
+
+# ─── Medical Record Serializer –────────────────────────────────────────────────
+
+class MedicalRecordMetaSerializer(serializers.ModelSerializer):
+    patient_name = serializers.CharField(source='lab_request.patient.full_name', read_only=True)
+    lab_name = serializers.CharField(source='lab_request.lab.name', read_only=True)
+    recorded_by_name = serializers.SerializerMethodField()
+
+    def get_recorded_by_name(self, obj):
+        try:
+            user = HospitalUser.objects.get(id=obj.recorded_by_id)
+            return user.full_name
+        except HospitalUser.DoesNotExist:
+            return 'Unknown User'
+
+    class Meta:
+        model  = 'hospitals.MedicalRecordMeta'
+        fields = [
+            'record_id', 'patient_name', 'lab_name', 'recorded_by_name',
+            'version', 'created_at', 'updated_at',
+        ]
+
+
+class CreateMedicalRecordSerializer(serializers.Serializer):
+    age = serializers.IntegerField()
+    gender = serializers.CharField()
+    blood_pressure_systolic = serializers.IntegerField()
+    blood_pressure_diastolic = serializers.IntegerField()
+    cholesterol = serializers.IntegerField()
+    blood_glucose = serializers.FloatField()
+    heart_rate = serializers.IntegerField()
+    ecg_result = serializers.CharField()
+    technician_change_reason = serializers.CharField(required=False, allow_blank=True)

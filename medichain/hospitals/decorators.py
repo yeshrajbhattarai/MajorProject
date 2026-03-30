@@ -33,3 +33,13 @@ def nurse_required(view_func):
             return redirect('/')
         return view_func(request, *args, **kwargs)
     return wrapper
+
+def technician_required(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if 'staff_id' not in request.session:
+            return redirect('/')
+        if request.session.get('staff_role') != 'technician':
+            return redirect('/')
+        return view_func(request, *args, **kwargs)
+    return wrapper

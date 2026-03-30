@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Labs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .labs-layout { display: flex; flex-direction: column; gap: 16px; }
+    .labs-create-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .labs-create-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .labs-create-title { font-size: 15px; font-weight: 700; color: var(--text-primary); font-family: 'Syne', sans-serif; }
+    .labs-create-sub { font-size: 12px; color: var(--text-muted); }
+    .labs-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; }
+    .labs-chip {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 10px;
+    }
+    .status-chip {
+      display: inline-flex;
+      padding: 4px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: var(--accent-3);
+      background: var(--a3-bg-subtle);
+      border: 1px solid var(--a3-border);
+    }
+    .count-chip {
+      display: inline-flex;
+      font-size: 11px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      color: var(--text-secondary);
+    }
+    @media (max-width: 900px) {
+      .labs-form { grid-template-columns: 1fr; }
+      .labs-create-head { align-items: flex-start; flex-direction: column; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/sidebar.html' with active_page='labs' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Labs</h1>
+          <span class="breadcrumb">
+            <a href="/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; Labs
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">
+          {{ hospital_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="staff-content labs-layout">
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="labs-create-card">
+        <div class="labs-create-head">
+          <div>
+            <div class="labs-create-title">Create New Lab</div>
+            <div class="labs-create-sub">Set up a specialized lab and start receiving doctor requests.</div>
+          </div>
+          <span class="labs-chip">{{ labs|length }} total labs</span>
+        </div>
+
+        <form method="POST" action="/labs/" class="labs-form">
+          {% csrf_token %}
+          <input class="sf-input" type="text" name="name" placeholder="Lab name (e.g. CKD Lab)" required>
+          <select class="sf-input" name="lab_type" required>
+            <option value="">Select lab type</option>
+            <option value="ckd">Chronic Kidney Disease</option>
+          </select>
+          <button class="sf-btn-save" type="submit">Create Lab</button>
+        </form>
+      </div>
+
+      <div class="staff-table-card">
+        <div class="staff-table-wrap">
+          <table class="staff-table">
+            <thead>
+              <tr>
+                <th>Lab</th>
+                <th>Type</th>
+                <th>Technicians</th>
+                <th>Pending</th>
+                <th>Completed</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in labs %}
+              <tr>
+                <td>
+                  <div class="staff-name-cell">
+                    <div class="staff-avatar avatar-patient">{{ item.lab.name|slice:":1"|upper }}</div>
+                    <div class="staff-name-info">
+                      <span class="staff-name">{{ item.lab.name }}</span>
+                      <span class="staff-emp-id">{{ item.lab.id }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="status-chip">{{ item.lab.get_lab_type_display }}</span></td>
+                <td><span class="count-chip">{{ item.technicians_count }} assigned</span></td>
+                <td><span class="count-chip">{{ item.pending_count }} pending</span></td>
+                <td><span class="count-chip">{{ item.completed_count }} done</span></td>
+                <td>
+                  <a class="tbl-btn tbl-btn-view" href="/labs/{{ item.lab.id }}/">Manage</a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="td-muted">No labs created yet. Use the form above to create your first lab.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

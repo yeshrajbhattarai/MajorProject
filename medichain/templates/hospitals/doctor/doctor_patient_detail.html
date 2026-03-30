@@ -1,0 +1,750 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | {{ patient.full_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 800px) { .detail-grid { grid-template-columns: 1fr; } }
+
+    /* Patient info card */
+    .patient-hero {
+      display: flex; align-items: center; gap: 20px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--a4-border);
+      border-radius: var(--radius);
+      background-image: linear-gradient(135deg, var(--surface) 60%, var(--a4-bg-subtle));
+    }
+    .patient-hero-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--a4-bg); border: 2px solid var(--a4-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 700;
+      color: var(--accent-4); flex-shrink: 0;
+    }
+    .patient-hero-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--text-primary);
+    }
+    .patient-hero-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Info section */
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .info-card-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .info-card-head-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .info-card-head-icon svg { width: 16px; height: 16px; }
+    .info-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .info-card-body { padding: 20px; }
+
+    .info-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .info-value { font-size: 13px; color: var(--text-primary); font-weight: 500; text-align: right; }
+    .info-value-mono { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+    /* Assignment section */
+    .assign-section { display: flex; flex-direction: column; gap: 16px; }
+
+    .assign-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .assign-card-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .assign-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .assign-card-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* Assigned staff chips */
+    .assigned-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+    .assigned-chip {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 10px 5px 12px;
+      border-radius: 20px;
+      font-size: 12px; font-weight: 500;
+    }
+    .assigned-chip-nurse { background: var(--a1-bg); color: var(--accent); border: 1px solid var(--a1-border); }
+    .assigned-chip-tech  { background: var(--a3-bg); color: var(--accent-3); border: 1px solid var(--a3-border); }
+
+    .chip-remove {
+      width: 16px; height: 16px; border-radius: 50%;
+      background: none; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.6; transition: opacity 0.2s;
+      padding: 0;
+    }
+    .chip-remove:hover { opacity: 1; }
+    .chip-remove svg { width: 10px; height: 10px; stroke: currentColor; }
+
+    /* Searchable assign select */
+    .assign-form { display: flex; gap: 8px; align-items: flex-start; }
+    .assign-select-wrap { flex: 1; position: relative; }
+
+    .searchable-select { position: relative; }
+    .searchable-input-wrap { position: relative; }
+    .searchable-input-wrap input {
+      width: 100%; box-sizing: border-box;
+      padding: 8px 32px 8px 12px;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+    .searchable-input-wrap input:focus { outline: none; border-color: var(--accent); }
+    .searchable-input-wrap input::placeholder { color: var(--text-muted); }
+    .searchable-chevron {
+      position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+      width: 14px; height: 14px; stroke: var(--text-muted); pointer-events: none;
+      transition: transform 0.2s;
+    }
+    .searchable-select.open .searchable-chevron { transform: translateY(-50%) rotate(180deg); }
+    .searchable-dropdown {
+      display: none;
+      position: fixed; z-index: 9999;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      max-height: 220px; overflow-y: auto;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    }
+    .searchable-select.open .searchable-dropdown { display: block; }
+    .searchable-option {
+      padding: 9px 12px; font-size: 13px; color: var(--text-primary);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .searchable-option:hover, .searchable-option.highlighted { background: var(--bg-3); }
+    .searchable-option.selected { color: var(--accent); font-weight: 600; }
+    .searchable-no-results { padding: 9px 12px; font-size: 13px; color: var(--text-muted); font-style: italic; }
+    .assign-select-wrap select { display: none; }
+
+    .btn-assign {
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+    .btn-assign:hover { opacity: 0.85; }
+    .btn-assign svg { width: 13px; height: 13px; }
+    .btn-assign-nurse { background: var(--accent);   color: #fff; }
+    .btn-assign-tech  { background: var(--accent-3); color: #fff; }
+
+    .no-assign-text { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+    /* Lab dynamic form */
+    .lab-select-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .lab-helper {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--bg-3);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+    .lab-dynamic {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-2);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .lab-dynamic.hidden { display: none; }
+    .lab-dynamic-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .lab-dynamic-title {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .lab-pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--a3-border);
+      color: var(--accent-3);
+      background: var(--a3-bg-subtle);
+    }
+    .lab-field-group.hidden { display: none; }
+    .lab-field-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .sf-textarea {
+      width: 100%;
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    /* Records access */
+    .records-placeholder {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .records-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .records-head h3 {
+      font-size: 15px;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .records-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+    }
+    .records-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .record-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      background: var(--bg-2);
+    }
+    .record-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .record-title {
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
+    .record-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .record-btn {
+      font-size: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      background: var(--surface);
+    }
+    .record-btn-primary {
+      border-color: var(--a3-border);
+      background: var(--a3-bg-subtle);
+      color: var(--accent-3);
+    }
+    .records-empty {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 14px 6px;
+    }
+  </style>
+</head>
+<body>
+
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='patients' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>{{ patient.full_name }}</h1>
+          <span class="breadcrumb">
+            <a href="/staff/doctor/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp;
+            <a href="/staff/doctor/patients/" class="breadcrumb-link">Patients</a>
+            &nbsp;/&nbsp; {{ patient.full_name }}
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="add-staff-content">
+
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {% if message.tags == 'success' %}<polyline points="20 6 9 17 4 12"/>
+            {% else %}<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>{% endif %}
+          </svg>
+          {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Patient hero card -->
+      <div class="patient-hero">
+        <div class="patient-hero-avatar">{{ patient.full_name|slice:":1"|upper }}</div>
+        <div>
+          <div class="patient-hero-name">{{ patient.full_name }}</div>
+          <div class="patient-hero-sub">
+            {{ patient.gender|default:"—" }} &nbsp;·&nbsp;
+            {{ patient.phone|default:"—" }} &nbsp;·&nbsp;
+            Registered {{ patient.created_at|date:"d M Y" }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Main detail grid -->
+      <div class="detail-grid">
+
+        <!-- LEFT: patient info -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <div class="info-card">
+            <div class="info-card-head">
+              <div class="info-card-head-icon" style="background:var(--a4-bg);color:var(--accent-4);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span class="info-card-title">Patient Information</span>
+            </div>
+            <div class="info-card-body">
+              <div class="info-row">
+                <span class="info-label">Full Name</span>
+                <span class="info-value">{{ patient.full_name }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Gender</span>
+                <span class="info-value">{{ patient.gender|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Phone</span>
+                <span class="info-value">{{ patient.phone|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value">{{ patient.email|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Address</span>
+                <span class="info-value">{{ patient.address|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Gov ID Type</span>
+                <span class="info-value">{{ patient.get_gov_id_type_display }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Gov ID</span>
+                <span class="info-value info-value-mono">{{ gov_id_masked }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Registered On</span>
+                <span class="info-value">{{ patient.created_at|date:"d M Y, h:i A" }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Records access -->
+          <div class="records-placeholder">
+            <div class="records-head">
+              <h3>Medical Records</h3>
+              <span class="records-count">{{ patient_records|length }} records</span>
+            </div>
+
+            {% if patient_records %}
+            <div class="records-list">
+              {% for item in patient_records %}
+              <div class="record-row">
+                <div>
+                  <div class="record-title">{{ item.lab_request.lab.name }} · Version {{ item.version }}</div>
+                  <div class="record-meta">
+                    <span>Doctor: {{ item.lab_request.requested_by.full_name }}</span>
+                    <span>Updated: {{ item.updated_at|date:"d M Y, h:i A" }}</span>
+                    <span>ID: {{ item.record_id }}</span>
+                  </div>
+                </div>
+                <div class="record-actions">
+                  <a href="/staff/records/{{ item.record_id }}/" class="record-btn record-btn-primary">View</a>
+                  <a href="/staff/records/{{ item.record_id }}/history/" class="record-btn">History</a>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="records-empty">No records yet for this patient.</div>
+            {% endif %}
+          </div>
+
+        </div>
+
+        <!-- RIGHT: assignments -->
+        <div class="assign-section">
+
+          <!-- Assigned Nurses -->
+          <div class="assign-card">
+            <div class="assign-card-head">
+              <div class="info-card-head-icon" style="background:var(--a1-bg);color:var(--accent);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span class="assign-card-title">Assigned Nurses</span>
+              <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">{{ assigned_nurses|length }} assigned</span>
+            </div>
+            <div class="assign-card-body">
+
+              <!-- Current assignments -->
+              {% if assigned_nurses %}
+              <div class="assigned-list">
+                {% for a in assigned_nurses %}
+                <div class="assigned-chip assigned-chip-nurse">
+                  {{ a.staff.full_name }}
+                  <form method="POST" action="/staff/doctor/patients/{{ patient.id }}/remove-assignment/{{ a.staff.id }}/" style="margin:0;">
+                    {% csrf_token %}
+                    <button type="submit" class="chip-remove" title="Remove">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </form>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="no-assign-text">No nurses assigned yet.</p>
+              {% endif %}
+
+              <!-- Assign new nurse -->
+              {% if available_nurses %}
+              <form method="POST" action="/staff/doctor/patients/{{ patient.id }}/assign-nurse/" class="assign-form" id="nurseAssignForm">
+                {% csrf_token %}
+                <div class="assign-select-wrap">
+                  <select name="nurse_id" id="nurseIdInput" required>
+                    <option value="">— Select nurse —</option>
+                    {% for nurse in available_nurses %}
+                    <option value="{{ nurse.id }}">{{ nurse.full_name }}</option>
+                    {% endfor %}
+                  </select>
+                  <div class="searchable-select" id="nurseSearchable">
+                    <div class="searchable-input-wrap">
+                      <input type="text" id="nurseSearchInput" placeholder="Search nurse..." autocomplete="off">
+                      <svg class="searchable-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"/>
+                      </svg>
+                    </div>
+                    <div class="searchable-dropdown" id="nurseDropdown">
+                      {% for nurse in available_nurses %}
+                      <div class="searchable-option" data-value="{{ nurse.id }}" data-label="{{ nurse.full_name }}">{{ nurse.full_name }}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <button type="submit" class="btn-assign btn-assign-nurse">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Assign
+                </button>
+              </form>
+              {% else %}
+              <p class="no-assign-text">All active nurses are already assigned.</p>
+              {% endif %}
+
+            </div>
+          </div>
+
+          <!-- Send To Lab -->
+          <div class="assign-card">
+            <div class="assign-card-head">
+              <div class="info-card-head-icon" style="background:var(--a3-bg);color:var(--accent-3);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/>
+                </svg>
+              </div>
+              <span class="assign-card-title">Send To Lab</span>
+            </div>
+            <div class="assign-card-body">
+              {% if available_labs %}
+              <form method="POST" action="/staff/doctor/patients/{{ patient.id }}/send-to-lab/" style="display:flex;flex-direction:column;gap:10px;" id="sendToLabForm">
+                {% csrf_token %}
+                <div class="lab-select-shell">
+                  <div class="assign-select-wrap">
+                    <select name="lab_id" id="labIdInput" required>
+                      <option value="">— Select lab —</option>
+                      {% for lab in available_labs %}
+                      <option value="{{ lab.id }}" data-lab-type="{{ lab.lab_type }}">{{ lab.name }} ({{ lab.get_lab_type_display }})</option>
+                      {% endfor %}
+                    </select>
+                    <div class="searchable-select" id="labSearchable">
+                      <div class="searchable-input-wrap">
+                        <input type="text" id="labSearchInput" placeholder="Select lab to continue..." autocomplete="off">
+                        <svg class="searchable-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="6 9 12 15 18 9"/>
+                        </svg>
+                      </div>
+                      <div class="searchable-dropdown" id="labDropdown">
+                        {% for lab in available_labs %}
+                        <div class="searchable-option" data-value="{{ lab.id }}" data-lab-type="{{ lab.lab_type }}" data-label="{{ lab.name }} ({{ lab.get_lab_type_display }})">{{ lab.name }} ({{ lab.get_lab_type_display }})</div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                  <p class="lab-helper" id="labHelperText">Select a lab first. Relevant clinical fields will appear based on the selected lab type.</p>
+                </div>
+
+                <div class="lab-dynamic hidden" id="labDynamicContainer">
+                  <div class="lab-dynamic-head">
+                    <span class="lab-dynamic-title">Lab-specific Input</span>
+                    <span class="lab-pill" id="labTypePill">Lab</span>
+                  </div>
+
+                  <div class="lab-field-group hidden" data-lab-type="ckd">
+                    <div class="lab-field-grid">
+                      <select name="chest_pain_type" class="sf-input" data-required="true" disabled>
+                        <option value="">Chest pain type</option>
+                        <option value="typical">Typical</option>
+                        <option value="atypical">Atypical</option>
+                        <option value="non_anginal">Non-anginal</option>
+                        <option value="asymptomatic">Asymptomatic</option>
+                      </select>
+                      <textarea name="diagnosis" class="sf-input sf-textarea" rows="3" placeholder="Diagnosis" data-required="true" disabled></textarea>
+                      <textarea name="treatment_plan" class="sf-input sf-textarea" rows="3" placeholder="Treatment plan" data-required="true" disabled></textarea>
+                      <textarea name="notes" class="sf-input sf-textarea" rows="2" placeholder="Additional notes (optional)" disabled></textarea>
+                    </div>
+                  </div>
+                </div>
+
+                <button type="submit" class="btn-assign btn-assign-tech">Send To Lab</button>
+              </form>
+              {% else %}
+              <p class="no-assign-text">No active labs available. Ask admin to create and activate a lab first.</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Assignment note -->
+          <div style="padding:14px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);">
+            <strong style="color:var(--text-primary);">Note:</strong>
+            Nurses are assigned directly by doctor. Technicians now work from lab queues.
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Back button -->
+      <div style="margin-top:8px;">
+        <a href="/staff/doctor/patients/" class="sf-btn-cancel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Back to Patients
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+  function updateTime() {
+    const el = document.getElementById('topbarTime');
+    if (el) el.textContent = new Date().toLocaleDateString('en-IN', {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+  updateTime(); setInterval(updateTime, 60000);
+
+  // Searchable select widget
+  function initSearchableSelect({ searchInputId, dropdownId, selectId, selectableId, onSelect }) {
+    const searchInput = document.getElementById(searchInputId);
+    const dropdown    = document.getElementById(dropdownId);
+    const select      = document.getElementById(selectId);
+    const container   = document.getElementById(selectableId);
+    if (!searchInput) return;
+
+    const options = Array.from(dropdown.querySelectorAll('.searchable-option'));
+    let selectedValue = '';
+
+    function positionDropdown() {
+      const rect = searchInput.getBoundingClientRect();
+      dropdown.style.top   = (rect.bottom + 4) + 'px';
+      dropdown.style.left  = rect.left + 'px';
+      dropdown.style.width = rect.width + 'px';
+    }
+    function openDropdown() {
+      container.classList.add('open');
+      positionDropdown();
+      filterOptions('');
+      searchInput.value = '';
+    }
+    function closeDropdown() {
+      container.classList.remove('open');
+      const sel = options.find(o => o.dataset.value === selectedValue);
+      searchInput.value = sel ? sel.dataset.label : '';
+    }
+    function filterOptions(q) {
+      const query = q.toLowerCase();
+      let any = false;
+      options.forEach(opt => {
+        const match = opt.dataset.label.toLowerCase().includes(query);
+        opt.style.display = match ? '' : 'none';
+        if (match) any = true;
+      });
+      let noRes = dropdown.querySelector('.searchable-no-results');
+      if (!any) {
+        if (!noRes) {
+          noRes = document.createElement('div');
+          noRes.className = 'searchable-no-results';
+          noRes.textContent = 'No results found';
+          dropdown.appendChild(noRes);
+        }
+        noRes.style.display = '';
+      } else if (noRes) {
+        noRes.style.display = 'none';
+      }
+    }
+    function selectOption(value, label, meta = null) {
+      selectedValue = value;
+      select.value  = value;
+      searchInput.value = label;
+      options.forEach(o => o.classList.toggle('selected', o.dataset.value === value));
+      if (typeof onSelect === 'function') {
+        onSelect({ value, label, meta });
+      }
+      closeDropdown();
+    }
+
+    searchInput.addEventListener('focus', openDropdown);
+    searchInput.addEventListener('input', () => { positionDropdown(); filterOptions(searchInput.value); });
+    window.addEventListener('scroll', () => { if (container.classList.contains('open')) positionDropdown(); }, true);
+    window.addEventListener('resize', () => { if (container.classList.contains('open')) positionDropdown(); });
+    options.forEach(opt => {
+      opt.addEventListener('mousedown', e => {
+        e.preventDefault();
+        selectOption(opt.dataset.value, opt.dataset.label, opt.dataset);
+      });
+    });
+    document.addEventListener('click', e => {
+      if (!container.contains(e.target) && e.target !== searchInput) closeDropdown();
+    });
+
+    const form = select.closest('form');
+    if (form) {
+      form.addEventListener('submit', e => {
+        if (!selectedValue) {
+          e.preventDefault();
+          searchInput.focus();
+          openDropdown();
+        }
+      });
+    }
+  }
+
+  initSearchableSelect({ searchInputId:'nurseSearchInput', dropdownId:'nurseDropdown', selectId:'nurseIdInput', selectableId:'nurseSearchable' });
+
+  // Dynamic lab fields: first choose lab, then show matching form block.
+  const labDynamicContainer = document.getElementById('labDynamicContainer');
+  const labHelperText = document.getElementById('labHelperText');
+  const labTypePill = document.getElementById('labTypePill');
+
+  function setLabFieldState(activeLabType) {
+    const groups = document.querySelectorAll('.lab-field-group');
+    groups.forEach(group => {
+      const isActive = group.dataset.labType === activeLabType;
+      group.classList.toggle('hidden', !isActive);
+      group.querySelectorAll('input, select, textarea').forEach(el => {
+        el.disabled = !isActive;
+        el.required = isActive && el.dataset.required === 'true';
+        if (!isActive) {
+          if (el.tagName === 'SELECT') el.selectedIndex = 0;
+          else el.value = '';
+        }
+      });
+    });
+  }
+
+  initSearchableSelect({
+    searchInputId:'labSearchInput',
+    dropdownId:'labDropdown',
+    selectId:'labIdInput',
+    selectableId:'labSearchable',
+    onSelect: ({ meta }) => {
+      const labType = meta?.labType || '';
+      if (!labType) return;
+      labDynamicContainer.classList.remove('hidden');
+      labHelperText.textContent = 'Lab selected. Fill the fields below and submit to create a lab request.';
+      labTypePill.textContent = labType.toUpperCase();
+      setLabFieldState(labType);
+    }
+  });
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

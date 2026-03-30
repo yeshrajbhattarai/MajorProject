@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'hospitals',
+    'hospital_local',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
 ]
@@ -41,6 +42,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'hospitals.middleware.HospitalDBContextMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -80,6 +82,9 @@ DATABASES = {
         'PORT':     os.environ.get('DB_PORT', '3306'),
     }
 }
+
+DATABASE_ROUTERS = ['hospitals.db_router.HospitalDBRouter']
+HOSPITAL_DB_DIR = BASE_DIR
 
 
 # ─── Password Validation ──────────────────────────────────────────────────────

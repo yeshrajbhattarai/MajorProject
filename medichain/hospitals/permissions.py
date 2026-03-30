@@ -51,3 +51,12 @@ class IsStaff(BasePermission):
         if not payload:
             return False
         return payload.get('user_type') == 'staff'
+    
+    
+# only technicians can access — blocks admins, doctors, nurses
+class IsTechnician(BasePermission):
+    def has_permission(self, request, view):
+        payload = getattr(request, 'user_payload', None)
+        if not payload:
+            return False
+        return payload.get('staff_role') == 'technician'

@@ -1,0 +1,210 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Fill Record</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .fill-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 16px; }
+    .fill-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .fill-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .fill-title { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text-primary); }
+    .fill-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .fill-body { padding: 16px; }
+    .kv { display: grid; grid-template-columns: 130px 1fr; gap: 8px; margin-bottom: 10px; }
+    .kv-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .kv-value { font-size: 13px; color: var(--text-primary); }
+    .fill-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .fill-actions { grid-column: 1 / 3; display: flex; gap: 10px; }
+    .submit-btn[disabled] {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+      filter: grayscale(0.15);
+    }
+    .badge {
+      display: inline-flex;
+      border-radius: 20px;
+      border: 1px solid var(--a3-border);
+      background: var(--a3-bg-subtle);
+      color: var(--accent-3);
+      font-size: 11px;
+      padding: 4px 8px;
+    }
+    @media (max-width: 980px) {
+      .fill-grid { grid-template-columns: 1fr; }
+      .fill-form { grid-template-columns: 1fr; }
+      .fill-actions { grid-column: 1 / 2; }
+      .kv { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='lab_queue' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Fill Medical Record</h1>
+          <span class="breadcrumb">
+            <a href="/staff/technician/lab/" class="breadcrumb-link">Lab Queue</a>
+            &nbsp;/&nbsp; {{ lab_request.patient.full_name }}
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-3);box-shadow:0 0 12px var(--a3-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="staff-content">
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="fill-grid">
+        <section class="fill-card">
+          <div class="fill-head">
+            <div class="fill-title">Doctor Summary</div>
+            <div class="fill-sub">Read-only clinical context for this request.</div>
+          </div>
+          <div class="fill-body">
+            <div style="margin-bottom:12px;"><span class="badge">{{ lab_request.lab.name }}</span></div>
+            <div class="kv"><div class="kv-label">Patient</div><div class="kv-value">{{ lab_request.patient.full_name }}</div></div>
+            <div class="kv"><div class="kv-label">Doctor</div><div class="kv-value">{{ lab_request.requested_by.full_name }}</div></div>
+            <div class="kv"><div class="kv-label">Chest Pain Type</div><div class="kv-value">{{ lab_request.get_chest_pain_type_display }}</div></div>
+            <div class="kv"><div class="kv-label">Diagnosis</div><div class="kv-value">{{ lab_request.diagnosis }}</div></div>
+            <div class="kv"><div class="kv-label">Treatment Plan</div><div class="kv-value">{{ lab_request.treatment_plan }}</div></div>
+            <div class="kv"><div class="kv-label">Notes</div><div class="kv-value">{{ lab_request.notes|default:'-' }}</div></div>
+
+            {% if latest_revision %}
+            <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
+            <div class="kv"><div class="kv-label">Latest Reassessment</div><div class="kv-value">{{ latest_revision.created_at|date:'d M Y, h:i A' }}</div></div>
+            <div class="kv"><div class="kv-label">Reassessed By</div><div class="kv-value">{{ latest_revision.revised_by.full_name }} (Doctor)</div></div>
+            <div class="kv"><div class="kv-label">Changed Fields</div><div class="kv-value">{{ latest_revision.changed_fields|join:', ' }}</div></div>
+            <div class="kv"><div class="kv-label">Doctor Reason</div><div class="kv-value">{{ latest_revision.reason }}</div></div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="fill-card">
+          <div class="fill-head">
+            <div class="fill-title">Technician Measurements</div>
+            <div class="fill-sub">Submit validated metrics to complete this request. Existing values are prefilled for quick edits.</div>
+          </div>
+          <div class="fill-body">
+            <form method="POST" action="/staff/technician/lab/{{ lab_request.id }}/fill/" class="fill-form">
+              {% csrf_token %}
+              <div class="sf-group">
+                <label class="sf-label">Age</label>
+                <input class="sf-input" type="number" name="age" value="{{ existing_record.age|default:'' }}" placeholder="Enter age" required>
+              </div>
+              <div class="sf-group">
+                <label class="sf-label">Gender</label>
+                <select class="sf-input" name="gender" required>
+                  <option value="">Select gender</option>
+                  <option value="Male" {% if existing_record and existing_record.gender == 'Male' %}selected{% endif %}>Male</option>
+                  <option value="Female" {% if existing_record and existing_record.gender == 'Female' %}selected{% endif %}>Female</option>
+                </select>
+              </div>
+
+              <div class="sf-group">
+                <label class="sf-label">Blood Pressure Systolic</label>
+                <input class="sf-input" type="number" name="blood_pressure_systolic" value="{{ existing_record.blood_pressure_systolic|default:'' }}" placeholder="e.g. 120" required>
+              </div>
+              <div class="sf-group">
+                <label class="sf-label">Blood Pressure Diastolic</label>
+                <input class="sf-input" type="number" name="blood_pressure_diastolic" value="{{ existing_record.blood_pressure_diastolic|default:'' }}" placeholder="e.g. 80" required>
+              </div>
+
+              <div class="sf-group">
+                <label class="sf-label">Cholesterol</label>
+                <input class="sf-input" type="number" name="cholesterol" value="{{ existing_record.cholesterol|default:'' }}" placeholder="mg/dL" required>
+              </div>
+              <div class="sf-group">
+                <label class="sf-label">Blood Glucose</label>
+                <input class="sf-input" type="number" step="0.01" name="blood_glucose" value="{{ existing_record.blood_glucose|default:'' }}" placeholder="mg/dL" required>
+              </div>
+
+              <div class="sf-group">
+                <label class="sf-label">Heart Rate</label>
+                <input class="sf-input" type="number" name="heart_rate" value="{{ existing_record.heart_rate|default:'' }}" placeholder="bpm" required>
+              </div>
+              <div class="sf-group">
+                <label class="sf-label">ECG Result</label>
+                <select class="sf-input" name="ecg_result" required>
+                  <option value="">Select ECG result</option>
+                  {% for value,label in ecg_choices %}
+                  <option value="{{ value }}" {% if existing_record and existing_record.ecg_result == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              {% if requires_change_reason %}
+              <div class="sf-group" style="grid-column:1/3;">
+                <label class="sf-label">Technician Change Reason</label>
+                <textarea
+                  class="sf-input"
+                  name="technician_change_reason"
+                  rows="3"
+                  placeholder="Explain what you changed in this re-submission"
+                  required
+                ></textarea>
+              </div>
+              {% endif %}
+
+              <div class="fill-actions">
+                <button class="sf-btn-save submit-btn" type="submit" id="submitRecordBtn">Submit Record</button>
+                <a href="/staff/technician/lab/" class="sf-btn-cancel">Back To Queue</a>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+
+    const fillForm = document.querySelector('.fill-form');
+    const submitBtn = document.getElementById('submitRecordBtn');
+    if (fillForm && submitBtn) {
+      fillForm.addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+      });
+    }
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

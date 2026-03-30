@@ -207,7 +207,8 @@
 }
 
 .pf-input-wrap input,
-.pf-input-wrap textarea {
+.pf-input-wrap textarea,
+.pf-input-wrap select {
   width: 100%;
   background: var(--bg-3);
   border: 1px solid var(--border);
@@ -222,13 +223,18 @@
 }
 
 .pf-input-wrap input:focus,
-.pf-input-wrap textarea:focus {
+.pf-input-wrap textarea:focus,
+.pf-input-wrap select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .pf-input-wrap input::placeholder,
 .pf-input-wrap textarea::placeholder { color: var(--text-muted); }
+
+.pf-input-wrap select {
+  appearance: none;
+}
 
 /* Password field with toggle */
 .pf-pw-wrap { position: relative; }

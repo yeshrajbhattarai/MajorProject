@@ -79,6 +79,9 @@
 .add-btn-patient       { background: var(--accent-4); box-shadow: 0 4px 14px var(--a4-glow); }
 .add-btn-patient:hover { background: var(--a4-hover); filter: none; }
 
+.add-btn-technician       { background: var(--accent); box-shadow: 0 4px 14px var(--accent-glow); }
+.add-btn-technician:hover { filter: brightness(0.9); }
+
 
 /* ── Search + filter bar ── */
 .staff-toolbar {
@@ -197,6 +200,7 @@ table.staff-table {
 .avatar-doctor  { background: var(--a2-bg);  color: var(--accent-2); border: 1px solid var(--a2-border); }
 .avatar-nurse   { background: var(--a3-bg);  color: var(--accent-3); border: 1px solid var(--a3-border); }
 .avatar-patient { background: var(--a4-bg);  color: var(--accent-4); border: 1px solid var(--a4-border); }
+.avatar-technician { background: var(--accent-bg); color: var(--accent); border: 1px solid var(--accent-border); }
 
 .staff-name-info { display: flex; flex-direction: column; gap: 1px; }
 .staff-name      { font-weight: 600; color: var(--text-primary); font-size: 13.5px; }
@@ -313,6 +317,7 @@ table.staff-table {
 .icon-doctor  { background: var(--a2-bg); color: var(--accent-2); }
 .icon-nurse   { background: var(--a3-bg); color: var(--accent-3); }
 .icon-patient { background: var(--a4-bg); color: var(--accent-4); }
+.icon-technician { background: var(--accent-bg); color: var(--accent); }
 
 .add-staff-card-head h2 {
   font-family: 'Syne', sans-serif;
@@ -388,6 +393,39 @@ table.staff-table {
 
 .sf-input-wrap input::placeholder { color: var(--text-muted); }
 
+/* Utility input used in custom pages (lab queue, send-to-lab, record forms) */
+.sf-input {
+  width: 100%;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+
+select.sf-input {
+  appearance: none;
+}
+
+textarea.sf-input {
+  resize: vertical;
+  line-height: 1.45;
+  min-height: 92px;
+}
+
+.sf-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.sf-input::placeholder {
+  color: var(--text-muted);
+}
+
 .sf-select-arrow {
   position: absolute;
   right: 12px; top: 50%;
@@ -453,6 +491,9 @@ table.staff-table {
 
 .btn-patient       { background: var(--accent-4); box-shadow: 0 4px 14px var(--a4-glow); }
 .btn-patient:hover { background: var(--a4-hover); }
+
+.btn-technician        { background: var(--accent); box-shadow: 0 4px 14px var(--accent-glow); }
+.btn-technician:hover  { filter: brightness(0.9); }
 
 .sf-btn-cancel {
   display: inline-flex;

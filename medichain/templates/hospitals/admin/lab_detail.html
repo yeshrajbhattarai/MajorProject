@@ -1,0 +1,236 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | {{ lab.name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .lab-grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+    .lab-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .lab-panel-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .lab-title { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text-primary); }
+    .lab-sub { font-size: 12px; color: var(--text-muted); }
+    .lab-panel-body { padding: 16px; }
+    .stat-chip {
+      font-size: 11px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 9px;
+      color: var(--text-muted);
+    }
+    .assign-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    .quick-stats { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .quick-stat {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      color: var(--text-secondary);
+    }
+    .patient-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 20px;
+      border: 1px solid var(--a3-border);
+      background: var(--a3-bg-subtle);
+      color: var(--accent-3);
+      font-size: 11px;
+      padding: 4px 8px;
+    }
+    .row-actions { display: flex; justify-content: flex-end; }
+    @media (max-width: 960px) {
+      .lab-grid { grid-template-columns: 1fr; }
+      .assign-form { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/sidebar.html' with active_page='labs' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>{{ lab.name }}</h1>
+          <span class="breadcrumb">
+            <a href="/labs/" class="breadcrumb-link">Labs</a>
+            &nbsp;/&nbsp; {{ lab.name }}
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">
+          {{ hospital_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="lab-panel">
+        <div class="lab-panel-head">
+          <div>
+            <div class="lab-title">Lab Overview</div>
+            <div class="lab-sub">{{ lab.get_lab_type_display }} · Active workflow monitoring</div>
+          </div>
+          <span class="stat-chip">{{ assignments|length }} technicians</span>
+        </div>
+        <div class="lab-panel-body">
+          <div class="quick-stats">
+            <span class="quick-stat">Pending requests: {{ pending_requests|length }}</span>
+            <span class="quick-stat">Completed requests: {{ completed_count }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lab-grid">
+        <div class="lab-panel">
+          <div class="lab-panel-head">
+            <div class="lab-title">Assigned Technicians</div>
+            <span class="stat-chip">{{ assignments|length }} total</span>
+          </div>
+          <div class="lab-panel-body" style="padding:0;">
+            <div class="staff-table-wrap">
+              <table class="staff-table">
+                <thead>
+                  <tr>
+                    <th>Technician</th>
+                    <th>Assigned On</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for a in assignments %}
+                  <tr>
+                    <td>
+                      <div class="staff-name-cell">
+                        <div class="staff-avatar avatar-patient">{{ a.technician.full_name|slice:":1"|upper }}</div>
+                        <div class="staff-name-info">
+                          <span class="staff-name">{{ a.technician.full_name }}</span>
+                          <span class="staff-emp-id">{{ a.technician.employee_id }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="td-date">{{ a.assigned_at|date:'d M Y, h:i A' }}</td>
+                    <td>
+                      <div class="row-actions">
+                        <form method="POST" action="/labs/{{ lab.id }}/remove/{{ a.technician.id }}/">
+                          {% csrf_token %}
+                          <button class="tbl-btn tbl-btn-danger" type="submit">Remove</button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="3" class="td-muted">No technicians assigned yet.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="lab-panel">
+          <div class="lab-panel-head">
+            <div class="lab-title">Assign Technician</div>
+            <span class="stat-chip">Quick action</span>
+          </div>
+          <div class="lab-panel-body">
+            <form method="POST" action="/labs/{{ lab.id }}/assign/" class="assign-form">
+              {% csrf_token %}
+              <select name="technician_id" class="sf-input" required>
+                <option value="">Select technician</option>
+                {% for tech in available_technicians %}
+                <option value="{{ tech.id }}">{{ tech.full_name }}</option>
+                {% endfor %}
+              </select>
+              <button class="sf-btn-save" type="submit">Assign</button>
+            </form>
+          </div>
+
+          <div class="lab-panel-head" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);">
+            <div class="lab-title">Pending Requests</div>
+            <span class="stat-chip">{{ pending_requests|length }} active</span>
+          </div>
+          <div class="lab-panel-body" style="padding:0;">
+            <div class="staff-table-wrap">
+              <table class="staff-table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for r in pending_requests %}
+                  <tr>
+                    <td><span class="patient-chip">{{ r.patient.full_name }}</span></td>
+                    <td>{{ r.requested_by.full_name }}</td>
+                    <td class="td-date">{{ r.created_at|date:'d M Y, h:i A' }}</td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="3" class="td-muted">No pending requests at the moment.</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <a href="/labs/" class="sf-btn-cancel">Back To Labs</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

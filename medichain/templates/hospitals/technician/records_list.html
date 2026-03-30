@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | My Records</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+</head>
+<body>
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='records' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Medical Records</h1>
+          <span class="breadcrumb">
+            <a href="/staff/technician/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; Records
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-3);box-shadow:0 0 12px var(--a3-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="staff-content">
+      <div class="staff-table-card">
+        <div class="staff-table-wrap">
+          <table class="staff-table">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Lab</th>
+                <th>Doctor</th>
+                <th>Version</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in records %}
+              <tr>
+                <td>{{ item.lab_request.patient.full_name }}</td>
+                <td>{{ item.lab_request.lab.name }}</td>
+                <td>{{ item.lab_request.requested_by.full_name }}</td>
+                <td>v{{ item.version }}</td>
+                <td class="td-date">{{ item.updated_at|date:'d M Y, h:i A' }}</td>
+                <td>
+                  <div class="table-actions">
+                    <a class="tbl-btn tbl-btn-view" href="/staff/records/{{ item.record_id }}/">View</a>
+                    <a class="tbl-btn tbl-btn-view" href="/staff/records/{{ item.record_id }}/?edit=1">Edit</a>
+                    <a class="tbl-btn" href="/staff/records/{{ item.record_id }}/history/">History</a>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="td-muted">No records created yet.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

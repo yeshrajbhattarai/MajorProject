@@ -74,3 +74,20 @@ def send_nurse_credentials(full_name, email, hospital_name, temp_password):
         recipient_list = [email],
         fail_silently  = False,
     )
+
+# send login credentials to a newly created technician
+def send_technician_credentials(full_name, email, hospital_name, temp_password):
+    send_mail(
+        subject        = 'MediChain — Your Technician Account Credentials',
+        message        = (
+            f"Hello {full_name},\n\n"
+            f"Your MediChain technician account has been created by {hospital_name}.\n\n"
+            f"Login Email   : {email}\n"
+            f"Temp Password : {temp_password}\n\n"
+            f"Please log in and change your password immediately.\n\n"
+            f"— MediChain Team"
+        ),
+        from_email     = None,
+        recipient_list = [email],
+        fail_silently  = False,
+    )

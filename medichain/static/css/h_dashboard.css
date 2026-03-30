@@ -449,7 +449,7 @@ body {
 ═══════════════════════════════════════════════════ */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   padding: 18px 20px;
 }
@@ -486,6 +486,7 @@ body {
 .stat-icon-reports  { background: var(--accent-bg); color: var(--accent); }
 .stat-icon-doctors  { background: var(--a2-bg); color: var(--accent-2); }
 .stat-icon-nurses   { background: var(--a3-bg); color: var(--accent-3); }
+.stat-icon-technicians { background: var(--accent-bg); color: var(--accent); }
 
 .stat-chip-num {
   font-family: 'Syne', sans-serif;
@@ -511,8 +512,7 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
-
-.action-btn {
+.action-btn{
   display: flex;
   align-items: center;
   gap: 10px;
@@ -552,6 +552,10 @@ body {
 .action-btn-record { color: var(--warning); }
 .action-btn-record .action-btn-icon { background: var(--a5-bg); color: var(--warning); }
 .action-btn-record:hover { background: var(--a5-hover-bg); border-color: var(--a5-hover-border); }
+
+.action-btn-technician { color: var(--accent); }
+.action-btn-technician .action-btn-icon { background: var(--accent-bg); color: var(--accent); }
+.action-btn-technician:hover { background: var(--accent-hover-bg); border-color: var(--accent-border); }
 
 
 /* ═══════════════════════════════════════════════════
