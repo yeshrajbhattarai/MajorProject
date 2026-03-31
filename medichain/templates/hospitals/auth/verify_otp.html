@@ -1,0 +1,568 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Verify Email</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/register.css' %}">
+  <style>
+    /* ── OTP page extras — on top of register.css ── */
+
+    /* Override right panel to centre a single card */
+    .right-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .otp-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 48px 40px;
+      animation: cardIn 0.5s cubic-bezier(0.4,0,0.2,1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Email badge at top */
+    .otp-email-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      background: rgba(79,142,247,0.1);
+      border: 1px solid rgba(79,142,247,0.2);
+      border-radius: 20px;
+      font-size: 12.5px;
+      color: #4f8ef7;
+      margin-bottom: 24px;
+    }
+
+    .otp-email-badge svg { width: 13px; height: 13px; }
+
+    /* Card header */
+    .otp-card .card-header { margin-bottom: 28px; }
+    .otp-card .card-header h2 { font-size: 24px; }
+
+    /* ── 6-box OTP input ── */
+    .otp-boxes {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .otp-box {
+      width: 52px;
+      height: 60px;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 24px;
+      font-weight: 500;
+      color: #f0f4ff;
+      caret-color: #4f8ef7;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      /* Remove number spinners */
+      -moz-appearance: textfield;
+    }
+
+    .otp-box::-webkit-outer-spin-button,
+    .otp-box::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+    .otp-box:focus {
+      border-color: #4f8ef7;
+      box-shadow: 0 0 0 3px rgba(79,142,247,0.18);
+      background: rgba(79,142,247,0.06);
+    }
+
+    .otp-box.filled {
+      border-color: rgba(79,142,247,0.5);
+      background: rgba(79,142,247,0.06);
+    }
+
+    .otp-box.otp-error {
+      border-color: #f7604f;
+      box-shadow: 0 0 0 3px rgba(247,96,79,0.15);
+      animation: shake 0.35s ease;
+    }
+
+    .otp-box.otp-success {
+      border-color: #38d9a9;
+      background: rgba(56,217,169,0.08);
+    }
+
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-6px); }
+      40%      { transform: translateX(6px); }
+      60%      { transform: translateX(-4px); }
+      80%      { transform: translateX(4px); }
+    }
+
+    /* Error message under boxes */
+    .otp-error-msg {
+      text-align: center;
+      font-size: 12.5px;
+      color: #f7604f;
+      min-height: 18px;
+      margin-bottom: 4px;
+      transition: opacity 0.2s;
+    }
+
+    /* Verify button — full width, same as register submit */
+    .otp-submit {
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    /* ── Timer + resend ── */
+    .otp-footer {
+      margin-top: 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .otp-timer {
+      font-size: 13px;
+      color: #8892b0;
+    }
+
+    .otp-timer span {
+      font-family: 'DM Mono', monospace;
+      color: #f7c94f;
+      font-size: 13px;
+    }
+
+    .resend-btn {
+      background: none;
+      border: none;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4f8ef7;
+      cursor: pointer;
+      padding: 0;
+      transition: opacity 0.2s;
+    }
+
+    .resend-btn:disabled {
+      color: #4a5578;
+      cursor: not-allowed;
+    }
+
+    .resend-btn:not(:disabled):hover { text-decoration: underline; }
+
+    /* ── Success state ── */
+    .otp-success-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+      padding: 16px 0;
+      animation: cardIn 0.4s ease both;
+    }
+
+    .success-ring {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: rgba(56,217,169,0.12);
+      border: 2px solid rgba(56,217,169,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .success-ring svg {
+      width: 32px; height: 32px;
+      stroke: #38d9a9;
+    }
+
+    .otp-success-state h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: #f0f4ff;
+    }
+
+    .otp-success-state p {
+      font-size: 14px;
+      color: #8892b0;
+      line-height: 1.6;
+    }
+
+    .go-login {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 11px 28px;
+      background: #4f8ef7;
+      color: white;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.2s;
+      box-shadow: 0 4px 16px rgba(79,142,247,0.35);
+    }
+
+    .go-login:hover {
+      background: #3a7de8;
+      transform: translateY(-1px);
+    }
+
+    /* Back to register link */
+    .otp-back {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #4a5578;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .otp-back:hover { color: #8892b0; }
+
+    /* Responsive */
+    @media (max-width: 520px) {
+      .otp-card    { padding: 36px 24px; }
+      .otp-box     { width: 44px; height: 54px; font-size: 20px; }
+      .otp-boxes   { gap: 7px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background (same as register.html) -->
+  <div class="bg-grid"         aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+
+  <div class="page">
+
+    <!-- ══════════════════════════════════════
+         LEFT PANEL — same as register
+    ══════════════════════════════════════ -->
+    <aside class="left-panel">
+      <div class="brand-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0
+                     2-2V5a2 2 0 0 0-2-2zm-7 3a1 1 0 0 1 1 1v3h3a1 1 0 0 1
+                     0 2h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V7a1 1 0 0 1 1-1z"/>
+          </svg>
+        </div>
+        <span class="brand-name">MediChain</span>
+      </div>
+
+      <h1 class="left-headline">
+        One step away.<br>
+        <span>Verify your email.</span>
+      </h1>
+      <p class="left-sub">
+        We sent a 6-digit code to your email address.
+        Enter it to activate your MediChain hospital account.
+      </p>
+
+      <div class="feature-cards">
+        <div class="feature-card">
+          <div class="ph-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+          </div>
+          <div class="ph-text">
+            <div class="ph-title">Secure Verification</div>
+            <div class="ph-desc">OTP expires in 10 minutes for your security</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="ph-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+          </div>
+          <div class="ph-text">
+            <div class="ph-title">Check your inbox</div>
+            <div class="ph-desc">Email from MediChain — also check spam folder</div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="ph-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+              <polyline points="23 4 23 10 17 10"/>
+              <path d="M20.49 15a9 9 0 1 1-.08-3.75"/>
+            </svg>
+          </div>
+          <div class="ph-text">
+            <div class="ph-title">Didn't receive it?</div>
+            <div class="ph-desc">Use the resend button after the timer ends</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+
+    <!-- ══════════════════════════════════════
+         RIGHT PANEL — OTP card
+    ══════════════════════════════════════ -->
+    <main class="right-panel">
+      <div class="otp-card">
+
+        {% if success %}
+        <!-- ── SUCCESS STATE ── -->
+        <div class="otp-success-state">
+          <div class="success-ring">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+          <h2>Email Verified!</h2>
+          <p>
+            Your MediChain hospital account is now active.<br>
+            You can log in and complete your hospital profile.
+          </p>
+          <a href="/?mode=login" class="go-login">
+            Go to Login
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </a>
+        </div>
+
+        {% else %}
+        <!-- ── OTP ENTRY STATE ── -->
+
+        <div class="card-header">
+          <h2>Verify your Email</h2>
+          <p>Enter the 6-digit code we sent you</p>
+        </div>
+
+        <!-- Email badge -->
+        <div class="otp-email-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          {{ email }}
+        </div>
+
+        <!-- Error from Django -->
+        {% if error %}
+        <div class="otp-error-msg" id="otpErrorMsg" style="margin-bottom:12px">
+          {{ error }}
+        </div>
+        {% endif %}
+
+        <!-- OTP form -->
+        <form method="POST" action="{% url 'verify_otp' %}" id="otpForm" novalidate>
+          {% csrf_token %}
+
+          <!-- Hidden input that holds the combined OTP value -->
+          <input type="hidden" name="otp" id="otpHidden">
+
+          <!-- 6 individual boxes -->
+          <div class="otp-boxes" id="otpBoxes">
+            <input class="otp-box" type="number" maxlength="1" min="0" max="9" inputmode="numeric" autocomplete="one-time-code" id="otp0" tabindex="1">
+            <input class="otp-box" type="number" maxlength="1" min="0" max="9" inputmode="numeric" id="otp1" tabindex="2">
+            <input class="otp-box" type="number" maxlength="1" min="0" max="9" inputmode="numeric" id="otp2" tabindex="3">
+            <input class="otp-box" type="number" maxlength="1" min="0" max="9" inputmode="numeric" id="otp3" tabindex="4">
+            <input class="otp-box" type="number" maxlength="1" min="0" max="9" inputmode="numeric" id="otp4" tabindex="5">
+            <input class="otp-box" type="number" maxlength="1" min="0" max="9" inputmode="numeric" id="otp5" tabindex="6">
+          </div>
+
+          <div class="otp-error-msg" id="otpErrorMsg"></div>
+
+          <button type="submit" class="submit-btn otp-submit" id="otpSubmit" disabled>
+            Verify Email
+          </button>
+        </form>
+
+        <!-- Timer + resend -->
+        <div class="otp-footer">
+          <p class="otp-timer" id="timerText">
+            OTP expires in <span id="timerCount">10:00</span>
+          </p>
+          <form method="POST" action="{% url 'resend_otp' %}" id="resendForm">
+            {% csrf_token %}
+            <button type="submit" class="resend-btn" id="resendBtn" disabled>
+              Resend OTP
+            </button>
+          </form>
+        </div>
+
+        <a href="/" class="otp-back">← Back to Register</a>
+
+        {% endif %}
+
+      </div>
+    </main>
+
+  </div>
+  <!-- /.page -->
+
+
+  <script>
+  /* ════════════════════════════════════════════
+     OTP BOX LOGIC
+  ════════════════════════════════════════════ */
+  const boxes     = Array.from(document.querySelectorAll('.otp-box'));
+  const hidden    = document.getElementById('otpHidden');
+  const submitBtn = document.getElementById('otpSubmit');
+  const errorMsg  = document.getElementById('otpErrorMsg');
+
+  if (boxes.length) {
+
+    // Focus first box on load
+    boxes[0].focus();
+
+    boxes.forEach((box, i) => {
+
+      // Allow only single digit
+      box.addEventListener('input', () => {
+        // Strip to last character if somehow multiple entered
+        let val = box.value.toString().replace(/[^0-9]/g, '');
+        if (val.length > 1) val = val.slice(-1);
+        box.value = val;
+
+        if (val) {
+          box.classList.add('filled');
+          // Move to next
+          if (i < boxes.length - 1) boxes[i + 1].focus();
+        } else {
+          box.classList.remove('filled');
+        }
+
+        syncHidden();
+        clearError();
+      });
+
+      // Backspace — clear current and move back
+      box.addEventListener('keydown', e => {
+        if (e.key === 'Backspace') {
+          if (box.value) {
+            box.value = '';
+            box.classList.remove('filled');
+            syncHidden();
+          } else if (i > 0) {
+            boxes[i - 1].focus();
+            boxes[i - 1].value = '';
+            boxes[i - 1].classList.remove('filled');
+            syncHidden();
+          }
+          e.preventDefault();
+        }
+        // Arrow key navigation
+        if (e.key === 'ArrowLeft'  && i > 0)               boxes[i - 1].focus();
+        if (e.key === 'ArrowRight' && i < boxes.length - 1) boxes[i + 1].focus();
+      });
+
+      // Handle paste — spread digits across boxes
+      box.addEventListener('paste', e => {
+        e.preventDefault();
+        const pasted = (e.clipboardData || window.clipboardData)
+          .getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+        pasted.split('').forEach((ch, idx) => {
+          if (boxes[idx]) {
+            boxes[idx].value = ch;
+            boxes[idx].classList.add('filled');
+          }
+        });
+        // Focus the box after last pasted digit
+        const next = Math.min(pasted.length, boxes.length - 1);
+        boxes[next].focus();
+        syncHidden();
+        clearError();
+      });
+    });
+
+    function syncHidden() {
+      const val = boxes.map(b => b.value).join('');
+      hidden.value      = val;
+      submitBtn.disabled = val.length < 6;
+    }
+
+    function clearError() {
+      if (errorMsg) errorMsg.textContent = '';
+      boxes.forEach(b => b.classList.remove('otp-error'));
+    }
+
+    // If Django returned an error — shake boxes
+    {% if error %}
+    boxes.forEach(b => b.classList.add('otp-error'));
+    setTimeout(() => boxes.forEach(b => b.classList.remove('otp-error')), 500);
+    {% endif %}
+
+    // Submit — shake on empty
+    document.getElementById('otpForm').addEventListener('submit', function(e) {
+      const val = boxes.map(b => b.value).join('');
+      if (val.length < 6) {
+        e.preventDefault();
+        boxes.forEach(b => b.classList.add('otp-error'));
+        if (errorMsg) errorMsg.textContent = 'Please enter all 6 digits';
+        setTimeout(() => boxes.forEach(b => b.classList.remove('otp-error')), 500);
+      }
+    });
+  }
+
+
+  /* ════════════════════════════════════════════
+     COUNTDOWN TIMER — 10 minutes
+  ════════════════════════════════════════════ */
+  const timerCount = document.getElementById('timerCount');
+  const timerText  = document.getElementById('timerText');
+  const resendBtn  = document.getElementById('resendBtn');
+
+  if (timerCount) {
+    let totalSeconds = 10 * 60;  // 10 minutes
+
+    const interval = setInterval(() => {
+      totalSeconds--;
+
+      if (totalSeconds <= 0) {
+        clearInterval(interval);
+        timerCount.textContent  = '00:00';
+        timerText.innerHTML     = '<span style="color:#f7604f">OTP has expired.</span>';
+        if (resendBtn) resendBtn.disabled = false;
+        return;
+      }
+
+      const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+      const s = (totalSeconds % 60).toString().padStart(2, '0');
+      timerCount.textContent = `${m}:${s}`;
+
+      // Warn when under 2 minutes
+      if (totalSeconds < 120) {
+        timerCount.style.color = '#f7604f';
+      }
+
+      // Enable resend when under 30 seconds
+      if (totalSeconds < 30 && resendBtn) {
+        resendBtn.disabled = false;
+      }
+
+    }, 1000);
+  }
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

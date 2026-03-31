@@ -1,0 +1,624 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Hospital Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_profile.css' %}">
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════
+       SIDEBAR (same as dashboard)
+  ══════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0
+                   2-2V5a2 2 0 0 0-2-2zm-7 3a1 1 0 0 1 1 1v3h3a1 1 0 0 1
+                   0 2h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V7a1 1 0 0 1 1-1z"/>
+        </svg>
+      </div>
+      <div class="sidebar-brand-text">
+        <span class="brand-name">MediChain</span>
+        <span class="brand-role">Admin Portal</span>
+      </div>
+    </div>
+
+    <div class="sidebar-hospital">
+      <span class="hospital-dot"></span>
+      <span class="hospital-name">{{ hospital.hospital_name }}</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/dashboard/" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Dashboard
+      </a>
+      <a href="#" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+        Doctors
+      </a>
+      <a href="#" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Nurses
+      </a>
+      <a href="#" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+        </svg>
+        Patients
+      </a>
+      <a href="#" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        Medical Records
+      </a>
+      <a href="#" class="nav-item">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Audit Logs
+      </a>
+      <div class="nav-divider"></div>
+      <a href="/profile/" class="nav-item active">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        Hospital Profile
+      </a>
+      <a href="/logout/" class="nav-item nav-logout">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Logout
+      </a>
+    </nav>
+  </aside>
+
+
+  <!-- ══════════════════════════════════════
+       MAIN
+  ══════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="page-title">
+          <h1>Hospital Profile</h1>
+          <span class="breadcrumb">
+            <a href="/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; Profile
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <span class="status-badge status-badge-{{ hospital.account_status }}">
+          {{ hospital.account_status|title }}
+        </span>
+        <div class="topbar-avatar">{{ hospital.hospital_name|slice:":1"|upper }}</div>
+      </div>
+    </header>
+
+
+    <!-- ── PROFILE CONTENT ── -->
+    <div class="profile-page-content">
+
+      <!-- Django messages (success / error alerts) -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              {% if message.tags == 'success' %}
+                <polyline points="20 6 9 17 4 12"/>
+              {% else %}
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              {% endif %}
+            </svg>
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="profile-grid">
+
+        <!-- ════════════════════════════════
+             LEFT COLUMN
+        ════════════════════════════════ -->
+        <div class="profile-col">
+
+          <!-- ── Section 1: Identity (read-only) ── -->
+          <div class="profile-section">
+            <div class="section-head">
+              <span class="section-title">Account Identity</span>
+              <span class="section-note">These cannot be changed for security reasons</span>
+            </div>
+            <div class="readonly-field">
+              <span class="readonly-label">Email Address</span>
+              <span class="readonly-value">{{ hospital.email }}</span>
+              <span class="lock-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Permanent
+              </span>
+            </div>
+            <div class="readonly-field">
+              <span class="readonly-label">Contact Number</span>
+              <span class="readonly-value">+91 {{ hospital.contact_number }}</span>
+              <span class="lock-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Permanent
+              </span>
+            </div>
+          </div>
+
+
+          <!-- ── Section 2: Hospital Name (editable once) ── -->
+          <div class="profile-section">
+            <div class="section-head">
+              <span class="section-title">Hospital Name</span>
+              {% if hospital.name_locked %}
+                <span class="section-locked-badge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Locked
+                </span>
+              {% else %}
+                <span class="section-note once-warning">
+                  ⚠ Can only be changed once — choose carefully
+                </span>
+              {% endif %}
+            </div>
+
+            {% if hospital.name_locked %}
+              <!-- Locked state -->
+              <div class="locked-field">
+                <span class="locked-value">{{ hospital.hospital_name }}</span>
+                <span class="locked-badge">Locked</span>
+              </div>
+              <p class="locked-note">Hospital name was saved and is now permanently locked.</p>
+            {% else %}
+              <!-- Editable state -->
+              <form method="POST" action="{% url 'hospital_update_name' %}" id="nameForm" novalidate>
+                {% csrf_token %}
+                <div class="pf-input-group" id="grp-hname">
+                  <div class="pf-input-wrap">
+                    <input type="text" id="hospital_name" name="hospital_name"
+                           value="{{ hospital.hospital_name }}"
+                           placeholder="Full legal hospital name"
+                           autocomplete="organization">
+                  </div>
+                  <span class="pf-field-error" id="err-hname"></span>
+                </div>
+                <div class="once-confirm-row" id="nameConfirmRow" style="display:none">
+                  <label class="once-checkbox-label">
+                    <input type="checkbox" id="nameConfirm">
+                    <span class="once-checkbox-box"></span>
+                    I understand this name cannot be changed again after saving
+                  </label>
+                </div>
+                <button type="submit" class="pf-btn pf-btn-primary" id="nameSaveBtn" disabled>
+                  Save Hospital Name
+                </button>
+              </form>
+            {% endif %}
+          </div>
+
+
+          <!-- ── Section 3: License (editable once) ── -->
+          <div class="profile-section">
+            <div class="section-head">
+              <span class="section-title">License Details</span>
+              {% if hospital.license_locked %}
+                <span class="section-locked-badge">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  Locked
+                </span>
+              {% else %}
+                <span class="section-note once-warning">⚠ Can only be set once — upload carefully</span>
+              {% endif %}
+            </div>
+
+            {% if hospital.license_locked %}
+              <!-- Locked state -->
+              <div class="locked-field">
+                <span class="locked-value">{{ hospital.license_number }}</span>
+                <span class="locked-badge">Locked</span>
+              </div>
+              {% if hospital.license_document %}
+              <div class="locked-field" style="margin-top:8px">
+                <span class="locked-value">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;display:inline;margin-right:4px">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                  </svg>
+                  Document uploaded
+                </span>
+                <span class="locked-badge">Locked</span>
+              </div>
+              {% endif %}
+              <p class="locked-note">License details are permanently locked.</p>
+            {% else %}
+              <form method="POST" action="{% url 'hospital_update_license' %}" enctype="multipart/form-data" id="licenseForm" novalidate>
+                {% csrf_token %}
+                <div class="pf-input-group" id="grp-license">
+                  <label class="pf-label">License Number</label>
+                  <div class="pf-input-wrap">
+                    <input type="text" id="license_number" name="license_number"
+                           value="{{ hospital.license_number|default:'' }}"
+                           placeholder="e.g. MH-HOS-2024-00123">
+                  </div>
+                  <span class="pf-field-error" id="err-license"></span>
+                </div>
+
+                <div class="pf-input-group" id="grp-doc">
+                  <label class="pf-label">License Document</label>
+                  <div class="file-drop-zone" id="fileDropZone">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="17 8 12 3 7 8"/>
+                      <line x1="12" y1="3" x2="12" y2="15"/>
+                    </svg>
+                    <p class="drop-title">Click or drag to upload</p>
+                    <p class="drop-sub">PDF, JPG, PNG — max 5MB</p>
+                    <input type="file" id="license_document" name="license_document"
+                           accept=".pdf,.jpg,.jpeg,.png" class="file-input">
+                  </div>
+                  <div class="file-selected" id="fileSelected" style="display:none">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                    <span id="fileName"></span>
+                    <button type="button" id="removeFile">✕</button>
+                  </div>
+                  <span class="pf-field-error" id="err-doc"></span>
+                </div>
+
+                <div class="once-confirm-row" id="licenseConfirmRow" style="display:none">
+                  <label class="once-checkbox-label">
+                    <input type="checkbox" id="licenseConfirm">
+                    <span class="once-checkbox-box"></span>
+                    I understand license details cannot be changed after saving
+                  </label>
+                </div>
+                <button type="submit" class="pf-btn pf-btn-primary" id="licenseSaveBtn" disabled>
+                  Save License Details
+                </button>
+              </form>
+            {% endif %}
+          </div>
+
+        </div>
+        <!-- /.profile-col left -->
+
+
+        <!-- ════════════════════════════════
+             RIGHT COLUMN
+        ════════════════════════════════ -->
+        <div class="profile-col">
+
+          <!-- ── Section 4: Address (editable anytime) ── -->
+          <div class="profile-section">
+            <div class="section-head">
+              <span class="section-title">Address Details</span>
+              <span class="section-note">Can be updated any time</span>
+            </div>
+            <form method="POST" action="{% url 'hospital_update_address' %}" id="addressForm" novalidate>
+              {% csrf_token %}
+
+              <div class="pf-input-group" id="grp-address">
+                <label class="pf-label">Street Address</label>
+                <div class="pf-input-wrap">
+                  <textarea id="address" name="address" rows="2"
+                            placeholder="Building, street, area">{{ hospital.address|default:'' }}</textarea>
+                </div>
+                <span class="pf-field-error" id="err-address"></span>
+              </div>
+
+              <div class="pf-row-2">
+                <div class="pf-input-group" id="grp-city">
+                  <label class="pf-label">City</label>
+                  <div class="pf-input-wrap">
+                    <input type="text" id="city" name="city"
+                           value="{{ hospital.city|default:'' }}"
+                           placeholder="e.g. Mumbai">
+                  </div>
+                  <span class="pf-field-error" id="err-city"></span>
+                </div>
+                <div class="pf-input-group" id="grp-state">
+                  <label class="pf-label">State</label>
+                  <div class="pf-input-wrap">
+                    <input type="text" id="state" name="state"
+                           value="{{ hospital.state|default:'' }}"
+                           placeholder="e.g. Maharashtra">
+                  </div>
+                  <span class="pf-field-error" id="err-state"></span>
+                </div>
+              </div>
+
+              <div class="pf-input-group" id="grp-country">
+                <label class="pf-label">Country</label>
+                <div class="pf-input-wrap">
+                  <input type="text" id="country" name="country"
+                         value="{{ hospital.country|default:'India' }}"
+                         placeholder="e.g. India">
+                </div>
+              </div>
+
+              <button type="submit" class="pf-btn pf-btn-primary">
+                Save Address
+              </button>
+            </form>
+          </div>
+
+
+          <!-- ── Section 5: Change Password ── -->
+          <div class="profile-section">
+            <div class="section-head">
+              <span class="section-title">Change Password</span>
+              <span class="section-note">Can be updated any time</span>
+            </div>
+            <form method="POST" action="{% url 'hospital_update_password' %}" id="passwordForm" novalidate>
+              {% csrf_token %}
+
+              <div class="pf-input-group" id="grp-curr-pw">
+                <label class="pf-label">Current Password</label>
+                <div class="pf-input-wrap pf-pw-wrap">
+                  <input type="password" id="current_password" name="current_password"
+                         placeholder="Enter current password" autocomplete="current-password">
+                  <button type="button" class="pf-toggle-pw" data-target="current_password">
+                    <svg class="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+                <span class="pf-field-error" id="err-curr-pw"></span>
+              </div>
+
+              <div class="pf-input-group" id="grp-new-pw">
+                <label class="pf-label">New Password</label>
+                <div class="pf-input-wrap pf-pw-wrap">
+                  <input type="password" id="new_password" name="new_password"
+                         placeholder="Min. 8 characters" autocomplete="new-password">
+                  <button type="button" class="pf-toggle-pw" data-target="new_password">
+                    <svg class="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+                <span class="pf-field-error" id="err-new-pw"></span>
+              </div>
+
+              <div class="pf-input-group" id="grp-confirm-pw">
+                <label class="pf-label">Confirm New Password</label>
+                <div class="pf-input-wrap pf-pw-wrap">
+                  <input type="password" id="confirm_new_password" name="confirm_new_password"
+                         placeholder="Re-enter new password" autocomplete="new-password">
+                  <button type="button" class="pf-toggle-pw" data-target="confirm_new_password">
+                    <svg class="eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-hide" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+                <span class="pf-field-error" id="err-confirm-pw"></span>
+              </div>
+
+              <button type="submit" class="pf-btn pf-btn-primary" id="pwSaveBtn">
+                Update Password
+              </button>
+            </form>
+          </div>
+
+        </div>
+        <!-- /.profile-col right -->
+
+      </div>
+      <!-- /.profile-grid -->
+
+    </div>
+    <!-- /.profile-page-content -->
+
+  </main>
+
+
+  <script>
+  /* ─── Sidebar toggle (mobile) ─── */
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  /* ─── Password show/hide toggles ─── */
+  document.querySelectorAll('.pf-toggle-pw').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input  = document.getElementById(btn.dataset.target);
+      const isText = input.type === 'text';
+      input.type   = isText ? 'password' : 'text';
+      btn.querySelector('.eye-show').style.display = isText ? ''     : 'none';
+      btn.querySelector('.eye-hide').style.display = isText ? 'none' : '';
+    });
+  });
+
+  /* ─── Hospital name form ───
+     Show confirm checkbox only when user changes the value.
+     Enable Save only when checkbox is ticked. */
+  const nameInput       = document.getElementById('hospital_name');
+  const nameConfirmRow  = document.getElementById('nameConfirmRow');
+  const nameConfirm     = document.getElementById('nameConfirm');
+  const nameSaveBtn     = document.getElementById('nameSaveBtn');
+  const originalName    = nameInput ? nameInput.defaultValue : '';
+
+  if (nameInput) {
+    nameInput.addEventListener('input', () => {
+      const changed = nameInput.value.trim() !== originalName.trim();
+      nameConfirmRow.style.display = changed ? 'block' : 'none';
+      if (!changed) {
+        nameConfirm.checked  = false;
+        nameSaveBtn.disabled = true;
+      }
+    });
+
+    nameConfirm.addEventListener('change', () => {
+      nameSaveBtn.disabled = !nameConfirm.checked;
+    });
+
+    // Frontend validation on submit
+    document.getElementById('nameForm').addEventListener('submit', function(e) {
+      const val = nameInput.value.trim();
+      if (!val) {
+        e.preventDefault();
+        document.getElementById('err-hname').textContent = 'Hospital name is required';
+        document.getElementById('grp-hname').classList.add('pf-has-error');
+      }
+    });
+  }
+
+  /* ─── License form ───
+     Show confirm checkbox when both fields have values. */
+  const licenseInput      = document.getElementById('license_number');
+  const licenseConfirmRow = document.getElementById('licenseConfirmRow');
+  const licenseConfirm    = document.getElementById('licenseConfirm');
+  const licenseSaveBtn    = document.getElementById('licenseSaveBtn');
+
+  function checkLicenseReady() {
+    if (!licenseInput) return;
+    const hasNumber = licenseInput.value.trim().length > 0;
+    licenseConfirmRow.style.display = hasNumber ? 'block' : 'none';
+    if (!hasNumber) {
+      licenseConfirm.checked   = false;
+      licenseSaveBtn.disabled  = true;
+    }
+  }
+
+  if (licenseInput) {
+    licenseInput.addEventListener('input', checkLicenseReady);
+
+    licenseConfirm.addEventListener('change', () => {
+      licenseSaveBtn.disabled = !licenseConfirm.checked;
+    });
+
+    document.getElementById('licenseForm').addEventListener('submit', function(e) {
+      let ok = true;
+      if (!licenseInput.value.trim()) {
+        e.preventDefault();
+        document.getElementById('err-license').textContent = 'License number is required';
+        document.getElementById('grp-license').classList.add('pf-has-error');
+        ok = false;
+      }
+      if (!ok) return;
+    });
+  }
+
+  /* ─── File upload UI ─── */
+  const fileInput    = document.getElementById('license_document');
+  const fileDropZone = document.getElementById('fileDropZone');
+  const fileSelected = document.getElementById('fileSelected');
+  const fileName     = document.getElementById('fileName');
+  const removeFile   = document.getElementById('removeFile');
+
+  if (fileInput) {
+    // Click on drop zone opens file picker
+    fileDropZone.addEventListener('click', () => fileInput.click());
+
+    // Drag over styling
+    fileDropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      fileDropZone.classList.add('drop-hover');
+    });
+    fileDropZone.addEventListener('dragleave', () => {
+      fileDropZone.classList.remove('drop-hover');
+    });
+    fileDropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      fileDropZone.classList.remove('drop-hover');
+      const file = e.dataTransfer.files[0];
+      if (file) showFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) showFile(fileInput.files[0]);
+    });
+
+    removeFile.addEventListener('click', () => {
+      fileInput.value   = '';
+      fileDropZone.style.display = 'flex';
+      fileSelected.style.display = 'none';
+      checkLicenseReady();
+    });
+
+    function showFile(file) {
+      fileName.textContent           = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+      fileDropZone.style.display     = 'none';
+      fileSelected.style.display     = 'flex';
+      checkLicenseReady();
+    }
+  }
+
+  /* ─── Password form validation ─── */
+  const newPw     = document.getElementById('new_password');
+  const confirmPw = document.getElementById('confirm_new_password');
+
+  if (newPw) {
+    document.getElementById('passwordForm').addEventListener('submit', function(e) {
+      let ok = true;
+
+      if (!document.getElementById('current_password').value) {
+        e.preventDefault();
+        document.getElementById('err-curr-pw').textContent = 'Current password is required';
+        document.getElementById('grp-curr-pw').classList.add('pf-has-error');
+        ok = false;
+      }
+      if (!newPw.value) {
+        e.preventDefault();
+        document.getElementById('err-new-pw').textContent = 'New password is required';
+        document.getElementById('grp-new-pw').classList.add('pf-has-error');
+        ok = false;
+      } else if (newPw.value.length < 8) {
+        e.preventDefault();
+        document.getElementById('err-new-pw').textContent = 'Min. 8 characters';
+        document.getElementById('grp-new-pw').classList.add('pf-has-error');
+        ok = false;
+      }
+      if (newPw.value !== confirmPw.value) {
+        e.preventDefault();
+        document.getElementById('err-confirm-pw').textContent = 'Passwords do not match';
+        document.getElementById('grp-confirm-pw').classList.add('pf-has-error');
+        ok = false;
+      }
+    });
+
+    // Clear error on input
+    [newPw, confirmPw].forEach(inp => {
+      inp.addEventListener('input', () => {
+        if (newPw.value === confirmPw.value && newPw.value.length >= 8) {
+          document.getElementById('grp-new-pw').classList.remove('pf-has-error');
+          document.getElementById('grp-confirm-pw').classList.remove('pf-has-error');
+          document.getElementById('err-new-pw').textContent     = '';
+          document.getElementById('err-confirm-pw').textContent = '';
+        }
+      });
+    });
+  }
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

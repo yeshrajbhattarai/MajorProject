@@ -1,0 +1,154 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Record History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .history-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .history-head {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .history-title { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text-primary); }
+    .history-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .history-count {
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 9px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .snapshot {
+      white-space: pre-wrap;
+      margin: 0;
+      max-width: 520px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+    }
+    .actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  {% if staff_role == 'technician' %}
+    {% include 'hospitals/partials/technician_sidebar.html' with active_page='lab_queue' %}
+  {% else %}
+    {% include 'hospitals/partials/doctor_sidebar.html' with active_page='patients' %}
+  {% endif %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Record History</h1>
+          <span class="breadcrumb">
+            <a href="/staff/records/{{ record_id }}/" class="breadcrumb-link">Record Detail</a>
+            &nbsp;/&nbsp; History
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-3);box-shadow:0 0 12px var(--a3-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="history-card">
+        <div class="history-head">
+          <div>
+            <div class="history-title">Version Timeline</div>
+            <div class="history-sub">Immutable snapshots of all record updates.</div>
+          </div>
+          <span class="history-count">{{ history|length }} versions</span>
+        </div>
+
+        <div class="staff-table-wrap">
+          <table class="staff-table">
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Event</th>
+                <th>Changed At</th>
+                <th>Changed By</th>
+                <th>Reason</th>
+                <th>Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in history %}
+              <tr>
+                <td><span class="status-badge status-active">v{{ item.version_number }}</span></td>
+                <td>
+                  {% if item.event_type == 'created' %}
+                  <span class="status-badge status-active">Created</span>
+                  {% else %}
+                  <span class="status-badge status-pending">Updated</span>
+                  {% endif %}
+                </td>
+                <td class="td-date">{{ item.changed_at|date:'d M Y, h:i A' }}</td>
+                <td>
+                  <div>{{ item.changed_by_name }}</div>
+                  <div class="td-muted">{{ item.changed_by_role|title }} · {{ item.changed_by_id }}</div>
+                </td>
+                <td>{{ item.change_reason|default:'-' }}</td>
+                <td><pre class="snapshot">{{ item.data_snapshot }}</pre></td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="td-muted">No history found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="actions">
+        <a class="tbl-btn" href="/staff/records/{{ record_id }}/">Back To Record</a>
+        {% if staff_role == 'technician' %}
+        <a class="tbl-btn" href="/staff/technician/lab/">Back To Lab Queue</a>
+        {% else %}
+        <a class="tbl-btn" href="/staff/doctor/patients/">Back To Patients</a>
+        {% endif %}
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

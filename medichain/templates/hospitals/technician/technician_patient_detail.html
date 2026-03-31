@@ -1,0 +1,326 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | {{ patient.full_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 800px) { .detail-grid { grid-template-columns: 1fr; } }
+
+    .patient-hero {
+      display: flex; align-items: center; gap: 20px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--a3-border);
+      border-radius: var(--radius);
+      background-image: linear-gradient(135deg, var(--surface) 60%, var(--a3-bg-subtle));
+    }
+    .patient-hero-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--a3-bg); border: 2px solid var(--a3-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif; font-size: 24px; font-weight: 700;
+      color: var(--accent-3); flex-shrink: 0;
+    }
+    .patient-hero-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 20px; font-weight: 700; color: var(--text-primary);
+    }
+    .patient-hero-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .info-card-head {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .info-card-head-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .info-card-head-icon svg { width: 16px; height: 16px; }
+    .info-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .info-card-body { padding: 20px; }
+
+    .info-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-faint);
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .info-value { font-size: 13px; color: var(--text-primary); font-weight: 500; text-align: right; }
+
+    /* Staff co-assigned panel */
+    .co-staff-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .co-staff-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .co-staff-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .co-staff-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+    .co-staff-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500;
+    }
+    .co-staff-chip-nurse { background: var(--a1-bg); color: var(--accent); border: 1px solid var(--a1-border); }
+    .co-staff-chip-tech  { background: var(--a3-bg); color: var(--accent-3); border: 1px solid var(--a3-border); }
+    .co-staff-chip svg { width: 14px; height: 14px; }
+    .co-staff-you {
+      margin-left: auto;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 20px;
+      background: var(--a3-bg); color: var(--accent-3); border: 1px solid var(--a3-border);
+    }
+
+    .records-placeholder {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .records-placeholder svg { width: 40px; height: 40px; stroke: var(--text-muted); margin-bottom: 12px; }
+    .records-placeholder h3 { font-size: 15px; color: var(--text-primary); margin-bottom: 6px; }
+    .records-placeholder p  { font-size: 13px; color: var(--text-muted); }
+    .records-soon-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 14px; padding: 6px 14px;
+      background: var(--a5-bg); color: var(--warning);
+      border: 1px solid var(--a5-border); border-radius: 20px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='patients' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>{{ patient.full_name }}</h1>
+          <span class="breadcrumb">
+            <a href="/staff/technician/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp;
+            <a href="/staff/technician/patients/" class="breadcrumb-link">My Patients</a>
+            &nbsp;/&nbsp; {{ patient.full_name }}
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-3);box-shadow:0 0 12px var(--a3-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="add-staff-content">
+
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {% if message.tags == 'success' %}<polyline points="20 6 9 17 4 12"/>
+            {% else %}<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>{% endif %}
+          </svg>
+          {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Patient hero -->
+      <div class="patient-hero">
+        <div class="patient-hero-avatar">{{ patient.full_name|slice:":1"|upper }}</div>
+        <div>
+          <div class="patient-hero-name">{{ patient.full_name }}</div>
+          <div class="patient-hero-sub">
+            {{ patient.gender|default:"—" }} &nbsp;·&nbsp;
+            {{ patient.phone|default:"—" }} &nbsp;·&nbsp;
+            Registered {{ patient.created_at|date:"d M Y" }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail grid -->
+      <div class="detail-grid">
+
+        <!-- LEFT: patient info -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <div class="info-card">
+            <div class="info-card-head">
+              <div class="info-card-head-icon" style="background:var(--a3-bg);color:var(--accent-3);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span class="info-card-title">Patient Information</span>
+            </div>
+            <div class="info-card-body">
+              <div class="info-row">
+                <span class="info-label">Full Name</span>
+                <span class="info-value">{{ patient.full_name }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Gender</span>
+                <span class="info-value">{{ patient.gender|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Phone</span>
+                <span class="info-value">{{ patient.phone|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value">{{ patient.email|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Address</span>
+                <span class="info-value">{{ patient.address|default:"—" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Registered On</span>
+                <span class="info-value">{{ patient.created_at|date:"d M Y, h:i A" }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Records placeholder -->
+          <div class="records-placeholder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            <h3>Medical Records</h3>
+            <p>Records and file uploads will appear here once the medical records module is built.</p>
+            <div class="records-soon-badge">Coming Next Phase</div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT: co-assigned staff (read-only) -->
+        <div style="display:flex;flex-direction:column;gap:16px;">
+
+          <!-- Assigned Nurses on this patient -->
+          <div class="co-staff-card">
+            <div class="co-staff-head">
+              <div class="info-card-head-icon" style="background:var(--a1-bg);color:var(--accent);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <span class="co-staff-title">Assigned Nurses</span>
+              <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">{{ assigned_nurses|length }}</span>
+            </div>
+            <div class="co-staff-body">
+              {% if assigned_nurses %}
+                {% for a in assigned_nurses %}
+                <div class="co-staff-chip co-staff-chip-nurse">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  {{ a.staff.full_name }}
+                </div>
+                {% endfor %}
+              {% else %}
+                <span style="font-size:13px;color:var(--text-muted);font-style:italic;">No nurses assigned.</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Assigned Technicians on this patient (including self) -->
+          <div class="co-staff-card">
+            <div class="co-staff-head">
+              <div class="info-card-head-icon" style="background:var(--a3-bg);color:var(--accent-3);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                </svg>
+              </div>
+              <span class="co-staff-title">Assigned Technicians</span>
+              <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">{{ assigned_technicians|length }}</span>
+            </div>
+            <div class="co-staff-body">
+              {% for a in assigned_technicians %}
+              <div class="co-staff-chip co-staff-chip-tech">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                </svg>
+                {{ a.staff.full_name }}
+                {% if a.staff.id|stringformat:"s" == staff_id %}
+                <span class="co-staff-you">You</span>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <!-- Note -->
+          <div style="padding:14px 16px;background:var(--bg-3);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);">
+            <strong style="color:var(--text-primary);">Note:</strong>
+            You can view this patient's information and create records. Patient assignments are managed by the treating doctor.
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Back -->
+      <div style="margin-top:8px;">
+        <a href="/staff/technician/patients/" class="sf-btn-cancel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Back to My Patients
+        </a>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+  function updateTime() {
+    const el = document.getElementById('topbarTime');
+    if (el) el.textContent = new Date().toLocaleDateString('en-IN', {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+  updateTime(); setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

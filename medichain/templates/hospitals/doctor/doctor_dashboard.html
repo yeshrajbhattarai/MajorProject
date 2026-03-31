@@ -1,0 +1,338 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Doctor Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <style>
+    /* Doctor-specific additions only */
+
+    .nav-soon {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      background: var(--a5-bg);
+      color: var(--warning);
+      border: 1px solid var(--a5-border);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .welcome-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: var(--surface);
+      border: 1px solid var(--a2-border);
+      border-radius: var(--radius);
+      background-image: linear-gradient(135deg, var(--surface) 60%, var(--a2-bg-subtle));
+    }
+
+    .welcome-left { display: flex; align-items: center; gap: 16px; }
+
+    .welcome-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--a2-bg);
+      border: 2px solid var(--a2-border-subtle);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent-2);
+      flex-shrink: 0;
+    }
+    .welcome-avatar svg { width: 22px; height: 22px; }
+
+    .welcome-text h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px; font-weight: 700;
+      color: var(--text-primary); margin-bottom: 3px;
+    }
+    .welcome-text p { font-size: 13px; color: var(--text-muted); }
+
+    .welcome-role-badge {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      background: var(--a2-bg); border: 1px solid var(--a2-border);
+      border-radius: 20px;
+      font-size: 12px; font-weight: 600; color: var(--accent-2);
+    }
+    .welcome-role-badge svg { width: 13px; height: 13px; }
+
+    /* Stats */
+    .doctor-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .doctor-stat-card {
+      display: flex; align-items: center; gap: 16px;
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color var(--transition), transform var(--transition);
+    }
+    .doctor-stat-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+
+    .doctor-stat-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .doctor-stat-icon svg { width: 20px; height: 20px; }
+    .icon-patients { background: var(--a4-bg);    color: var(--accent-4); }
+    .icon-records  { background: var(--a5-bg);    color: var(--warning); }
+    .icon-reports  { background: var(--accent-bg); color: var(--accent); }
+
+    .doctor-stat-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px; font-weight: 800;
+      color: var(--text-primary); line-height: 1; display: block;
+    }
+    .doctor-stat-label {
+      font-size: 12px; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+
+    /* Action buttons */
+    .doctor-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .action-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 13px 16px; border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--bg-3);
+      transition: background var(--transition), border-color var(--transition), transform var(--transition);
+    }
+    .action-btn:hover { transform: translateY(-2px); }
+
+    .action-btn-icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .action-btn-icon svg { width: 14px; height: 14px; }
+
+    .action-btn-patients { color: var(--accent-4); }
+    .action-btn-patients .action-btn-icon { background: var(--a4-bg); color: var(--accent-4); }
+    .action-btn-patients:hover { background: var(--a4-hover-bg); border-color: var(--a4-hover-border); }
+
+    .action-btn-record { color: var(--warning); }
+    .action-btn-record .action-btn-icon { background: var(--a5-bg); color: var(--warning); }
+    .action-btn-record:hover { background: var(--a5-hover-bg); border-color: var(--a5-hover-border); }
+
+    .card-icon-actions  { background: var(--a2-bg); color: var(--accent-2); }
+    .card-icon-activity { background: var(--a3-bg); color: var(--accent-3); }
+
+    @media (max-width: 900px) { .doctor-stats-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) {
+      .doctor-stats-grid { grid-template-columns: 1fr; }
+      .welcome-banner { flex-direction: column; align-items: flex-start; gap: 14px; }
+      .doctor-actions-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='dashboard' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="page-title">
+          <h1>Dashboard</h1>
+          <span class="breadcrumb">Doctor Overview</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="dashboard-content">
+
+      <!-- Welcome Banner -->
+      <div class="welcome-banner">
+        <div class="welcome-left">
+          <div class="welcome-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="welcome-text">
+            <h2>Welcome, Dr. {{ staff_name }}</h2>
+            <p>{{ staff_hospital }} &nbsp;·&nbsp; Logged in as Doctor</p>
+          </div>
+        </div>
+        <div class="welcome-role-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+          Active · Doctor
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="doctor-stats-grid">
+
+        <div class="doctor-stat-card">
+          <div class="doctor-stat-icon icon-patients">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <div>
+            <span class="doctor-stat-num">{{ total_patients|default:"0" }}</span>
+            <span class="doctor-stat-label">My Patients</span>
+          </div>
+        </div>
+
+        <div class="doctor-stat-card">
+          <div class="doctor-stat-icon icon-records">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <span class="doctor-stat-num">{{ total_records|default:"0" }}</span>
+            <span class="doctor-stat-label">Records Created</span>
+          </div>
+        </div>
+
+        <div class="doctor-stat-card">
+          <div class="doctor-stat-icon icon-reports">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </div>
+          <div>
+            <span class="doctor-stat-num">{{ total_reports|default:"0" }}</span>
+            <span class="doctor-stat-label">Files Uploaded</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Actions + Recent Activity -->
+      <div class="dash-row dash-row-bottom">
+
+        <div class="dash-card card-actions">
+          <div class="card-head">
+            <span class="card-icon card-icon-actions">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+            </span>
+            <span class="card-title">Quick Actions</span>
+          </div>
+          <div class="card-body doctor-actions-grid">
+
+            <a href="/staff/doctor/patients/" class="action-btn action-btn-patients">
+              <span class="action-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+              </span>
+              View Patients
+            </a>
+
+            <a href="#" class="action-btn action-btn-record">
+              <span class="action-btn-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+              </span>
+              Create Record
+            </a>
+
+          </div>
+        </div>
+
+        <div class="dash-card card-activity">
+          <div class="card-head">
+            <span class="card-icon card-icon-activity">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            </span>
+            <span class="card-title">Recent Activity</span>
+          </div>
+          <div class="card-body">
+            {% if recent_logs %}
+              <ul class="activity-list">
+                {% for log in recent_logs %}
+                <li class="activity-item">
+                  <span class="activity-dot activity-dot-doctor"></span>
+                  <div class="activity-info">
+                    <span class="activity-desc">{{ log.description }}</span>
+                    <span class="activity-time">{{ log.timestamp|timesince }} ago</span>
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div class="activity-empty">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p>No activity yet</p>
+                <span>Actions taken by you will appear here</span>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+  function updateTime() {
+    const el = document.getElementById('topbarTime');
+    if (el) el.textContent = new Date().toLocaleDateString('en-IN', {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+  updateTime(); setInterval(updateTime, 60000);
+
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  document.querySelectorAll('.nav-item, .action-btn').forEach(item => {
+    item.addEventListener('click', function(e) {
+      if (this.classList.contains('nav-logout')) return;
+      if (this.getAttribute('href') && this.getAttribute('href') !== '#') return;
+      e.preventDefault();
+    });
+  });
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

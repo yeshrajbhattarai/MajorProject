@@ -1,0 +1,180 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Patients</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+</head>
+<body>
+
+  {% include 'hospitals/partials/sidebar.html' with active_page='patients' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Patients</h1>
+          <span class="breadcrumb">
+            <a href="/dashboard/" class="breadcrumb-link">Dashboard</a> &nbsp;/&nbsp; Patients
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar">{{ hospital_name|slice:":1"|upper }}</div>
+      </div>
+    </header>
+
+    <div class="staff-content">
+
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            {% if message.tags == 'success' %}<polyline points="20 6 9 17 4 12"/>
+            {% else %}<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>{% endif %}
+          </svg>
+          {{ message }}
+        </div>
+        {% endfor %}
+      {% endif %}
+
+      <!-- Header -->
+      <div class="staff-header">
+        <div class="staff-header-left">
+          <h2>All Patients</h2>
+          <p>Patients registered by your hospital</p>
+        </div>
+        <a href="/staff/patients/add/" class="add-btn add-btn-patient">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Register Patient
+        </a>
+      </div>
+
+      <!-- Toolbar -->
+      <div class="staff-toolbar">
+        <div class="staff-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" class="staff-search" id="searchInput" placeholder="Search by name or phone...">
+        </div>
+        <div class="staff-count" id="staffCount">{{ patients|length }} patient{{ patients|length|pluralize }}</div>
+      </div>
+
+      <!-- Table -->
+      <div class="staff-table-card">
+        <div class="staff-table-wrap">
+          {% if patients %}
+          <table class="staff-table" id="staffTable">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Gender</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Gov ID Type</th>
+                <th>Registered</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for patient in patients %}
+              <tr data-search="{{ patient.full_name|lower }} {{ patient.phone|default:''|lower }}">
+                <td>
+                  <div class="staff-name-cell">
+                    {% if patient.profile_photo %}
+                      <img src="{{ patient.profile_photo.url }}" alt="{{ patient.full_name }}"
+                           style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1px solid rgba(167,139,250,0.3);">
+                    {% else %}
+                      <div class="staff-avatar avatar-patient">{{ patient.full_name|slice:":1"|upper }}</div>
+                    {% endif %}
+                    <div class="staff-name-info">
+                      <span class="staff-name">{{ patient.full_name }}</span>
+                      <span class="staff-emp-id">{{ patient.get_gov_id_type_display }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="td-muted">{{ patient.gender|default:"—" }}</td>
+                <td class="td-mono">{{ patient.phone|default:"—" }}</td>
+                <td class="td-muted">{{ patient.email|default:"—" }}</td>
+                <td>
+                  <span class="status-pill" style="background:rgba(167,139,250,0.1);color:#a78bfa;border:1px solid rgba(167,139,250,0.25);">
+                    {{ patient.get_gov_id_type_display }}
+                  </span>
+                </td>
+                <td class="td-date">{{ patient.created_at|date:"d M Y" }}</td>
+                <td>
+                  <div class="table-actions">
+                    <a href="/staff/patients/{{ patient.id }}/" class="tbl-btn tbl-btn-view">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                      </svg>
+                      View
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+          <div class="staff-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+            <h3>No patients yet</h3>
+            <p>Register your first patient to get started</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  const staffCount  = document.getElementById('staffCount');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value.toLowerCase();
+      const rows = document.querySelectorAll('#staffTable tbody tr');
+      let visible = 0;
+      rows.forEach(row => {
+        const match = row.dataset.search.includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      staffCount.textContent = visible + ' patient' + (visible !== 1 ? 's' : '');
+    });
+  }
+
+  function updateTime() {
+    const el = document.getElementById('topbarTime');
+    if (el) el.textContent = new Date().toLocaleDateString('en-IN', {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+  updateTime(); setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>
