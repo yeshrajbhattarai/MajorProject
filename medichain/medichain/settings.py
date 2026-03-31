@@ -27,7 +27,6 @@ ALLOWED_HOSTS = []
 # ─── Apps ─────────────────────────────────────────────────────────────────────
 
 INSTALLED_APPS = [
-<<<<<<< HEAD
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -35,26 +34,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'consentmanagement',
     'hospitals',
     'hospital_local',
+    'consentmanagement',
+    'auditlog',
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-=======
-    "django.contrib.admin",
-    "django.contrib.auth",
-    "django.contrib.contenttypes",
-    "django.contrib.sessions",
-    "django.contrib.messages",
-    "django.contrib.staticfiles",
-    "hospitals",
-    "consentmanagement",
-    'rest_framework',
-    'auditlog',
->>>>>>> hospital-communication
 ]
-
+    
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -71,11 +59,7 @@ ROOT_URLCONF = 'medichain.urls'
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-<<<<<<< HEAD
-        "DIRS": ["templates"],
-=======
         "DIRS": ['templates'],
->>>>>>> hospital-communication
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -100,21 +84,12 @@ WSGI_APPLICATION = 'medichain.wsgi.application'
 # }
 DATABASES = {
     'default': {
-<<<<<<< HEAD
         'ENGINE':   'django.db.backends.mysql',
         'NAME':     os.environ.get('DB_NAME', 'medichain'),
         'USER':     os.environ.get('DB_USER', 'root'),
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST':     os.environ.get('DB_HOST', 'localhost'),
         'PORT':     os.environ.get('DB_PORT', '3306'),
-=======
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'medichain',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': 'localhost',
-        'PORT': '3306',
->>>>>>> hospital-communication
     }
 }
 
@@ -142,12 +117,6 @@ USE_TZ        = True
 
 # ─── Static & Media ───────────────────────────────────────────────────────────
 
-<<<<<<< HEAD
-STATIC_URL       = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-MEDIA_URL        = '/media/'
-MEDIA_ROOT       = BASE_DIR / 'media'
-=======
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
@@ -162,7 +131,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 MEDIA_URL  = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
->>>>>>> hospital-communication
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -173,7 +141,6 @@ EMAIL_BACKEND       = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST          = 'smtp.gmail.com'
 EMAIL_PORT          = 587
 EMAIL_USE_TLS       = True
-<<<<<<< HEAD
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL  = f"MediChain <{os.environ.get('EMAIL_HOST_USER', '')}>"
@@ -205,8 +172,3 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,                # blacklist rotated tokens
     'AUTH_HEADER_TYPES':        ('Bearer',),         # Authorization: Bearer <token>
 }
-=======
-EMAIL_HOST_USER     = 'samarpandahal39@gmail.com'        # your Gmail
-EMAIL_HOST_PASSWORD = 'nwdakeseiinfbyst'   # the 16-char app password
-DEFAULT_FROM_EMAIL  = 'MediChain <samarpandahal39@gmail.com>'
->>>>>>> hospital-communication

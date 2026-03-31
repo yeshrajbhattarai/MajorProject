@@ -1,4 +1,5 @@
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import ConsentRequest
 from .serializers import (
@@ -7,73 +8,93 @@ from .serializers import (
     PatientDecisionSerializer,
     HospitalDecisionSerializer
 )
+from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
-#! Samarpans Model Testing
 from hospitals.models import Hospital
-from django.core.exceptions import ValidationError
-
-# ! Auditlog module
 from auditlog.utils import log_action
 
+
 #? ── HELPER ──────────────────────────────────────────────────────────────────
-def get_hospital_from_token(request):
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith("Bearer "):
-        return None, Response({"error": "Missing or invalid token"}, status=401)
-    token = auth_header.split(" ")[1]
+
+# Extracts hospital identity from the JWT payload and returns the Hospital object.
+#! TODO: Add check for token expiry edge cases if JWT middleware doesn't handle it
+def get_hospital_from_payload(request):
+    payload = getattr(request, 'user_payload', None)
+
+    if payload is None:
+        return None, Response({"error": "Authentication required"}, status=401)
+
+    if payload.get('user_type') != 'hospital':
+        return None, Response({"error": "Only hospitals can perform this action"}, status=403)
+
+    if payload.get('account_status') != 'active':
+        return None, Response({"error": "Hospital account is not active"}, status=403)
+
     try:
-        hospital = Hospital.objects.get(api_key=token)
-    except (Hospital.DoesNotExist, ValidationError):
-        return None, Response({"error": "Invalid hospital token"}, status=401)
+        hospital = Hospital.objects.get(id=payload.get('hospital_id'))
+    except Hospital.DoesNotExist:
+        return None, Response({"error": "Hospital not found"}, status=401)
+
     return hospital, None
 
 
+#? ── HOSPITAL DIRECTORY ───────────────────────────────────────────────────────
+
+# Returns all active hospitals except the requesting one — used for selecting a target hospital.
+#! TODO: Add pagination when hospital count grows large
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def hospital_directory(request):
-    hospital, error = get_hospital_from_token(request)
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
-    
+
     hospitals = Hospital.objects.filter(
         account_status='active'
     ).exclude(
-        hospital_name=hospital.hospital_name  # hide my own hospital...
+        hospital_name=hospital.hospital_name
     ).values('hospital_name', 'city', 'state')
-    
+
     return Response(list(hospitals), status=200)
 
 
-
 #? ── CONSENT MANAGEMENT APIs ──────────────────────────────────────────────────
-
+# Creates a new consent request — requesting hospital is taken from token, not request body.
+#! TODO: Notify the patient and owning hospital when a new request is created
 @api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_consent(request):
-    hospital, error = get_hospital_from_token(request)
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
 
     data = request.data.copy()
-    data['requesting_hospital'] = hospital.hospital_name  #! override with real hospital name
+    data['requesting_hospital'] = hospital.hospital_name
 
     serializer = ConsentCreateSerializer(data=data)
     if serializer.is_valid():
         consent = serializer.save()
         log_action('CONSENT_CREATED', hospital.hospital_name, consent.consent_id)
-        return Response(ConsentRequestSerializer(consent).data, status=201)  #* full object back
+        return Response(ConsentRequestSerializer(consent).data, status=201)
     return Response(serializer.errors, status=400)
 
 
+# Returns all consent records — for development and admin inspection only.
+#! TODO: Remove or restrict behind admin-only auth before production
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def view_consent(request):
-    #! Dev only - not for production
     consents = ConsentRequest.objects.all().order_by('-created_at')
     serializer = ConsentRequestSerializer(consents, many=True)
     return Response(serializer.data)
 
 
+# Returns all consent requests sent by the authenticated hospital.
+#! TODO: Add date range filtering support
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def sent_requests(request):
-    hospital, error = get_hospital_from_token(request)
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
 
@@ -84,10 +105,12 @@ def sent_requests(request):
     return Response(serializer.data)
 
 
-
+# Returns all consent requests received by the authenticated hospital.
+#! TODO: Add date range filtering support
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def received_requests(request):
-    hospital, error = get_hospital_from_token(request)
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
 
@@ -98,14 +121,20 @@ def received_requests(request):
     return Response(serializer.data)
 
 
+# Returns full details of a single consent request by ID.
+#! TODO: Add auth so only involved hospitals or the patient can view this
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def consent_detail(request, consent_id):
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
     serializer = ConsentRequestSerializer(consent)
     return Response(serializer.data)
 
 
+# Allows the patient to approve or reject a pending consent request.
+#! TODO: Add patient JWT authentication — currently this endpoint has no auth
 @api_view(['PATCH'])
+@permission_classes([AllowAny])
 def patient_decision(request, consent_id):
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
@@ -124,15 +153,18 @@ def patient_decision(request, consent_id):
     return Response(serializer.errors, status=400)
 
 
+# Allows the owning hospital to approve or reject — verified against token identity.
+#! TODO: Notify the requesting hospital once a decision is made
 @api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
 def hospital_decision(request, consent_id):
-    hospital, error = get_hospital_from_token(request)  # add this
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
 
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
-    if hospital.hospital_name != consent.requested_to_hospital:  # add this security check
+    if hospital.hospital_name != consent.requested_to_hospital:
         return Response({"error": "Unauthorized - you are not the owner hospital"}, status=403)
 
     if consent.request_status != 'PENDING':
@@ -149,15 +181,18 @@ def hospital_decision(request, consent_id):
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
+
+# Deletes a pending consent — only the hospital that created it can delete it.
+#! TODO: Add a soft delete option to preserve audit history instead of hard delete
 @api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_consent(request, consent_id):
-    hospital, error = get_hospital_from_token(request)
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
 
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
-    # only requesting hospital can delete their own consent
     if hospital.hospital_name != consent.requesting_hospital:
         return Response({"error": "Unauthorized - only requesting hospital can delete"}, status=403)
 
@@ -172,25 +207,24 @@ def delete_consent(request, consent_id):
 
 #? ── HOSPITAL API COMMUNICATION ───────────────────────────────────────────────
 
+# Fetches a patient record after a 4-step authorization check — auth, consent exists, approved, requester matches.
+#! TODO: Replace dummy record with real fetch from teammate's medical records module
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def fetch_record(request, consent_id):
-    #* Step 1 - auth first (don't leak consent info to unauthenticated callers)
-    hospital, error = get_hospital_from_token(request)
+    hospital, error = get_hospital_from_payload(request)
     if error:
         return error
     log_action('RECORD_ACCESS_ATTEMPT', hospital.hospital_name, consent_id)
-    #* Step 2 - get the consent
+
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
-    #* Step 3 - check consent is approved
     if consent.request_status != 'APPROVED':
         return Response({"error": "Consent not approved"}, status=403)
 
-    #* Step 4 - ensure requesting hospital matches token identity
     if hospital.hospital_name != consent.requesting_hospital:
         return Response({"error": "Unauthorized hospital"}, status=403)
 
-    #! TODO: replace with real record fetch
     dummy_record = {
         "patient_id": consent.patient_id,
         "diagnosis": "Hypertension",
