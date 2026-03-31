@@ -1,6 +1,5 @@
 from django.db import models
 import uuid #gives unique long id
-
 class ConsentRequest(models.Model):
     consent_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     STATUS_CHOICES = [
@@ -51,3 +50,8 @@ class ConsentRequest(models.Model):
                 name='unique_patient_hospital_request'
             )
         ]
+        
+        
+
+
+# !secrets.token_hex(32) find research paper 

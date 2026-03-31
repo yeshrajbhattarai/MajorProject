@@ -8,8 +8,8 @@ urlpatterns = [
     path('', include('hospitals.urls')),
     path('api/v1/', include('hospitals.api_urls')),
 
-    # your consent module
     path('api/consent/', include('consentmanagement.urls')),
+    path('api/logs/', include('auditlog.urls')),
 
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 

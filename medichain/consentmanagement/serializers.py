@@ -1,7 +1,12 @@
 from rest_framework import serializers
 from .models import ConsentRequest
+from hospitals.models import Hospital
 
-
+# validates the consent's -  requested_to_hospital matches the one which is in my db
+def validate_requested_to_hospital(self, value):
+    if not Hospital.objects.filter(hospital_name=value).exists():
+        raise serializers.ValidationError("This hospital is not registered in MediChain")
+    return value
 class ConsentRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConsentRequest
@@ -24,7 +29,14 @@ class ConsentCreateSerializer(serializers.ModelSerializer):
             'requested_to_hospital',
             'record_id'
         ]
-
+        
+    def validate_requested_to_hospital(self, value):
+        if not Hospital.objects.filter(hospital_name=value).exists():
+            raise serializers.ValidationError(
+                "This hospital is not registered in MediChain"
+            )
+        return value
+    
     def validate(self, data):
         if data['requesting_hospital'] == data['requested_to_hospital']:
             raise serializers.ValidationError(
