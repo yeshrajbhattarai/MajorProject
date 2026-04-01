@@ -1,12 +1,15 @@
 from django.test import TestCase
+from django.contrib.auth.models import User
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import AccessToken
 from .models import ConsentRequest
 from .serializers import ConsentCreateSerializer, PatientDecisionSerializer, HospitalDecisionSerializer
 from hospitals.models import Hospital
 import uuid
 
 
-# ── HELPER ────────────────────────────────────────────────────────────────────
+#? ── TEST HELPERS ─────────────────────────────────────────────────────────────
+
 # Creates a basic consent request so we don't repeat this in every test
 def make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis", record_id=None):
     return ConsentRequest.objects.create(
@@ -16,17 +19,33 @@ def make_consent(patient_id="P001", requesting="Apollo", requested_to="Fortis", 
         record_id=record_id
     )
 
+
 # Creates a real Hospital in the test database and returns it
 def make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210"):
     return Hospital.objects.create(
         hospital_name=name,
         email=email,
         password_hash="fakehash",
-        contact_number=contact
+        contact_number=contact,
+        account_status="active"
     )
 
 
-# ── MODEL TESTS ───────────────────────────────────────────────────────────────
+# Generates a real JWT token for a hospital — mimics what MediChainJWTAuthentication expects
+#! TODO: Update claims here if Samarpan changes the JWT payload structure
+def make_jwt(hospital, user_type="hospital_admin", role=None):
+    user, _ = User.objects.get_or_create(username=str(hospital.id))
+    token = AccessToken.for_user(user)
+    token['user_type']      = user_type
+    token['hospital_id']    = str(hospital.id)
+    token['hospital_name']  = hospital.hospital_name
+    token['account_status'] = hospital.account_status
+    token['staff_id']       = None
+    token['staff_role']     = role
+    return str(token)
+
+
+#? ── MODEL TESTS ──────────────────────────────────────────────────────────────
 class ConsentRequestModelTests(TestCase):
 
     # Test 1 - when a consent is created, all choices start as PENDING
@@ -60,14 +79,14 @@ class ConsentRequestModelTests(TestCase):
         consent.save()
         self.assertEqual(consent.request_status, 'REJECTED')
 
-    # Test 5 - status stays PENDING if only patient has approved, hospital has not responded yet
+    # Test 5 - status stays PENDING if only patient approved, hospital has not responded yet
     def test_status_pending_when_only_patient_approves(self):
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
         consent.save()
         self.assertEqual(consent.request_status, 'PENDING')
 
-    # Test 6 - status stays PENDING if only hospital has approved, patient has not responded yet
+    # Test 6 - status stays PENDING if only hospital approved, patient has not responded yet
     def test_status_pending_when_only_hospital_approves(self):
         consent = make_consent()
         consent.hospital_choice = 'APPROVED'
@@ -109,7 +128,7 @@ class ConsentRequestModelTests(TestCase):
         self.assertIsNotNone(hospital.api_key)
 
 
-# ── SERIALIZER TESTS ──────────────────────────────────────────────────────────
+#? ── SERIALIZER TESTS ─────────────────────────────────────────────────────────
 class ConsentSerializerTests(TestCase):
 
     # Test 13 - serializer should pass when both hospitals exist and are different
@@ -179,14 +198,13 @@ class ConsentSerializerTests(TestCase):
         self.assertFalse(serializer.is_valid())
 
 
-# ── VIEW / API TESTS ──────────────────────────────────────────────────────────
+#? ── VIEW / API TESTS ─────────────────────────────────────────────────────────
 class ConsentViewTests(TestCase):
 
     def setUp(self):
-        # APIClient works like a fake browser that can send HTTP requests to our APIs
         self.client = APIClient()
 
-    # Test 21 - valid POST with correct token and existing hospitals should return 201
+    # Test 21 - valid POST with JWT token and existing hospitals should return 201
     def test_create_consent_valid(self):
         apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
         make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
@@ -194,32 +212,42 @@ class ConsentViewTests(TestCase):
             "patient_id": "P001",
             "requested_to_hospital": "Fortis",
             "record_id": ""
-        }, HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}")
+        }, HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo)}")
         self.assertEqual(response.status_code, 201)
 
-    # Test 22 - POST with missing required fields should return 400 even with valid token
+    # Test 22 - POST without a token should be rejected with 401
+    def test_create_consent_no_token(self):
+        make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
+        response = self.client.post('/api/consent/request/', {
+            "patient_id": "P001",
+            "requested_to_hospital": "Fortis"
+        })
+        self.assertEqual(response.status_code, 401)
+
+    # Test 23 - POST with missing required fields should return 400 even with valid token
     def test_create_consent_missing_fields(self):
-        apollo = make_hospital(name="Apollo", email="apollo2@test.com", contact="9876543212")
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
         response = self.client.post('/api/consent/request/', {
             "patient_id": ""
-        }, HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}")
+        }, HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo)}")
         self.assertEqual(response.status_code, 400)
 
-    # Test 23 - GET to view all consents should return 200 and a list
+    # Test 24 - GET to view all consents should return 200 and a list — no auth needed
     def test_view_all_consents(self):
         make_consent()
         response = self.client.get('/api/consent/view/')
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.data, list)
 
-    # Test 24 - patient approving a pending consent should return 200
+    # Test 25 - patient approving a pending consent should return 200 — no auth yet
     def test_patient_decision_approve(self):
         consent = make_consent()
         url = f'/api/consent/{consent.consent_id}/patient-decision/'
         response = self.client.patch(url, {"patient_choice": "APPROVED"}, format='json')
         self.assertEqual(response.status_code, 200)
 
-    # Test 25 - patient trying to respond again after already responding should return 400
+    # Test 26 - patient trying to respond again after already responding should return 400
     def test_patient_decision_already_responded(self):
         consent = make_consent()
         consent.patient_choice = 'APPROVED'
@@ -228,7 +256,7 @@ class ConsentViewTests(TestCase):
         response = self.client.patch(url, {"patient_choice": "REJECTED"}, format='json')
         self.assertEqual(response.status_code, 400)
 
-    # Test 26 - owner hospital approving with valid token should return 200
+    # Test 27 - owner hospital approving with valid JWT should return 200
     def test_hospital_decision_approve(self):
         fortis = make_hospital(name="Fortis", email="fortis@test.com", contact="9876543213")
         consent = make_consent(requested_to="Fortis")
@@ -237,31 +265,65 @@ class ConsentViewTests(TestCase):
             url,
             {"hospital_choice": "APPROVED"},
             format='json',
-            HTTP_AUTHORIZATION=f"Bearer {fortis.api_key}"
+            HTTP_AUTHORIZATION=f"Bearer {make_jwt(fortis)}"
         )
         self.assertEqual(response.status_code, 200)
 
-# Test 27 - deleting a PENDING consent should return 200
-def test_delete_pending_consent(self):
-    apollo = make_hospital(name="Apollo", email="apollo_del@test.com", contact="9876543220")
-    consent = make_consent(requesting="Apollo")
-    url = f'/api/consent/{consent.consent_id}/delete/'
-    response = self.client.delete(
-        url,
-        HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}"
-    )
-    self.assertEqual(response.status_code, 200)
+    # Test 28 - a different hospital trying to approve someone else's consent should get 403
+    def test_hospital_decision_wrong_hospital_blocked(self):
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543213")
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        consent = make_consent(requested_to="Fortis")
+        url = f'/api/consent/{consent.consent_id}/hospital-decision/'
+        response = self.client.patch(
+            url,
+            {"hospital_choice": "APPROVED"},
+            format='json',
+            HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo)}"  #* wrong hospital
+        )
+        self.assertEqual(response.status_code, 403)
 
-# Test 28 - deleting an APPROVED consent should be blocked and return 400
-def test_delete_approved_consent_blocked(self):
-    apollo = make_hospital(name="Apollo", email="apollo_del2@test.com", contact="9876543221")
-    consent = make_consent(requesting="Apollo")
-    consent.patient_choice = 'APPROVED'
-    consent.hospital_choice = 'APPROVED'
-    consent.save()
-    url = f'/api/consent/{consent.consent_id}/delete/'
-    response = self.client.delete(
-        url,
-        HTTP_AUTHORIZATION=f"Bearer {apollo.api_key}"
-    )
-    self.assertEqual(response.status_code, 400)
+    # Test 29 - deleting a PENDING consent by the requesting hospital should return 200
+    def test_delete_pending_consent(self):
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        consent = make_consent(requesting="Apollo")
+        url = f'/api/consent/{consent.consent_id}/delete/'
+        response = self.client.delete(
+            url,
+            HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo)}"
+        )
+        self.assertEqual(response.status_code, 200)
+
+    # Test 30 - deleting an already APPROVED consent should be blocked and return 400
+    def test_delete_approved_consent_blocked(self):
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        consent = make_consent(requesting="Apollo")
+        consent.patient_choice = 'APPROVED'
+        consent.hospital_choice = 'APPROVED'
+        consent.save()
+        url = f'/api/consent/{consent.consent_id}/delete/'
+        response = self.client.delete(
+            url,
+            HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo)}"
+        )
+        self.assertEqual(response.status_code, 400)
+
+    # Test 31 - a doctor JWT should be allowed to create a consent request
+    def test_staff_doctor_can_create_consent(self):
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
+        response = self.client.post('/api/consent/request/', {
+            "patient_id": "P001",
+            "requested_to_hospital": "Fortis"
+        }, HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo, user_type='staff', role='doctor')}")
+        self.assertEqual(response.status_code, 201)
+
+    # Test 32 - a technician JWT should be blocked from creating a consent request
+    def test_staff_technician_blocked_from_consent(self):
+        apollo = make_hospital(name="Apollo", email="apollo@test.com", contact="9876543210")
+        make_hospital(name="Fortis", email="fortis@test.com", contact="9876543211")
+        response = self.client.post('/api/consent/request/', {
+            "patient_id": "P001",
+            "requested_to_hospital": "Fortis"
+        }, HTTP_AUTHORIZATION=f"Bearer {make_jwt(apollo, user_type='staff', role='technician')}")
+        self.assertEqual(response.status_code, 403)

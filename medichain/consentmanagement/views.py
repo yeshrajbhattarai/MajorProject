@@ -24,16 +24,31 @@ def get_hospital_from_payload(request):
     if payload is None:
         return None, Response({"error": "Authentication required"}, status=401)
 
-    if payload.get('user_type') != 'hospital':
-        return None, Response({"error": "Only hospitals can perform this action"}, status=403)
+    user_type = payload.get('user_type')
 
-    if payload.get('account_status') != 'active':
-        return None, Response({"error": "Hospital account is not active"}, status=403)
+    # hospital_admin — full access to all consent operations
+    if user_type == 'hospital_admin':
+        hospital_id = payload.get('hospital_id')
 
+    # staff — only doctors and nurses can interact with consent APIs
+    # technicians are blocked — they only work with lab records
+    elif user_type == 'staff':
+        role = payload.get('staff_role')
+        if role not in ['doctor', 'nurse']:
+            return None, Response({"error": "Unauthorized — only doctors and nurses can perform this action"}, status=403)
+        hospital_id = payload.get('hospital_id')
+
+    else:
+        return None, Response({"error": "Only hospital users can perform this action"}, status=403)
+
+    # check hospital account is active
     try:
-        hospital = Hospital.objects.get(id=payload.get('hospital_id'))
+        hospital = Hospital.objects.get(id=hospital_id)
     except Hospital.DoesNotExist:
         return None, Response({"error": "Hospital not found"}, status=401)
+
+    if hospital.account_status != 'active':
+        return None, Response({"error": "Hospital account is not active"}, status=403)
 
     return hospital, None
 
