@@ -3,21 +3,27 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import AuditLog
 from hospitals.models import Hospital
-from hospitals.authentication import MediChainJWTAuthentication
 
 
 # Returns filtered audit logs — only accessible by authenticated hospitals.
-#! TODO: Restrict logs so each hospital can only see their own actions, not all hospitals
-
 @api_view(['GET'])
-@authentication_classes([MediChainJWTAuthentication])
 @permission_classes([IsAuthenticated])
 def view_logs(request):
-    hospital_id = request.user_payload.get('hospital_id')
+    payload = getattr(request, 'user_payload', None)
+    if not payload:
+        return Response({"error": "Authentication required"}, status=401)
+
+    hospital_id = payload.get('hospital_id')
     if not hospital_id:
         return Response({"error": "Authentication required"}, status=401)
 
-    logs = AuditLog.objects.all()
+    try:
+        hospital = Hospital.objects.get(id=hospital_id)
+    except Hospital.DoesNotExist:
+        return Response({"error": "Hospital not found"}, status=404)
+
+    # Only show logs where this hospital was the performer
+    logs = AuditLog.objects.filter(performed_by=hospital.hospital_name)
 
     severity   = request.GET.get('severity')
     action     = request.GET.get('action')
