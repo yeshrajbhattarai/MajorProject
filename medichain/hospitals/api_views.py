@@ -86,9 +86,10 @@ from .services import (
 def get_tokens_for_user(payload: dict) -> dict:
     refresh = RefreshToken()
 
-    # embed custom claims into the token
+    # set claims on BOTH tokens — access is a separate object
     for key, value in payload.items():
         refresh[key] = value
+        refresh.access_token[key] = value   #! this line was missing
 
     return {
         'refresh': str(refresh),
