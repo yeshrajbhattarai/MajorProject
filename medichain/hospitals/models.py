@@ -172,7 +172,12 @@ class PatientAssignment(models.Model):
 
 class Lab(models.Model):
     LAB_TYPE_CHOICES = [
-        ('ckd', 'Chronic Kidney Disease'),
+        ('pathology', 'Pathology'),
+        ('radiology', 'Radiology'),
+        ('cardiology', 'Cardiology'),
+        ('microbiology', 'Microbiology'),
+        ('biochemistry', 'Biochemistry'),
+        ('hematology', 'Hematology'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

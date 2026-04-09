@@ -266,7 +266,7 @@ class HospitalProfileAPI(APIView):
     permission_classes = [IsHospitalAdmin]
 
     def get(self, request):
-        hospital, _, _, _ = service_get_dashboard_data(request.user_payload['hospital_id'])
+        hospital, _, _, _, _ = service_get_dashboard_data(request.user_payload['hospital_id'])
         return Response(HospitalSerializer(hospital).data, status=status.HTTP_200_OK)
 
 
