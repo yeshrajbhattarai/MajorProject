@@ -5,8 +5,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from hospitals.encryption import decrypt
-from hospitals.models import Patient
+from hospitals.models import MedicalRecordMeta, Patient
 from hospitals.token_utils import get_tokens_for_payload
+from hospitals.services import service_get_record_detail, service_get_record_history
 
 from .permissions import IsPatient
 from .serializers import (
@@ -41,6 +42,24 @@ def _mask_gov_id(gov_id_number):
     if len(raw) <= 4:
         return raw
     return ('*' * (len(raw) - 4)) + raw[-4:]
+
+
+def _get_patient_or_404(patient_id):
+    return Patient.objects.filter(id=patient_id).first()
+
+
+def _profile_gate_response(patient):
+    missing_fields = get_missing_profile_fields(patient)
+    return Response(
+        {
+            'success': False,
+            'error': 'Complete profile required to access medical records.',
+            'profile_complete': False,
+            'missing_fields': missing_fields,
+            'profile_completion_percent': get_profile_completion_percent(patient),
+        },
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 
 class PatientRegisterAPI(APIView):
@@ -143,22 +162,12 @@ class PatientDashboardAPI(APIView):
     def get(self, request):
         patient_id = request.user_payload['patient_id']
 
-        patient = Patient.objects.filter(id=patient_id).first()
+        patient = _get_patient_or_404(patient_id)
         if not patient:
             return Response({'success': False, 'error': 'Patient not found'}, status=status.HTTP_404_NOT_FOUND)
 
         if not is_profile_complete(patient):
-            missing_fields = get_missing_profile_fields(patient)
-            return Response(
-                {
-                    'success': False,
-                    'error': 'Complete profile required to access medical records.',
-                    'profile_complete': False,
-                    'missing_fields': missing_fields,
-                    'profile_completion_percent': get_profile_completion_percent(patient),
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            return _profile_gate_response(patient)
 
         dashboard_data = service_get_patient_dashboard_data(patient_id)
         _, lab_requests = service_get_patient_lab_requests(patient_id)
@@ -210,6 +219,142 @@ class PatientDashboardAPI(APIView):
             ],
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+class PatientRecordsAPI(APIView):
+    permission_classes = [IsPatient]
+
+    def get(self, request):
+        patient_id = request.user_payload['patient_id']
+        patient = _get_patient_or_404(patient_id)
+        if not patient:
+            return Response({'success': False, 'error': 'Patient not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not is_profile_complete(patient):
+            return _profile_gate_response(patient)
+
+        dashboard_data = service_get_patient_dashboard_data(patient_id)
+        _, lab_requests = service_get_patient_lab_requests(patient_id)
+        grouped_records = group_lab_requests_by_hospital(lab_requests)
+
+        return Response(
+            {
+                'success': True,
+                'profile_complete': dashboard_data.get('profile_complete', False),
+                'stats': {
+                    'total_requests': dashboard_data.get('lab_count', 0),
+                    'pending_requests': dashboard_data.get('pending_labs', 0),
+                    'completed_requests': dashboard_data.get('completed_labs', 0),
+                    'hospitals_count': dashboard_data.get('hospitals_count', 0),
+                },
+                'records_by_hospital': grouped_records,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PatientRecordDetailAPI(APIView):
+    permission_classes = [IsPatient]
+
+    def get(self, request, record_id):
+        patient_id = request.user_payload['patient_id']
+        patient = _get_patient_or_404(patient_id)
+        if not patient:
+            return Response({'success': False, 'error': 'Patient not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not is_profile_complete(patient):
+            return _profile_gate_response(patient)
+
+        meta = MedicalRecordMeta.objects.filter(record_id=record_id, patient_id=patient.id).first()
+        if not meta:
+            return Response({'success': False, 'error': 'Record not found for your account.'}, status=status.HTTP_404_NOT_FOUND)
+
+        version_number = request.query_params.get('v')
+        if version_number:
+            try:
+                version_number = int(version_number)
+            except (TypeError, ValueError):
+                return Response({'success': False, 'error': 'Invalid record version requested.'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            version_number = None
+
+        record, lab_request, detail_bundle, error = service_get_record_detail(
+            record_id=record_id,
+            hospital_id=str(meta.hospital_id),
+            version_number=version_number,
+        )
+
+        if error:
+            return Response({'success': False, 'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            {
+                'success': True,
+                'patient': {
+                    'id': str(patient.id),
+                    'full_name': patient.full_name,
+                    'email': patient.email,
+                    'phone': patient.phone,
+                },
+                'record': {
+                    'record_id': str(record.record_id),
+                    'version': record.version,
+                    'is_latest': getattr(record, 'is_latest', False),
+                    'age': getattr(record, 'age', None),
+                    'gender': getattr(record, 'gender', None),
+                    'custom_field_values': getattr(record, 'custom_field_values', {}),
+                },
+                'lab_request': {
+                    'id': str(lab_request.id),
+                    'status': lab_request.status,
+                    'status_display': lab_request.get_status_display(),
+                    'lab_name': lab_request.lab.name,
+                    'hospital_name': lab_request.lab.hospital.hospital_name,
+                    'requested_by': lab_request.requested_by.full_name,
+                    'requested_by_staff_code': getattr(lab_request.requested_by, 'employee_id', None),
+                    'diagnosis': lab_request.diagnosis,
+                    'treatment_plan': lab_request.treatment_plan,
+                    'notes': lab_request.notes,
+                },
+                'audit': detail_bundle['audit'],
+                'timeline': detail_bundle['timeline'],
+                'custom_field_values': detail_bundle.get('custom_field_values', {}),
+                'lab_custom_field_schema': detail_bundle.get('lab_custom_field_schema', []),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PatientRecordHistoryAPI(APIView):
+    permission_classes = [IsPatient]
+
+    def get(self, request, record_id):
+        patient_id = request.user_payload['patient_id']
+        patient = _get_patient_or_404(patient_id)
+        if not patient:
+            return Response({'success': False, 'error': 'Patient not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not is_profile_complete(patient):
+            return _profile_gate_response(patient)
+
+        meta = MedicalRecordMeta.objects.filter(record_id=record_id, patient_id=patient.id).first()
+        if not meta:
+            return Response({'success': False, 'error': 'Record history not found for your account.'}, status=status.HTTP_404_NOT_FOUND)
+
+        history = service_get_record_history(
+            record_id=record_id,
+            hospital_id=str(meta.hospital_id),
+        )
+
+        return Response(
+            {
+                'success': True,
+                'record_id': str(record_id),
+                'history_count': len(history),
+                'history': history,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PatientProfileAPI(APIView):

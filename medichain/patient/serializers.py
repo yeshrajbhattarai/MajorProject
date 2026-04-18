@@ -56,3 +56,125 @@ class PatientPasswordUpdateSerializer(serializers.Serializer):
         if attrs.get('new_password') != attrs.get('confirm_new_password'):
             raise serializers.ValidationError({'confirm_new_password': 'Passwords do not match'})
         return attrs
+
+
+class PatientRecordRequestSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    record_id = serializers.CharField(allow_null=True, required=False)
+    status = serializers.CharField()
+    status_display = serializers.CharField()
+    lab_name = serializers.CharField()
+    lab_type = serializers.CharField()
+    requested_by = serializers.CharField()
+    created_at = serializers.DateTimeField()
+
+
+class PatientRecordGroupSerializer(serializers.Serializer):
+    hospital_id = serializers.CharField()
+    hospital_name = serializers.CharField()
+    total_requests = serializers.IntegerField()
+    pending_requests = serializers.IntegerField()
+    completed_requests = serializers.IntegerField()
+    requests = PatientRecordRequestSerializer(many=True)
+
+
+class PatientDashboardStatsSerializer(serializers.Serializer):
+    total_requests = serializers.IntegerField()
+    pending_requests = serializers.IntegerField()
+    completed_requests = serializers.IntegerField()
+    hospitals_count = serializers.IntegerField()
+
+
+class PatientDashboardResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    profile_complete = serializers.BooleanField()
+    stats = PatientDashboardStatsSerializer()
+    records_by_hospital = PatientRecordGroupSerializer(many=True)
+    recent_requests = PatientRecordRequestSerializer(many=True)
+
+
+class PatientRecordAuditSerializer(serializers.Serializer):
+    created_by_id = serializers.CharField(allow_null=True, required=False)
+    created_by_name = serializers.CharField(allow_null=True, required=False)
+    created_by_role = serializers.CharField(allow_null=True, required=False)
+    created_by_staff_code = serializers.CharField(allow_null=True, required=False)
+    created_at = serializers.DateTimeField()
+    latest_updated_by_id = serializers.CharField(allow_null=True, required=False)
+    latest_updated_by_name = serializers.CharField(allow_null=True, required=False)
+    latest_updated_by_role = serializers.CharField(allow_null=True, required=False)
+    latest_updated_by_staff_code = serializers.CharField(allow_null=True, required=False)
+    latest_updated_at = serializers.DateTimeField()
+    latest_update_reason = serializers.CharField(allow_null=True, required=False)
+    selected_version = serializers.IntegerField()
+    selected_version_event_type = serializers.CharField()
+    selected_version_changed_at = serializers.DateTimeField()
+    selected_version_changed_by_name = serializers.CharField(allow_null=True, required=False)
+    selected_version_changed_by_role = serializers.CharField(allow_null=True, required=False)
+    selected_version_changed_by_staff_code = serializers.CharField(allow_null=True, required=False)
+    selected_version_reason = serializers.CharField(allow_null=True, required=False)
+
+
+class PatientRecordTimelineSerializer(serializers.Serializer):
+    version_number = serializers.IntegerField()
+    changed_at = serializers.DateTimeField()
+    changed_by_id = serializers.CharField()
+    changed_by_staff_code = serializers.CharField(allow_null=True, required=False)
+    changed_by_name = serializers.CharField()
+    changed_by_role = serializers.CharField()
+    change_reason = serializers.CharField(allow_null=True, required=False)
+    data_snapshot = serializers.ListField()
+    is_full_snapshot = serializers.BooleanField()
+    event_type = serializers.CharField()
+
+
+class PatientRecordDetailSerializer(serializers.Serializer):
+    record_id = serializers.CharField()
+    version = serializers.IntegerField()
+    is_latest = serializers.BooleanField(required=False)
+    age = serializers.CharField(allow_null=True, required=False)
+    gender = serializers.CharField(allow_null=True, required=False)
+    custom_field_values = serializers.DictField(child=serializers.CharField(), required=False)
+
+
+class PatientLabRequestSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    status = serializers.CharField()
+    status_display = serializers.CharField()
+    lab_name = serializers.CharField()
+    hospital_name = serializers.CharField()
+    requested_by = serializers.CharField()
+    requested_by_staff_code = serializers.CharField(allow_null=True, required=False)
+    diagnosis = serializers.CharField(allow_null=True, required=False)
+    treatment_plan = serializers.CharField(allow_null=True, required=False)
+    notes = serializers.CharField(allow_null=True, required=False)
+
+
+class PatientRecordDetailResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    patient = serializers.DictField()
+    record = PatientRecordDetailSerializer()
+    lab_request = PatientLabRequestSerializer()
+    audit = PatientRecordAuditSerializer()
+    timeline = PatientRecordTimelineSerializer(many=True)
+    custom_field_values = serializers.DictField(required=False)
+    lab_custom_field_schema = serializers.ListField(required=False)
+
+
+class PatientRecordHistoryItemSerializer(serializers.Serializer):
+    version_number = serializers.IntegerField()
+    changed_at = serializers.DateTimeField()
+    changed_by_id = serializers.CharField()
+    changed_by_staff_code = serializers.CharField(allow_null=True, required=False)
+    changed_by_name = serializers.CharField()
+    changed_by_role = serializers.CharField()
+    change_reason = serializers.CharField(allow_null=True, required=False)
+    data_snapshot = serializers.ListField()
+    is_full_snapshot = serializers.BooleanField()
+    event_type = serializers.CharField()
+
+
+class PatientRecordHistoryResponseSerializer(serializers.Serializer):
+    success = serializers.BooleanField()
+    record_id = serializers.CharField()
+    history_count = serializers.IntegerField()
+    history = PatientRecordHistoryItemSerializer(many=True)
