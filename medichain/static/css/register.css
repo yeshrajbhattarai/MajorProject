@@ -234,7 +234,8 @@ body {
   display:         flex;
   flex-direction:  column;
   justify-content: center;
-  padding:         40px clamp(24px, 4vw, 52px);
+  padding:         clamp(24px, 4vw, 52px);
+  overflow:        hidden;
   transition:
     transform var(--slide-duration) var(--slide-ease),
     opacity   var(--slide-duration) var(--slide-ease);
@@ -276,8 +277,16 @@ body {
   margin-right: auto;
 }
 
+/* Form element */
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 40px;
+}
+
 /* Card header */
-.card-header { margin-bottom: 26px; }
+.card-header { margin-bottom: 28px; }
 
 .card-header h2 {
   font-family:    'Syne', sans-serif;
@@ -381,20 +390,49 @@ body {
   caret-color:   var(--reg-accent);
 }
 
+.input-wrap select {
+  width:         100%;
+  padding:       11px 40px 11px 40px;
+  background:    var(--reg-surface);
+  border:        1px solid var(--reg-border);
+  border-radius: var(--radius-md);
+  color:         var(--reg-text);
+  font-size:     14px;
+  font-family:   'DM Sans', sans-serif;
+  outline:       none;
+  transition:    background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  cursor:        pointer;
+  appearance:    none;
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.input-wrap select option {
+  background: var(--reg-surface);
+  color: var(--reg-text);
+}
+
 #contact_number { padding-left: 74px; }
 
 .input-wrap input::placeholder { color: var(--reg-placeholder); }
 
-.input-wrap input:focus {
-  background:   var(--reg-input-hover);
+.input-wrap input:focus,
+.input-wrap select:focus {
+  background-color: var(--reg-input-hover);
   border-color: var(--reg-border-focus);
   box-shadow:   0 0 0 3px var(--reg-input-shadow);
 }
 
 /* Validation states */
-.input-group.has-error   .input-wrap input { border-color: var(--reg-error-border); background: var(--reg-error-bg); }
+.input-group.has-error   .input-wrap input,
+.input-group.has-error   .input-wrap select { border-color: var(--reg-error-border); background-color: var(--reg-error-bg); }
 .input-group.has-error   label             { color: var(--reg-error); }
-.input-group.has-success .input-wrap input { border-color: var(--reg-success-border); }
+.input-group.has-success .input-wrap input,
+.input-group.has-success .input-wrap select { border-color: var(--reg-success-border); }
 .input-group.has-success label             { color: var(--reg-success); }
 
 .field-status {
@@ -556,9 +594,14 @@ body {
 ════════════════════════════════════════ */
 .switch-link {
   text-align:  center;
-  margin-top:  18px;
+  margin-top:  20px;
+  margin-bottom: 8px;
   font-size:   13px;
   color:       var(--reg-muted);
+}
+
+.switch-link:last-of-type {
+  margin-bottom: 0;
 }
 
 .switch-btn {

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'hospitals',
+    'patient',
     'hospital_local',
     'consentmanagement',
     'auditlog',

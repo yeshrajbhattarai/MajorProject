@@ -166,14 +166,14 @@
 
           <!-- Email -->
           <div class="sf-group" id="grp-email">
-            <label class="sf-label">Email <span style="color:var(--text-muted);font-size:10px;">(optional)</span></label>
+            <label class="sf-label">Email <span style="color:var(--error);margin-left:2px;">*</span></label>
             <div class="sf-input-wrap">
               <svg class="sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
               </svg>
               <input type="email" name="email" placeholder="patient@email.com"
-                     value="{{ form_data.email|default:'' }}" autocomplete="off">
+                     value="{{ form_data.email|default:'' }}" autocomplete="off" required>
             </div>
             <span class="sf-error">{{ errors.email|default:'' }}</span>
           </div>
@@ -195,7 +195,7 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <p>The government ID is <strong>encrypted and securely stored</strong>. The patient can log in later using their credentials to complete their profile with additional details.</p>
+            <p>The government ID is <strong>encrypted and securely stored</strong>. A temporary password will be sent to the patient's email so they can log in and update their profile.</p>
           </div>
 
           <!-- Footer -->

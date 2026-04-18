@@ -1,7 +1,9 @@
+import json
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Hospital
+from .models import Hospital, Lab
 from .decorators import hospital_admin_required , doctor_required , technician_required
 from .services import (
     service_register_hospital,
@@ -42,6 +44,7 @@ from .services import (
     service_get_lab_detail,
     service_assign_technician_to_lab,
     service_remove_technician_from_lab,
+    service_delete_lab,
     service_get_available_technicians_for_lab,
     service_get_technician_dashboard_data, 
     service_get_technician_profile,
@@ -52,6 +55,7 @@ from .services import (
     service_get_latest_lab_request_revision,
     service_get_existing_record_for_lab_request,
     service_get_technician_records,
+    service_get_doctor_records,
     service_create_medical_record,
     service_edit_medical_record,
     service_get_record_history,
@@ -523,7 +527,7 @@ def add_patient(request):
         full_name     = request.POST.get('full_name', '').strip(),
         gender        = request.POST.get('gender', '').strip() or None,
         phone         = request.POST.get('phone', '').strip() or None,
-        email         = request.POST.get('email', '').strip().lower() or None,
+        email         = request.POST.get('email', '').strip().lower(),
         address       = request.POST.get('address', '').strip() or None,
     )
 
@@ -559,10 +563,20 @@ def patient_detail(request, pk):
 def admin_labs_list(request):
     hospital = Hospital.objects.get(id=request.session['hospital_id'])
     if request.method == 'POST':
+        schema_raw = request.POST.get('custom_field_schema', '').strip()
+        custom_field_schema = []
+        if schema_raw:
+            try:
+                custom_field_schema = json.loads(schema_raw)
+            except json.JSONDecodeError:
+                messages.error(request, 'Custom field schema must be valid JSON.')
+                return redirect('admin_labs_list')
+
         _, errors = service_create_lab(
             hospital_id=request.session['hospital_id'],
             lab_type=request.POST.get('lab_type', '').strip(),
             name=request.POST.get('name', '').strip(),
+            custom_field_schema=custom_field_schema,
         )
         if errors:
             messages.error(request, ' '.join(errors.values()))
@@ -574,6 +588,7 @@ def admin_labs_list(request):
     return render(request, 'hospitals/admin/labs_list.html', {
         'hospital_name': hospital.hospital_name,
         'labs': labs,
+        'lab_types': Lab.LAB_TYPE_CHOICES,
     })
 
 
@@ -629,6 +644,23 @@ def admin_remove_tech_from_lab(request, lab_id, technician_id):
     else:
         messages.success(request, 'Technician removed from lab.')
     return redirect('admin_lab_detail', lab_id=lab_id)
+
+
+@hospital_admin_required
+def admin_delete_lab(request, lab_id):
+    if request.method != 'POST':
+        return redirect('admin_lab_detail', lab_id=lab_id)
+
+    success, error = service_delete_lab(
+        hospital_id=request.session['hospital_id'],
+        lab_id=lab_id,
+    )
+    if not success:
+        messages.error(request, error)
+        return redirect('admin_lab_detail', lab_id=lab_id)
+
+    messages.success(request, 'Lab archived successfully. You can create this lab type again later.')
+    return redirect('admin_labs_list')
 
 #list info in doctor's dashboard 
 @doctor_required
@@ -719,7 +751,7 @@ def doctor_add_patient(request):
         full_name     = request.POST.get('full_name', '').strip(),
         gender        = request.POST.get('gender', '').strip() or None,
         phone         = request.POST.get('phone', '').strip() or None,
-        email         = request.POST.get('email', '').strip().lower() or None,
+        email         = request.POST.get('email', '').strip().lower(),
         address       = request.POST.get('address', '').strip() or None,
     )
  
@@ -735,15 +767,66 @@ def doctor_add_patient(request):
     return redirect('doctor_patients_list')  
 
 
+@doctor_required
+def doctor_records_list(request):
+    return redirect('doctor_lab_reports_list')
+
+
+@doctor_required
+def doctor_lab_reports_list(request):
+    gov_id_type = request.GET.get('gov_id_type', '').strip().lower()
+    gov_id_number = request.GET.get('gov_id_number', '').strip()
+    lab_id = request.GET.get('lab_id', '').strip()
+
+    records, labs, grouped_records = service_get_doctor_records(
+        hospital_id=request.session['hospital_id'],
+        gov_id_type=gov_id_type,
+        gov_id_number=gov_id_number,
+        lab_id=lab_id,
+        scope='lab',
+    )
+
+    return render(request, 'hospitals/doctor/doctor_records_list.html', {
+        'records': records,
+        'labs': labs,
+        'grouped_records': grouped_records,
+        'lab_id': lab_id,
+        'gov_id_type': gov_id_type,
+        'gov_id_number': gov_id_number,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
+def doctor_medical_records_list(request):
+    return render(request, 'hospitals/doctor/doctor_medical_records_list.html', {
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
 # ─── Doctor — Patients list ───────────────────────────────────────────────────
 
 @doctor_required
 def doctor_patients_list(request):
+    gov_id_type = request.GET.get('gov_id_type', '').strip().lower()
+    gov_id_number_query = request.GET.get('gov_id_number', '').strip()
+
+    if (gov_id_type and not gov_id_number_query) or (gov_id_number_query and not gov_id_type):
+        messages.error(request, 'Select ID type and enter ID number to search.')
+    if gov_id_type and gov_id_type not in {'aadhar', 'voter'}:
+        messages.error(request, 'Invalid government ID type selected.')
+
     patients = service_get_doctor_patients(
-        hospital_id=request.session['hospital_id']
+        hospital_id=request.session['hospital_id'],
+        gov_id_type=gov_id_type if gov_id_type in {'aadhar', 'voter'} else '',
+        gov_id_number_query=gov_id_number_query,
     )
     return render(request, 'hospitals/doctor/doctor_patients_list.html', {
         'patients':       patients,
+        'gov_id_type': gov_id_type,
+        'gov_id_number_query': gov_id_number_query,
         'staff_name':     request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
     })
@@ -770,20 +853,32 @@ def doctor_patient_detail(request, pk):
         messages.error(request, error)
         return redirect('doctor_patients_list')
 
+    lab_schema_map = {}
+    for lab in available_labs:
+        lab.custom_field_schema_json = json.dumps(lab.custom_field_schema or [])
+        lab_schema_map[str(lab.id)] = lab.custom_field_schema or []
+
+    current_hospital_id = str(request.session.get('hospital_id', ''))
+    patient_registered_hospital = (
+        patient.registered_by.hospital_name if patient.registered_by else 'Self Registered'
+    )
+    is_external_patient = (
+        str(patient.registered_by_id) != current_hospital_id if patient.registered_by_id else True
+    )
+
     return render(request, 'hospitals/doctor/doctor_patient_detail.html', {
         'patient':          patient,
         'gov_id_masked':    gov_id_masked,
         'assigned_nurses':  assigned_nurses,
         'available_nurses': available_nurses,
         'available_labs':   available_labs,
+        'lab_schema_map':   lab_schema_map,
         'patient_records':  patient_records,
         'staff_name':       request.session.get('staff_name'),
         'staff_hospital':   request.session.get('staff_hospital'),
+        'patient_registered_hospital': patient_registered_hospital,
+        'is_external_patient': is_external_patient,
     })
-
-
-# ─── Doctor — Assign nurse ────────────────────────────────────────────────────
-
 @doctor_required
 def doctor_assign_nurse(request, pk):
     if request.method != 'POST':
@@ -814,14 +909,38 @@ def doctor_send_to_lab(request, pk):
     if request.method != 'POST':
         return redirect('doctor_patient_detail', pk=pk)
 
+    lab_id = request.POST.get('lab_id', '').strip()
+    custom_field_values = {}
+    custom_field_values_raw = request.POST.get('custom_field_values', '').strip()
+    if custom_field_values_raw:
+        try:
+            custom_field_values = json.loads(custom_field_values_raw)
+        except json.JSONDecodeError:
+            custom_field_values = {}
+    if lab_id:
+        try:
+            lab = Lab.objects.get(id=lab_id, hospital_id=request.session['hospital_id'], is_active=True)
+            for field in lab.custom_field_schema or []:
+                key = field.get('key')
+                if not key:
+                    continue
+                if key not in custom_field_values:
+                    value = request.POST.get(f'custom_{key}', '').strip()
+                    if value:
+                        custom_field_values[key] = value
+        except Lab.DoesNotExist:
+            messages.error(request, 'Selected lab was not found.')
+            return redirect('doctor_patient_detail', pk=pk)
+
     _, errors = service_send_to_lab(
         patient_id=pk,
-        lab_id=request.POST.get('lab_id', '').strip(),
+        lab_id=lab_id,
         doctor_id=request.session['staff_id'],
         chest_pain_type=request.POST.get('chest_pain_type', '').strip(),
         diagnosis=request.POST.get('diagnosis', '').strip(),
         treatment_plan=request.POST.get('treatment_plan', '').strip(),
         notes=request.POST.get('notes', '').strip(),
+        custom_field_values=custom_field_values,
     )
 
     if errors:
@@ -955,6 +1074,8 @@ def technician_lab_request_detail(request, request_id):
         'lab_request':     lab_request,
         'latest_revision': latest_revision,
         'existing_record': existing_record,
+        'lab_custom_field_schema': lab_request.lab.custom_field_schema or [],
+        'existing_custom_field_values': getattr(existing_record, 'custom_field_values', {}) if existing_record else {},
         'requires_change_reason': bool(existing_record),
         'staff_name':      request.session.get('staff_name'),
         'staff_hospital':  request.session.get('staff_hospital'),
@@ -971,15 +1092,18 @@ def technician_fill_record(request, request_id):
     if request.method != 'POST':
         return redirect('technician_lab_request_detail', request_id=request_id)
 
+    custom_field_values = {}
+    custom_field_values_raw = request.POST.get('custom_field_values', '').strip()
+    if custom_field_values_raw:
+        try:
+            custom_field_values = json.loads(custom_field_values_raw)
+        except json.JSONDecodeError:
+            custom_field_values = {}
+
     data = {
         'age': request.POST.get('age', '').strip(),
         'gender': request.POST.get('gender', '').strip(),
-        'blood_pressure_systolic': request.POST.get('blood_pressure_systolic', '').strip(),
-        'blood_pressure_diastolic': request.POST.get('blood_pressure_diastolic', '').strip(),
-        'cholesterol': request.POST.get('cholesterol', '').strip(),
-        'blood_glucose': request.POST.get('blood_glucose', '').strip(),
-        'heart_rate': request.POST.get('heart_rate', '').strip(),
-        'ecg_result': request.POST.get('ecg_result', '').strip(),
+        'custom_field_values': custom_field_values,
     }
     record, errors = service_create_medical_record(
         lab_request_id=request_id,
@@ -1001,15 +1125,18 @@ def technician_edit_record(request, record_id):
     if request.method != 'POST':
         return redirect('view_record_detail', record_id=record_id)
 
+    custom_field_values = {}
+    custom_field_values_raw = request.POST.get('custom_field_values', '').strip()
+    if custom_field_values_raw:
+        try:
+            custom_field_values = json.loads(custom_field_values_raw)
+        except json.JSONDecodeError:
+            custom_field_values = {}
+
     data = {
         'age': request.POST.get('age', '').strip(),
         'gender': request.POST.get('gender', '').strip(),
-        'blood_pressure_systolic': request.POST.get('blood_pressure_systolic', '').strip(),
-        'blood_pressure_diastolic': request.POST.get('blood_pressure_diastolic', '').strip(),
-        'cholesterol': request.POST.get('cholesterol', '').strip(),
-        'blood_glucose': request.POST.get('blood_glucose', '').strip(),
-        'heart_rate': request.POST.get('heart_rate', '').strip(),
-        'ecg_result': request.POST.get('ecg_result', '').strip(),
+        'custom_field_values': custom_field_values,
     }
     _, errors = service_edit_medical_record(
         record_id=record_id,
@@ -1048,6 +1175,9 @@ def doctor_reassess_record(request, record_id):
     if request.method != 'POST':
         return redirect('view_record_detail', record_id=record_id)
 
+    reassess_action = (request.POST.get('reassess_action') or 'send_to_queue').strip().lower()
+    send_to_queue = reassess_action != 'update_only'
+
     _, errors = service_doctor_reassess_record(
         record_id=record_id,
         doctor_id=request.session['staff_id'],
@@ -1057,11 +1187,15 @@ def doctor_reassess_record(request, record_id):
         treatment_plan=request.POST.get('treatment_plan', '').strip(),
         notes=request.POST.get('notes', '').strip(),
         reason=request.POST.get('reason', '').strip(),
+        send_to_queue=send_to_queue,
     )
     if errors:
         messages.error(request, ' '.join(errors.values()))
     else:
-        messages.success(request, 'Doctor reassessment submitted. Request moved back to technician queue.')
+        if send_to_queue:
+            messages.success(request, 'Doctor reassessment submitted. Request moved back to technician queue.')
+        else:
+            messages.success(request, 'Doctor update saved. Request status was not changed.')
     return redirect('view_record_detail', record_id=record_id)
 
 
@@ -1094,16 +1228,20 @@ def view_record_detail(request, record_id):
     can_edit = staff_role == 'technician' and record.is_latest
     can_doctor_reassess = staff_role == 'doctor' and record.is_latest
 
+    active_page = 'lab_reports' if staff_role == 'doctor' else 'lab_queue'
+
     return render(request, 'hospitals/technician/record_detail.html', {
         'record': record,
         'lab_request': lab_request,
         'audit': detail_bundle['audit'],
         'timeline': detail_bundle['timeline'],
+        'custom_field_values': detail_bundle.get('custom_field_values', {}),
         'can_edit': can_edit,
         'can_doctor_reassess': can_doctor_reassess,
         'auto_open_edit': can_edit and request.GET.get('edit') == '1',
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
+        'active_page': active_page,
     })
 
 
@@ -1121,4 +1259,5 @@ def view_record_history(request, record_id):
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
         'staff_role': request.session.get('staff_role'),
+        'active_page': 'lab_reports' if request.session.get('staff_role') == 'doctor' else 'lab_queue',
     })

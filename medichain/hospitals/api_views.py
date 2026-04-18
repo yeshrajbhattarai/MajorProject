@@ -78,23 +78,7 @@ from .services import (
     service_get_technician_records,
     service_doctor_reassess_record,
 )
-
-
-# ─── JWT Token Helper ─────────────────────────────────────────────────────────
-
-# generate access + refresh token pair for a given user payload
-def get_tokens_for_user(payload: dict) -> dict:
-    refresh = RefreshToken()
-
-    # set claims on BOTH tokens — access is a separate object
-    for key, value in payload.items():
-        refresh[key] = value
-        refresh.access_token[key] = value   #! this line was missing
-
-    return {
-        'refresh': str(refresh),
-        'access':  str(refresh.access_token),
-    }
+from .token_utils import get_tokens_for_payload
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -193,7 +177,7 @@ class LoginAPI(APIView):
 
         if user_type == 'hospital_admin':
             # generate JWT with hospital admin claims
-            tokens = get_tokens_for_user({
+            tokens = get_tokens_for_payload({
                 'user_type':      'hospital_admin',
                 'hospital_id':    str(obj.id),
                 'hospital_name':  obj.hospital_name,
@@ -207,7 +191,7 @@ class LoginAPI(APIView):
             }, status=status.HTTP_200_OK)
 
         # generate JWT with staff claims
-        tokens = get_tokens_for_user({
+        tokens = get_tokens_for_payload({
             'user_type':   'staff',
             'staff_id':    str(obj.id),
             'staff_role':  obj.role,
@@ -223,6 +207,8 @@ class LoginAPI(APIView):
 
 # POST /api/v1/logout/ — blacklist refresh token
 class LogoutAPI(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         refresh_token = request.data.get('refresh', '').strip()
         if not refresh_token:
@@ -721,7 +707,7 @@ class DoctorPatientDetailAPI(APIView):
     permission_classes = [IsDoctor]
 
     def get(self, request, pk):
-        patient, gov_id_masked, assigned_nurses, assigned_technicians, available, error = (
+        patient, gov_id_masked, assigned_nurses, available_nurses, available_labs, patient_records, error = (
             service_get_doctor_patient_detail(
                 pk=pk,
                 hospital_id=request.user_payload['hospital_id']
@@ -734,10 +720,10 @@ class DoctorPatientDetailAPI(APIView):
         return Response({
             'patient': PatientSerializer(patient).data,
             'gov_id_masked': gov_id_masked,
-            'assigned_nurses': HospitalUserSerializer(assigned_nurses, many=True).data,
-            'assigned_technicians': HospitalUserSerializer(assigned_technicians, many=True).data,
-            'available_nurses': HospitalUserSerializer(available.get('nurses', []), many=True).data,
-            'available_technicians': HospitalUserSerializer(available.get('technicians', []), many=True).data,
+            'assigned_nurses': HospitalUserSerializer([a.staff for a in assigned_nurses], many=True).data,
+            'available_nurses': HospitalUserSerializer(available_nurses, many=True).data,
+            'available_labs': LabSerializer(available_labs, many=True).data,
+            'records': MedicalRecordMetaSerializer(patient_records, many=True).data,
         }, status=status.HTTP_200_OK)
 
 
@@ -934,7 +920,15 @@ class LabListAPI(APIView):
 
     def get(self, request):
         labs = service_get_labs(request.user_payload['hospital_id'])
-        return Response(LabSerializer(labs, many=True).data, status=status.HTTP_200_OK)
+        data = []
+        for row in labs:
+            data.append({
+                'lab': LabSerializer(row['lab']).data,
+                'technicians_count': row['technicians_count'],
+                'pending_count': row['pending_count'],
+                'completed_count': row['completed_count'],
+            })
+        return Response(data, status=status.HTTP_200_OK)
 
     def post(self, request):
         serializer = CreateLabSerializer(data=request.data)
@@ -947,6 +941,7 @@ class LabListAPI(APIView):
             hospital_id=request.user_payload['hospital_id'],
             lab_type=d['lab_type'],
             name=d['name'],
+            custom_field_schema=d.get('custom_field_schema', []),
         )
 
         if errors:
@@ -1020,14 +1015,14 @@ class LabRemoveTechnicianAPI(APIView):
 class DoctorSendToLabAPI(APIView):
     permission_classes = [IsDoctor]
 
-    def post(self, request):
+    def post(self, request, pk=None):
         serializer = SendToLabSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({'success': False, 'errors': serializer.errors},
                             status=status.HTTP_400_BAD_REQUEST)
 
         d = serializer.validated_data
-        patient_id = request.data.get('patient_id', '').strip()
+        patient_id = request.data.get('patient_id', '').strip() or str(pk or '').strip()
 
         if not patient_id:
             return Response({'error': 'patient_id is required'},
@@ -1041,6 +1036,7 @@ class DoctorSendToLabAPI(APIView):
             diagnosis=d['diagnosis'],
             treatment_plan=d['treatment_plan'],
             notes=d.get('notes', ''),
+            custom_field_values=d.get('custom_field_values', {}),
         )
 
         if errors:

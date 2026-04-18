@@ -58,7 +58,7 @@
   {% if request.session.staff_role == 'technician' %}
     {% include 'hospitals/partials/technician_sidebar.html' with active_page='lab_queue' %}
   {% else %}
-    {% include 'hospitals/partials/doctor_sidebar.html' with active_page='patients' %}
+    {% include 'hospitals/partials/doctor_sidebar.html' with active_page=active_page|default:'records' %}
   {% endif %}
 
   <main class="main">
@@ -104,16 +104,18 @@
         <section class="detail-card">
           <div class="detail-head">
             <div class="detail-title">Latest Measurements</div>
-            <div class="detail-sub">Technician-submitted structured values.</div>
+            <div class="detail-sub">Technician-submitted values relevant to this lab.</div>
           </div>
           <div class="detail-body">
             <div class="kv"><div class="kv-label">Age</div><div class="kv-value">{{ record.age }}</div></div>
             <div class="kv"><div class="kv-label">Gender</div><div class="kv-value">{{ record.gender }}</div></div>
-            <div class="kv"><div class="kv-label">Blood Pressure</div><div class="kv-value">{{ record.blood_pressure_systolic }}/{{ record.blood_pressure_diastolic }}</div></div>
-            <div class="kv"><div class="kv-label">Cholesterol</div><div class="kv-value">{{ record.cholesterol }}</div></div>
-            <div class="kv"><div class="kv-label">Blood Glucose</div><div class="kv-value">{{ record.blood_glucose }}</div></div>
-            <div class="kv"><div class="kv-label">Heart Rate</div><div class="kv-value">{{ record.heart_rate }}</div></div>
-            <div class="kv"><div class="kv-label">ECG Result</div><div class="kv-value">{{ record.get_ecg_result_display }}</div></div>
+            {% if custom_field_values %}
+              {% for key, value in custom_field_values.items %}
+              <div class="kv"><div class="kv-label">{{ key|title }}</div><div class="kv-value">{{ value }}</div></div>
+              {% endfor %}
+            {% else %}
+              <div class="kv"><div class="kv-label">Custom Fields</div><div class="kv-value">No lab-specific measurements in this version.</div></div>
+            {% endif %}
             <div class="kv"><div class="kv-label">Version</div><div class="kv-value">v{{ record.version }}{% if record.is_latest %} (Latest){% endif %}</div></div>
           </div>
         </section>
@@ -200,35 +202,13 @@
                 <option value="Female" {% if record.gender == 'Female' %}selected{% endif %}>Female</option>
               </select>
             </div>
+            <input type="hidden" name="custom_field_values" id="editCustomFieldValuesInput" value="{}">
 
-            <div class="sf-group">
-              <label class="sf-label">Blood Pressure Systolic</label>
-              <input class="sf-input" type="number" name="blood_pressure_systolic" value="{{ record.blood_pressure_systolic }}" required>
+            <div style="grid-column:1/3;">
+              <div class="detail-sub" style="margin-bottom:10px;">Update the lab-specific values below. Previous values are already filled in.</div>
+              <div id="editCustomFields"></div>
             </div>
-            <div class="sf-group">
-              <label class="sf-label">Blood Pressure Diastolic</label>
-              <input class="sf-input" type="number" name="blood_pressure_diastolic" value="{{ record.blood_pressure_diastolic }}" required>
-            </div>
-            <div class="sf-group">
-              <label class="sf-label">Cholesterol</label>
-              <input class="sf-input" type="number" name="cholesterol" value="{{ record.cholesterol }}" required>
-            </div>
-            <div class="sf-group">
-              <label class="sf-label">Blood Glucose</label>
-              <input class="sf-input" type="number" step="0.01" name="blood_glucose" value="{{ record.blood_glucose }}" required>
-            </div>
-            <div class="sf-group">
-              <label class="sf-label">Heart Rate</label>
-              <input class="sf-input" type="number" name="heart_rate" value="{{ record.heart_rate }}" required>
-            </div>
-            <div class="sf-group">
-              <label class="sf-label">ECG Result</label>
-              <select class="sf-input" name="ecg_result" required>
-                <option value="normal" {% if record.ecg_result == 'normal' %}selected{% endif %}>Normal</option>
-                <option value="st_t_abnormality" {% if record.ecg_result == 'st_t_abnormality' %}selected{% endif %}>ST-T abnormality</option>
-                <option value="lvh" {% if record.ecg_result == 'lvh' %}selected{% endif %}>LVH</option>
-              </select>
-            </div>
+
             <div class="sf-group" style="grid-column:1/3;">
               <label class="sf-label">Change Reason</label>
               <input class="sf-input" type="text" name="change_reason" placeholder="What changed and why" required>
@@ -251,15 +231,6 @@
           <form method="POST" action="/staff/doctor/records/{{ record.record_id }}/reassess/" class="edit-grid">
             {% csrf_token %}
             <div class="sf-group" style="grid-column:1/3;">
-              <label class="sf-label">Chest Pain Type</label>
-              <select class="sf-input" name="chest_pain_type" required>
-                <option value="typical" {% if lab_request.chest_pain_type == 'typical' %}selected{% endif %}>Typical</option>
-                <option value="atypical" {% if lab_request.chest_pain_type == 'atypical' %}selected{% endif %}>Atypical</option>
-                <option value="non_anginal" {% if lab_request.chest_pain_type == 'non_anginal' %}selected{% endif %}>Non-anginal</option>
-                <option value="asymptomatic" {% if lab_request.chest_pain_type == 'asymptomatic' %}selected{% endif %}>Asymptomatic</option>
-              </select>
-            </div>
-            <div class="sf-group" style="grid-column:1/3;">
               <label class="sf-label">Diagnosis</label>
               <textarea class="sf-input" name="diagnosis" rows="3" required>{{ lab_request.diagnosis }}</textarea>
             </div>
@@ -276,7 +247,8 @@
               <input class="sf-input" type="text" name="reason" placeholder="Explain what changed and why technician needs to recheck" required>
             </div>
             <div class="actions" style="grid-column:1/3;">
-              <button class="sf-btn-save" type="submit">Send Back To Technician Queue</button>
+              <button class="sf-btn-save" type="submit" name="reassess_action" value="update_only">Update Doctor Inputs Only</button>
+              <button class="tbl-btn tbl-btn-view" type="submit" name="reassess_action" value="send_to_queue">Send Back To Technician Queue</button>
             </div>
           </form>
         </div>
@@ -284,6 +256,11 @@
       {% endif %}
     </div>
   </main>
+
+  {% if can_edit %}
+  {{ lab_request.lab.custom_field_schema|json_script:'edit-lab-custom-field-schema' }}
+  {{ custom_field_values|json_script:'edit-existing-custom-field-values' }}
+  {% endif %}
 
   <script>
     document.getElementById('sidebarToggle').addEventListener('click', () => {
@@ -322,6 +299,97 @@
         doctorReassessSection.classList.remove('hidden');
         doctorReassessSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
       });
+    }
+
+    const editCustomFields = document.getElementById('editCustomFields');
+    const editCustomFieldValuesInput = document.getElementById('editCustomFieldValuesInput');
+    const editSchemaEl = document.getElementById('edit-lab-custom-field-schema');
+    const editValuesEl = document.getElementById('edit-existing-custom-field-values');
+
+    if (editCustomFields && editSchemaEl && editValuesEl) {
+      const editSchema = JSON.parse(editSchemaEl.textContent || '[]');
+      const editExistingValues = JSON.parse(editValuesEl.textContent || '{}');
+      const technicianFields = editSchema.filter(field => String(field.fill_by || 'doctor').trim().toLowerCase() === 'technician');
+
+      function syncEditCustomValues() {
+        if (!editCustomFieldValuesInput) return;
+        const values = {};
+        document.querySelectorAll('#editCustomFields [data-field-key]').forEach(input => {
+          values[input.dataset.fieldKey] = input.value;
+        });
+        editCustomFieldValuesInput.value = JSON.stringify(values);
+      }
+
+      function buildField(field) {
+        const wrap = document.createElement('div');
+        wrap.className = 'sf-group';
+
+        const label = document.createElement('label');
+        label.className = 'sf-label';
+        label.textContent = `${field.label || field.key}${field.required ? ' *' : ''}`;
+
+        const helper = document.createElement('div');
+        helper.className = 'detail-sub';
+        helper.style.marginBottom = '6px';
+        helper.textContent = field.help_text || `Type: ${field.type}`;
+
+        let input;
+        if (field.type === 'textarea') {
+          input = document.createElement('textarea');
+          input.rows = 3;
+        } else if (field.type === 'choice') {
+          input = document.createElement('select');
+          const blank = document.createElement('option');
+          blank.value = '';
+          blank.textContent = `Select ${field.label || field.key}`;
+          input.appendChild(blank);
+          (field.options || []).forEach(opt => {
+            const option = document.createElement('option');
+            if (typeof opt === 'object') {
+              option.value = opt.value;
+              option.textContent = opt.label || opt.value;
+            } else {
+              option.value = opt;
+              option.textContent = opt;
+            }
+            input.appendChild(option);
+          });
+        } else if (field.type === 'boolean') {
+          input = document.createElement('select');
+          input.innerHTML = '<option value="">Select yes/no</option><option value="true">Yes</option><option value="false">No</option>';
+        } else {
+          input = document.createElement('input');
+          input.type = field.type === 'date' ? 'date' : 'text';
+          if (field.type === 'number' || field.type === 'decimal' || field.type === 'integer') {
+            input.type = 'number';
+            if (field.type === 'decimal' || field.type === 'number') input.step = 'any';
+          }
+        }
+
+        input.className = 'sf-input';
+        input.name = `edit_custom_${field.key}`;
+        input.dataset.fieldKey = field.key;
+        input.value = editExistingValues[field.key] ?? '';
+        input.required = !!field.required;
+
+        wrap.appendChild(label);
+        wrap.appendChild(helper);
+        wrap.appendChild(input);
+        return wrap;
+      }
+
+      if (!technicianFields.length) {
+        editCustomFields.innerHTML = '<div class="detail-sub">No technician-specific fields for this lab.</div>';
+      } else {
+        const grid = document.createElement('div');
+        grid.className = 'edit-grid';
+        technicianFields.forEach(field => grid.appendChild(buildField(field)));
+        editCustomFields.appendChild(grid);
+      }
+
+      syncEditCustomValues();
+      editCustomFields.addEventListener('input', syncEditCustomValues);
+      editCustomFields.addEventListener('change', syncEditCustomValues);
     }
   </script>
 

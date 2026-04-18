@@ -168,6 +168,12 @@ class LabAdmin(admin.ModelAdmin):
         'hospital__hospital_name',
     )
 
+    fieldsets = (
+        (None, {
+            'fields': ('hospital', 'lab_type', 'name', 'is_active', 'custom_field_schema'),
+        }),
+    )
+
     ordering = ('name',)
 
 
@@ -217,6 +223,8 @@ class LabRequestAdmin(admin.ModelAdmin):
         'requested_by__full_name',
     )
 
+    readonly_fields = ('custom_field_values',)
+
     ordering = ('-created_at',)
 
 
@@ -258,6 +266,7 @@ class MedicalRecordMetaAdmin(admin.ModelAdmin):
     readonly_fields = (
         'record_id',
         'sha256_hash',
+        'custom_field_values',
         'created_at',
         'updated_at',
     )

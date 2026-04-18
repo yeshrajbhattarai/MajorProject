@@ -147,12 +147,12 @@
 
           <!-- Email -->
           <div class="sf-group {% if errors.email %}has-error{% endif %}">
-            <label class="sf-label">Email <span style="color:var(--text-muted)">(optional)</span></label>
+            <label class="sf-label">Email <span style="color:var(--error);margin-left:2px;">*</span></label>
             <div class="sf-input-wrap">
               <svg class="sf-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               <input type="email" name="email"
                      value="{{ form_data.email|default:'' }}"
-                     placeholder="patient@email.com">
+                     placeholder="patient@email.com" required>
             </div>
             <span class="sf-error">{{ errors.email|default:'' }}</span>
           </div>
@@ -171,7 +171,7 @@
           <!-- Info box -->
           <div class="pw-info-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <p>The Government ID is <strong>encrypted and securely stored</strong>. It will never be shown in plain text. A SHA-256 hash is used for duplicate detection.</p>
+            <p>The Government ID is <strong>encrypted and securely stored</strong>. A temporary password will be sent to the patient's email for first login.</p>
           </div>
 
           <!-- Footer -->

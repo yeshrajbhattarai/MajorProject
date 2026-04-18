@@ -17,7 +17,7 @@
 
 import uuid
 from unittest.mock import patch, MagicMock
-from django.test import TestCase
+from django.test import TransactionTestCase
 from django.contrib.auth.hashers import make_password
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -65,8 +65,10 @@ def technician_token(staff_id, hospital_id):
 
 # ─── Base ─────────────────────────────────────────────────────────────────────
 
-class BaseTestCase(TestCase):
+class BaseTestCase(TransactionTestCase):
     """Creates a verified, active hospital + admin client once per class."""
+
+    databases = '__all__'
 
     def setUp(self):
         self.client = APIClient()
@@ -488,6 +490,7 @@ class AdminPatientTests(BaseTestCase):
             'gov_id_type':   'aadhar',
             'gov_id_number': '123456789012',
             'full_name':     'Ravi Kumar',
+            'email':         'ravi.kumar@test.com',
             'phone':         '9555555555',
             'gender':        'Male',
         }, format='json')
@@ -500,6 +503,7 @@ class AdminPatientTests(BaseTestCase):
             'gov_id_type':   'aadhar',
             'gov_id_number': '12345678901',  # same as make_patient suffix 01
             'full_name':     'Duplicate',
+            'email':         'duplicate.patient@test.com',
         }, format='json')
         self.assertEqual(res.status_code, 400)
 
@@ -603,6 +607,7 @@ class DoctorPatientTests(BaseTestCase):
             'gov_id_type':   'aadhar',
             'gov_id_number': '999888777666',
             'full_name':     'New Patient',
+            'email':         'new.patient@test.com',
             'phone':         '9666666666',
         }, format='json')
         self.assertEqual(res.status_code, 201)
@@ -740,6 +745,7 @@ class DoctorSendToLabTests(BaseTestCase):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class TechnicianTests(BaseTestCase):
+    databases = '__all__'
 
     def setUp(self):
         super().setUp()
@@ -803,6 +809,7 @@ class TechnicianTests(BaseTestCase):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class LabTests(BaseTestCase):
+    databases = '__all__'
 
     def test_create_lab_success(self):
         res = self.admin_client.post('/api/v1/staff/labs/', {
@@ -875,6 +882,8 @@ class LabTests(BaseTestCase):
 
 class PermissionBoundaryTests(BaseTestCase):
     """Verify that role-gated endpoints reject the wrong roles."""
+
+    databases = '__all__'
 
     def setUp(self):
         super().setUp()

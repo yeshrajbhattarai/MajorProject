@@ -58,6 +58,26 @@
       font-size: 11px;
       padding: 4px 8px;
     }
+    .schema-list { display: flex; flex-direction: column; gap: 10px; }
+    .schema-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      background: var(--bg-2);
+    }
+    .schema-item-head { display: flex; justify-content: space-between; gap: 10px; }
+    .schema-key { font-weight: 700; color: var(--text-primary); }
+    .schema-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .schema-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+    .lab-detail-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .row-actions { display: flex; justify-content: flex-end; }
     @media (max-width: 960px) {
       .lab-grid { grid-template-columns: 1fr; }
@@ -101,13 +121,51 @@
             <div class="lab-title">Lab Overview</div>
             <div class="lab-sub">{{ lab.get_lab_type_display }} · Active workflow monitoring</div>
           </div>
-          <span class="stat-chip">{{ assignments|length }} technicians</span>
+          <div class="lab-detail-actions">
+            <span class="stat-chip">{{ assignments|length }} technicians</span>
+            <form method="POST" action="/labs/{{ lab.id }}/delete/" onsubmit="return confirm('Delete this lab? This will be blocked if requests or technician assignments already exist.');">
+              {% csrf_token %}
+              <button type="submit" class="sf-btn-cancel" style="border-color:var(--danger);color:var(--danger);">Delete Lab</button>
+            </form>
+          </div>
         </div>
         <div class="lab-panel-body">
           <div class="quick-stats">
             <span class="quick-stat">Pending requests: {{ pending_requests|length }}</span>
             <span class="quick-stat">Completed requests: {{ completed_count }}</span>
           </div>
+        </div>
+      </div>
+
+      <div class="lab-panel">
+        <div class="lab-panel-head">
+          <div class="lab-title">Custom Fields</div>
+          <span class="stat-chip">Admin-defined schema</span>
+        </div>
+        <div class="lab-panel-body">
+          {% if lab.custom_field_schema %}
+          <div class="schema-list">
+            {% for field in lab.custom_field_schema %}
+            <div class="schema-item">
+              <div class="schema-item-head">
+                <div class="schema-key">{{ field.label|default:field.key }}</div>
+                <span class="schema-pill">{{ field.type }}</span>
+              </div>
+              <div class="schema-meta">
+                key: {{ field.key }} · role: {{ field.fill_by|default:'doctor' }} · required: {% if field.required %}yes{% else %}no{% endif %}
+              </div>
+              {% if field.help_text %}
+              <div class="schema-meta">{{ field.help_text }}</div>
+              {% endif %}
+              {% if field.type == 'choice' and field.options %}
+              <div class="schema-meta">Options: {{ field.options|join:', ' }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="td-muted">No custom fields configured for this lab yet.</div>
+          {% endif %}
         </div>
       </div>
 

@@ -30,16 +30,53 @@
       font-size: 11px;
       color: var(--text-muted);
     }
+    .history-table {
+      width: 100%;
+      table-layout: fixed;
+    }
+    .history-table th:nth-child(1), .history-table td:nth-child(1) { width: 8%; }
+    .history-table th:nth-child(2), .history-table td:nth-child(2) { width: 10%; }
+    .history-table th:nth-child(3), .history-table td:nth-child(3) { width: 14%; }
+    .history-table th:nth-child(4), .history-table td:nth-child(4) { width: 16%; }
+    .history-table th:nth-child(5), .history-table td:nth-child(5) { width: 14%; }
+    .history-table th:nth-child(6), .history-table td:nth-child(6) { width: 38%; }
+    .history-table td { vertical-align: top; }
     .snapshot {
-      white-space: pre-wrap;
       margin: 0;
-      max-width: 520px;
+      max-width: none;
+      width: 100%;
+      box-sizing: border-box;
       font-size: 11px;
       color: var(--text-secondary);
       background: var(--bg-2);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       padding: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .snapshot-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .snapshot-col-head {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding-bottom: 5px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .snapshot-row { display: flex; flex-direction: column; gap: 2px; }
+    .snapshot-label { color: var(--text-primary); font-weight: 600; }
+    .snapshot-value { color: var(--text-secondary); }
+    .snapshot-diff { color: var(--text-secondary); }
+    @media (max-width: 1200px) {
+      .snapshot { grid-template-columns: 1fr; }
     }
     .actions { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
   </style>
@@ -48,7 +85,7 @@
   {% if staff_role == 'technician' %}
     {% include 'hospitals/partials/technician_sidebar.html' with active_page='lab_queue' %}
   {% else %}
-    {% include 'hospitals/partials/doctor_sidebar.html' with active_page='patients' %}
+    {% include 'hospitals/partials/doctor_sidebar.html' with active_page=active_page|default:'lab_reports' %}
   {% endif %}
 
   <main class="main">
@@ -82,7 +119,7 @@
         </div>
 
         <div class="staff-table-wrap">
-          <table class="staff-table">
+          <table class="staff-table history-table">
             <thead>
               <tr>
                 <th>Version</th>
@@ -107,10 +144,67 @@
                 <td class="td-date">{{ item.changed_at|date:'d M Y, h:i A' }}</td>
                 <td>
                   <div>{{ item.changed_by_name }}</div>
-                  <div class="td-muted">{{ item.changed_by_role|title }} · {{ item.changed_by_id }}</div>
+                  <div class="td-muted">{{ item.changed_by_role|title }}</div>
+                  <div class="td-muted">Staff ID: {{ item.changed_by_staff_code }}</div>
                 </td>
                 <td>{{ item.change_reason|default:'-' }}</td>
-                <td><pre class="snapshot">{{ item.data_snapshot }}</pre></td>
+                <td>
+                  <div class="snapshot">
+                    <div class="snapshot-col">
+                      <div class="snapshot-col-head">Doctor</div>
+                      {% if item.is_full_snapshot %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'doctor' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-value">{{ row.value }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'doctor' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-diff">{{ row.previous }} -> {{ row.current }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+
+                    <div class="snapshot-col">
+                      <div class="snapshot-col-head">Technician</div>
+                      {% if item.is_full_snapshot %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'technician' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-value">{{ row.value }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'technician' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-diff">{{ row.previous }} -> {{ row.current }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+
+                    {% if not item.is_full_snapshot and not item.data_snapshot %}
+                      <div class="snapshot-col" style="grid-column: 1 / -1;">
+                        <div class="snapshot-row">
+                          <span class="snapshot-value">No field values changed in this version.</span>
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
+                </td>
               </tr>
               {% empty %}
               <tr><td colspan="6" class="td-muted">No history found.</td></tr>

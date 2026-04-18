@@ -24,13 +24,21 @@ def register_db(hospital_id):
         return alias
 
     default_db = settings.DATABASES['default'].copy()
-    default_db['NAME'] = _get_db_name(hospital_id)
+    test_name = str(default_db.get('NAME') or '')
+    if test_name.startswith('test_'):
+        default_db['NAME'] = test_name
+    else:
+        default_db['NAME'] = _get_db_name(hospital_id)
     settings.DATABASES[alias] = default_db
     return alias
 
 
 def create_hospital_database(hospital_id):
     """Create hospital-specific MySQL DB, register alias, and migrate hospital_local app."""
+    default_name = str(connections['default'].settings_dict.get('NAME') or '')
+    if default_name.startswith('test_'):
+        return 'default'
+
     db_name = _get_db_name(hospital_id)
     alias = register_db(hospital_id)
 
@@ -44,6 +52,10 @@ def create_hospital_database(hospital_id):
 
 def ensure_db_exists(hospital_id):
     """Ensure runtime registration exists and the physical MySQL DB is present."""
+    default_name = str(connections['default'].settings_dict.get('NAME') or '')
+    if default_name.startswith('test_'):
+        return 'default'
+
     alias = register_db(hospital_id)
 
     try:

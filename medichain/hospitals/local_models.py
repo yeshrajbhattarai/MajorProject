@@ -28,12 +28,12 @@ class MedicalRecord(models.Model):
 
     age = models.IntegerField()
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
-    blood_pressure_systolic = models.IntegerField()
-    blood_pressure_diastolic = models.IntegerField()
-    cholesterol = models.IntegerField()
-    blood_glucose = models.FloatField()
-    heart_rate = models.IntegerField()
-    ecg_result = models.CharField(max_length=32, choices=ECG_CHOICES)
+    blood_pressure_systolic = models.IntegerField(null=True, blank=True)
+    blood_pressure_diastolic = models.IntegerField(null=True, blank=True)
+    cholesterol = models.IntegerField(null=True, blank=True)
+    blood_glucose = models.FloatField(null=True, blank=True)
+    heart_rate = models.IntegerField(null=True, blank=True)
+    ecg_result = models.CharField(max_length=32, choices=ECG_CHOICES, null=True, blank=True)
     sha256_hash = models.CharField(max_length=64)
 
     class Meta:

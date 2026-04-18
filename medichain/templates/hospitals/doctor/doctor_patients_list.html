@@ -43,7 +43,7 @@
       <div class="staff-header">
         <div class="staff-header-left">
           <h2>All Patients</h2>
-          <p>Patients registered at your hospital</p>
+          <p>Patients registered by {{ staff_hospital }} or with records in your hospital</p>
         </div>
         <a href="/staff/doctor/patients/add/" class="add-btn add-btn-patient">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -54,15 +54,45 @@
       </div>
 
       <!-- Toolbar -->
-      <div class="staff-toolbar">
+      <div class="staff-toolbar" style="display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;">
         <div class="staff-search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
           <input type="text" class="staff-search" id="searchInput" placeholder="Search by name or phone...">
         </div>
+        <form method="GET" action="" style="display:flex;gap:8px;align-items:center;">
+          <select name="gov_id_type" class="staff-search" style="min-width:150px;">
+            <option value="">ID Type</option>
+            <option value="aadhar" {% if gov_id_type == 'aadhar' %}selected{% endif %}>Aadhar</option>
+            <option value="voter" {% if gov_id_type == 'voter' %}selected{% endif %}>Voter ID</option>
+          </select>
+          <input
+            type="text"
+            name="gov_id_number"
+            value="{{ gov_id_number_query }}"
+            placeholder="Find by Government ID Number"
+            class="staff-search"
+            style="min-width:260px;"
+          >
+          <button type="submit" class="tbl-btn tbl-btn-view">Find</button>
+          {% if gov_id_type or gov_id_number_query %}
+          <a href="/staff/doctor/patients/" class="tbl-btn">Clear</a>
+          {% endif %}
+        </form>
         <div class="staff-count" id="staffCount">{{ patients|length }} patient{{ patients|length|pluralize }}</div>
       </div>
+
+      {% if gov_id_type and gov_id_number_query %}
+      <div class="alert alert-info">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Showing lookup result for {{ gov_id_type|title }} ID ending with {{ gov_id_number_query|slice:'-4:' }}
+      </div>
+      {% endif %}
 
       {% if messages %}
         {% for message in messages %}
@@ -86,7 +116,6 @@
               <th>Gender</th>
               <th>Phone</th>
               <th>Assigned Nurse</th>
-              <th>Assigned Technician</th>
               <th>Registered</th>
               <th>Action</th>
             </tr>
@@ -119,21 +148,6 @@
                   <div style="display:flex;flex-direction:column;gap:4px;">
                     {% for a in patient.assigned_nurses %}
                     <span class="status-badge status-active" style="font-size:11px;">
-                      {{ a.staff.full_name }}
-                    </span>
-                    {% endfor %}
-                  </div>
-                {% else %}
-                  <span class="td-muted">None assigned</span>
-                {% endif %}
-              </td>
-
-              <!-- Assigned technicians -->
-              <td>
-                {% if patient.assigned_technicians %}
-                  <div style="display:flex;flex-direction:column;gap:4px;">
-                    {% for a in patient.assigned_technicians %}
-                    <span class="status-badge" style="font-size:11px;background:var(--a3-bg);color:var(--accent-3);border-color:var(--a3-border);">
                       {{ a.staff.full_name }}
                     </span>
                     {% endfor %}

@@ -44,6 +44,7 @@ urlpatterns = [
     path('labs/<uuid:lab_id>/', views.admin_lab_detail, name='admin_lab_detail'),
     path('labs/<uuid:lab_id>/assign/', views.admin_assign_tech_to_lab, name='admin_assign_tech_to_lab'),
     path('labs/<uuid:lab_id>/remove/<uuid:technician_id>/', views.admin_remove_tech_from_lab, name='admin_remove_tech_from_lab'),
+    path('labs/<uuid:lab_id>/delete/', views.admin_delete_lab, name='admin_delete_lab'),
 
      # ── Doctor portal ─────────────────────────────────────────────────────
    
@@ -52,6 +53,9 @@ urlpatterns = [
     path('staff/doctor/profile/update-personal/',    views.doctor_update_personal,  name='doctor_update_personal'),
     path('staff/doctor/profile/update-password/',    views.doctor_update_password,  name='doctor_update_password'),
     path('staff/doctor/patients/add/',               views.doctor_add_patient,      name='doctor_add_patient'),
+    path('staff/doctor/lab-reports/',                views.doctor_lab_reports_list, name='doctor_lab_reports_list'),
+    path('staff/doctor/medical-records/',            views.doctor_medical_records_list, name='doctor_medical_records_list'),
+    path('staff/doctor/records/',                    views.doctor_records_list,     name='doctor_records_list'),
 
      # ── Doctor portal — patients ───────────────────────────────────────────────
     path('staff/doctor/patients/',views.doctor_patients_list, name='doctor_patients_list'),

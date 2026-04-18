@@ -173,12 +173,19 @@ class PatientAssignment(models.Model):
 class Lab(models.Model):
     LAB_TYPE_CHOICES = [
         ('ckd', 'Chronic Kidney Disease'),
+        ('pathology', 'Pathology'),
+        ('radiology', 'Radiology'),
+        ('cardiology', 'Cardiology'),
+        ('microbiology', 'Microbiology'),
+        ('biochemistry', 'Biochemistry'),
+        ('hematology', 'Hematology'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name='labs')
     lab_type = models.CharField(max_length=50, choices=LAB_TYPE_CHOICES)
     name = models.CharField(max_length=255)
+    custom_field_schema = models.JSONField(default=list, blank=True, help_text='JSON list of extra fields for this lab.')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -236,6 +243,7 @@ class LabRequest(models.Model):
     diagnosis = models.TextField()
     treatment_plan = models.TextField()
     notes = models.TextField(null=True, blank=True)
+    custom_field_values = models.JSONField(default=dict, blank=True)
 
     class Meta:
         db_table = 'lab_requests'
@@ -269,6 +277,7 @@ class MedicalRecordMeta(models.Model):
     recorded_by_id = models.UUIDField()
     sha256_hash = models.CharField(max_length=64)
     version = models.IntegerField(default=1)
+    custom_field_values = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

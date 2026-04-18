@@ -38,6 +38,15 @@
       font-size: 11px;
       padding: 4px 8px;
     }
+    .lab-fields-list { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+    .lab-field-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg-2);
+      padding: 12px;
+    }
+    .lab-field-name { font-weight: 700; color: var(--text-primary); }
+    .lab-field-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
     @media (max-width: 980px) {
       .fill-grid { grid-template-columns: 1fr; }
       .fill-form { grid-template-columns: 1fr; }
@@ -86,10 +95,13 @@
             <div style="margin-bottom:12px;"><span class="badge">{{ lab_request.lab.name }}</span></div>
             <div class="kv"><div class="kv-label">Patient</div><div class="kv-value">{{ lab_request.patient.full_name }}</div></div>
             <div class="kv"><div class="kv-label">Doctor</div><div class="kv-value">{{ lab_request.requested_by.full_name }}</div></div>
-            <div class="kv"><div class="kv-label">Chest Pain Type</div><div class="kv-value">{{ lab_request.get_chest_pain_type_display }}</div></div>
+            <div class="kv"><div class="kv-label">Chest Pain Type</div><div class="kv-value">{{ lab_request.custom_field_values.chest_pain_type|default:lab_request.get_chest_pain_type_display }}</div></div>
             <div class="kv"><div class="kv-label">Diagnosis</div><div class="kv-value">{{ lab_request.diagnosis }}</div></div>
             <div class="kv"><div class="kv-label">Treatment Plan</div><div class="kv-value">{{ lab_request.treatment_plan }}</div></div>
             <div class="kv"><div class="kv-label">Notes</div><div class="kv-value">{{ lab_request.notes|default:'-' }}</div></div>
+
+            {{ lab_custom_field_schema|json_script:'lab-custom-field-schema' }}
+            {{ existing_custom_field_values|json_script:'existing-custom-field-values' }}
 
             {% if latest_revision %}
             <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;">
@@ -109,6 +121,7 @@
           <div class="fill-body">
             <form method="POST" action="/staff/technician/lab/{{ lab_request.id }}/fill/" class="fill-form">
               {% csrf_token %}
+              <input type="hidden" id="techCustomFieldValuesInput" name="custom_field_values" value="{}">
               <div class="sf-group">
                 <label class="sf-label">Age</label>
                 <input class="sf-input" type="number" name="age" value="{{ existing_record.age|default:'' }}" placeholder="Enter age" required>
@@ -122,36 +135,9 @@
                 </select>
               </div>
 
-              <div class="sf-group">
-                <label class="sf-label">Blood Pressure Systolic</label>
-                <input class="sf-input" type="number" name="blood_pressure_systolic" value="{{ existing_record.blood_pressure_systolic|default:'' }}" placeholder="e.g. 120" required>
-              </div>
-              <div class="sf-group">
-                <label class="sf-label">Blood Pressure Diastolic</label>
-                <input class="sf-input" type="number" name="blood_pressure_diastolic" value="{{ existing_record.blood_pressure_diastolic|default:'' }}" placeholder="e.g. 80" required>
-              </div>
-
-              <div class="sf-group">
-                <label class="sf-label">Cholesterol</label>
-                <input class="sf-input" type="number" name="cholesterol" value="{{ existing_record.cholesterol|default:'' }}" placeholder="mg/dL" required>
-              </div>
-              <div class="sf-group">
-                <label class="sf-label">Blood Glucose</label>
-                <input class="sf-input" type="number" step="0.01" name="blood_glucose" value="{{ existing_record.blood_glucose|default:'' }}" placeholder="mg/dL" required>
-              </div>
-
-              <div class="sf-group">
-                <label class="sf-label">Heart Rate</label>
-                <input class="sf-input" type="number" name="heart_rate" value="{{ existing_record.heart_rate|default:'' }}" placeholder="bpm" required>
-              </div>
-              <div class="sf-group">
-                <label class="sf-label">ECG Result</label>
-                <select class="sf-input" name="ecg_result" required>
-                  <option value="">Select ECG result</option>
-                  {% for value,label in ecg_choices %}
-                  <option value="{{ value }}" {% if existing_record and existing_record.ecg_result == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
-                </select>
+              <div style="grid-column:1/3;">
+                <div class="fill-sub" style="margin-bottom:10px;">Technician-specific fields for this lab.</div>
+                <div id="techCustomFields"></div>
               </div>
 
               {% if requires_change_reason %}
@@ -197,11 +183,113 @@
 
     const fillForm = document.querySelector('.fill-form');
     const submitBtn = document.getElementById('submitRecordBtn');
+    const techSchemaEl = document.getElementById('lab-custom-field-schema');
+    const techValuesEl = document.getElementById('existing-custom-field-values');
+    const techCustomFields = document.getElementById('techCustomFields');
+    const techCustomFieldValuesInput = document.getElementById('techCustomFieldValuesInput');
+
+    const techSchema = techSchemaEl ? JSON.parse(techSchemaEl.textContent || '[]') : [];
+    const existingTechValues = techValuesEl ? JSON.parse(techValuesEl.textContent || '{}') : {};
+
+    function renderTechCustomFields() {
+      if (!techCustomFields) return;
+      const fields = techSchema.filter(field => {
+        const role = String(field.fill_by || 'doctor').trim().toLowerCase();
+        return role === 'technician';
+      });
+      techCustomFields.innerHTML = '';
+
+      if (!fields.length) {
+        techCustomFields.innerHTML = '<div class="td-muted" style="margin:10px 0 0;">No technician-specific fields for this lab.</div>';
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'fill-form';
+
+      fields.forEach(field => {
+        const group = document.createElement('div');
+        group.className = 'sf-group';
+        const placeholderText = field.help_text || field.label || field.key || '';
+
+        const label = document.createElement('label');
+        label.className = 'sf-label';
+        label.textContent = `${field.label || field.key}${field.required ? ' *' : ''}`;
+
+        let input;
+        if (field.type === 'textarea') {
+          input = document.createElement('textarea');
+          input.rows = 3;
+          input.placeholder = placeholderText;
+        } else if (field.type === 'choice') {
+          input = document.createElement('select');
+          const blank = document.createElement('option');
+          blank.value = '';
+          blank.textContent = placeholderText || `Select ${field.label || field.key}`;
+          input.appendChild(blank);
+          (field.options || []).forEach(opt => {
+            const option = document.createElement('option');
+            if (typeof opt === 'object') {
+              option.value = opt.value;
+              option.textContent = opt.label || opt.value;
+            } else {
+              option.value = opt;
+              option.textContent = opt;
+            }
+            input.appendChild(option);
+          });
+        } else if (field.type === 'boolean') {
+          input = document.createElement('select');
+          input.innerHTML = '<option value="">Select yes/no</option><option value="true">Yes</option><option value="false">No</option>';
+        } else {
+          input = document.createElement('input');
+          input.type = field.type === 'date' ? 'date' : 'text';
+          if (field.type === 'number' || field.type === 'decimal' || field.type === 'integer') {
+            input.type = 'number';
+            if (field.type === 'decimal' || field.type === 'number') input.step = 'any';
+          }
+          if (input.type !== 'date') {
+            input.placeholder = placeholderText;
+          }
+        }
+
+        input.className = 'sf-input';
+        input.name = `tech_${field.key}`;
+        input.dataset.fieldKey = field.key;
+        input.value = existingTechValues[field.key] ?? '';
+        if (field.required) input.required = true;
+
+        group.appendChild(label);
+        group.appendChild(input);
+        grid.appendChild(group);
+      });
+
+      techCustomFields.appendChild(grid);
+      syncTechCustomValues();
+    }
+
+    function syncTechCustomValues() {
+      if (!techCustomFieldValuesInput) return;
+      const values = {};
+      document.querySelectorAll('#techCustomFields [data-field-key]').forEach(input => {
+        values[input.dataset.fieldKey] = input.value;
+      });
+      techCustomFieldValuesInput.value = JSON.stringify(values);
+    }
+
+    renderTechCustomFields();
+
     if (fillForm && submitBtn) {
       fillForm.addEventListener('submit', () => {
+        syncTechCustomValues();
         submitBtn.disabled = true;
         submitBtn.textContent = 'Submitting...';
       });
+    }
+
+    if (techCustomFields) {
+      techCustomFields.addEventListener('input', syncTechCustomValues);
+      techCustomFields.addEventListener('change', syncTechCustomValues);
     }
   </script>
 

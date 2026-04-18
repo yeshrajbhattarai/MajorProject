@@ -110,7 +110,7 @@ urlpatterns = [
     path('staff/doctor/patients/<uuid:pk>/assign-technician/', DoctorAssignTechnicianAPI.as_view(), name='api_doctor_assign_technician'),
     path('staff/doctor/patients/<uuid:pk>/remove-assignment/<uuid:staff_id>/', DoctorRemoveAssignmentAPI.as_view(), name='api_doctor_remove_assignment'),
     path('staff/doctor/patients/<uuid:pk>/send-to-lab/', DoctorSendToLabAPI.as_view(), name='api_doctor_send_to_lab'),
-    path('staff/doctor/records/<uuid:pk>/reassess/', DoctorReassessRecordAPI.as_view(), name='api_doctor_reassess_record'),
+    path('staff/doctor/records/<uuid:record_id>/reassess/', DoctorReassessRecordAPI.as_view(), name='api_doctor_reassess_record'),
 
     # ── Technician portal ───────────────────────────────────────────────────
     path('staff/technician/dashboard/', TechnicianDashboardAPI.as_view(), name='api_technician_dashboard'),
@@ -122,15 +122,15 @@ urlpatterns = [
     
     # ── Labs & Medical Records ──────────────────────────────────────────────
     path('staff/labs/', LabListAPI.as_view(), name='api_labs_list'),
-    path('staff/labs/<uuid:pk>/', LabDetailAPI.as_view(), name='api_lab_detail'),
-    path('staff/labs/<uuid:pk>/assign-technician/', LabAssignTechnicianAPI.as_view(), name='api_lab_assign_technician'),
-    path('staff/labs/<uuid:pk>/remove-technician/<uuid:staff_id>/', LabRemoveTechnicianAPI.as_view(), name='api_lab_remove_technician'),
+    path('staff/labs/<uuid:lab_id>/', LabDetailAPI.as_view(), name='api_lab_detail'),
+    path('staff/labs/<uuid:lab_id>/assign-technician/', LabAssignTechnicianAPI.as_view(), name='api_lab_assign_technician'),
+    path('staff/labs/<uuid:lab_id>/remove-technician/<uuid:technician_id>/', LabRemoveTechnicianAPI.as_view(), name='api_lab_remove_technician'),
     
     path('staff/technician/lab-queue/', TechnicianLabQueueAPI.as_view(), name='api_technician_lab_queue'),
-    path('staff/technician/lab-requests/<uuid:pk>/', TechnicianLabRequestDetailAPI.as_view(), name='api_technician_lab_request_detail'),
+    path('staff/technician/lab-requests/<uuid:request_id>/', TechnicianLabRequestDetailAPI.as_view(), name='api_technician_lab_request_detail'),
     
     path('staff/technician/records/create/', TechnicianCreateRecordAPI.as_view(), name='api_technician_create_record'),
     path('staff/technician/records/', TechnicianRecordsListAPI.as_view(), name='api_technician_records_list'),
-    path('staff/records/<uuid:pk>/', RecordDetailAPI.as_view(), name='api_record_detail'),
-    path('staff/records/<uuid:pk>/history/', RecordHistoryAPI.as_view(), name='api_record_history'),
+    path('staff/records/<uuid:record_id>/', RecordDetailAPI.as_view(), name='api_record_detail'),
+    path('staff/records/<uuid:record_id>/history/', RecordHistoryAPI.as_view(), name='api_record_history'),
 ]

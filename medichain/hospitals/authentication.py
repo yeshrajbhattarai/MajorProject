@@ -25,6 +25,8 @@ class MediChainJWTAuthentication(JWTAuthentication):
             'account_status': token.get('account_status'),
             'staff_id':       token.get('staff_id'),
             'staff_role':     token.get('staff_role'),
+            'patient_id':     token.get('patient_id'),
+            'patient_name':   token.get('patient_name'),
         }
 
         return user, token

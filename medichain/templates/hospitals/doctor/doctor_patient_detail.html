@@ -353,8 +353,22 @@
             {{ patient.phone|default:"—" }} &nbsp;·&nbsp;
             Registered {{ patient.created_at|date:"d M Y" }}
           </div>
+          <div class="patient-hero-sub" style="margin-top:4px;">
+            Origin Hospital: <strong>{{ patient_registered_hospital }}</strong>
+          </div>
         </div>
       </div>
+
+      {% if is_external_patient %}
+      <div class="alert alert-info" style="margin-top:12px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        This patient was registered by {{ patient_registered_hospital }}. You can create and view records for {{ staff_hospital }} only.
+      </div>
+      {% endif %}
 
       <!-- Main detail grid -->
       <div class="detail-grid">
@@ -403,6 +417,10 @@
               <div class="info-row">
                 <span class="info-label">Registered On</span>
                 <span class="info-value">{{ patient.created_at|date:"d M Y, h:i A" }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Registered By</span>
+                <span class="info-value">{{ patient_registered_hospital }}</span>
               </div>
             </div>
           </div>
@@ -455,6 +473,10 @@
               <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">{{ assigned_nurses|length }} assigned</span>
             </div>
             <div class="assign-card-body">
+
+              {% if is_external_patient %}
+              <p class="no-assign-text">Nurse assignment is only available for patients registered by your own hospital.</p>
+              {% else %}
 
               <!-- Current assignments -->
               {% if assigned_nurses %}
@@ -513,6 +535,8 @@
               <p class="no-assign-text">All active nurses are already assigned.</p>
               {% endif %}
 
+              {% endif %}
+
             </div>
           </div>
 
@@ -561,20 +585,15 @@
                     <span class="lab-pill" id="labTypePill">Lab</span>
                   </div>
 
-                  <div class="lab-field-group hidden" data-lab-type="ckd">
-                    <div class="lab-field-grid">
-                      <select name="chest_pain_type" class="sf-input" data-required="true" disabled>
-                        <option value="">Chest pain type</option>
-                        <option value="typical">Typical</option>
-                        <option value="atypical">Atypical</option>
-                        <option value="non_anginal">Non-anginal</option>
-                        <option value="asymptomatic">Asymptomatic</option>
-                      </select>
-                      <textarea name="diagnosis" class="sf-input sf-textarea" rows="3" placeholder="Diagnosis" data-required="true" disabled></textarea>
-                      <textarea name="treatment_plan" class="sf-input sf-textarea" rows="3" placeholder="Treatment plan" data-required="true" disabled></textarea>
-                      <textarea name="notes" class="sf-input sf-textarea" rows="2" placeholder="Additional notes (optional)" disabled></textarea>
-                    </div>
+                  <div class="lab-custom-fields" id="labCustomFields"></div>
+
+                  <div class="lab-field-grid">
+                    <textarea name="diagnosis" class="sf-input sf-textarea" rows="3" placeholder="Diagnosis" data-required="true" disabled></textarea>
+                    <textarea name="treatment_plan" class="sf-input sf-textarea" rows="3" placeholder="Treatment plan" data-required="true" disabled></textarea>
+                    <textarea name="notes" class="sf-input sf-textarea" rows="2" placeholder="Additional notes (optional)" disabled></textarea>
                   </div>
+
+                  <input type="hidden" name="custom_field_values" id="customFieldValuesInput" value="{}">
                 </div>
 
                 <button type="submit" class="btn-assign btn-assign-tech">Send To Lab</button>
@@ -607,6 +626,7 @@
     </div>
   </main>
 
+  {{ lab_schema_map|json_script:'lab-schema-map' }}
   <script>
   document.getElementById('sidebarToggle').addEventListener('click', () => {
     document.getElementById('sidebar').classList.toggle('sidebar-open');
@@ -708,25 +728,115 @@
 
   initSearchableSelect({ searchInputId:'nurseSearchInput', dropdownId:'nurseDropdown', selectId:'nurseIdInput', selectableId:'nurseSearchable' });
 
+  const labSchemaMap = JSON.parse(document.getElementById('lab-schema-map').textContent || '{}');
+
   // Dynamic lab fields: first choose lab, then show matching form block.
   const labDynamicContainer = document.getElementById('labDynamicContainer');
   const labHelperText = document.getElementById('labHelperText');
   const labTypePill = document.getElementById('labTypePill');
+  const customFieldValuesInput = document.getElementById('customFieldValuesInput');
+  const pageRole = 'doctor';
 
   function setLabFieldState(activeLabType) {
-    const groups = document.querySelectorAll('.lab-field-group');
-    groups.forEach(group => {
-      const isActive = group.dataset.labType === activeLabType;
-      group.classList.toggle('hidden', !isActive);
-      group.querySelectorAll('input, select, textarea').forEach(el => {
-        el.disabled = !isActive;
-        el.required = isActive && el.dataset.required === 'true';
-        if (!isActive) {
-          if (el.tagName === 'SELECT') el.selectedIndex = 0;
-          else el.value = '';
-        }
-      });
+    const fields = labDynamicContainer.querySelectorAll('.lab-field-grid input, .lab-field-grid select, .lab-field-grid textarea');
+    fields.forEach(el => {
+      const shouldEnable = true;
+      el.disabled = !shouldEnable;
+      el.required = shouldEnable && el.dataset.required === 'true';
     });
+  }
+
+  function renderCustomFields(schema) {
+    const container = document.getElementById('labCustomFields');
+    if (!container) return;
+
+    container.innerHTML = '';
+    const visibleFields = (schema || []).filter(field => {
+      const role = String(field.fill_by || 'doctor').trim().toLowerCase();
+      return role === pageRole;
+    });
+    if (!visibleFields.length) {
+      container.innerHTML = '<div class="lab-helper" style="margin-top:0;">No additional lab-specific fields are required.</div>';
+      return;
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'lab-field-grid';
+
+    visibleFields.forEach(field => {
+      const wrap = document.createElement('div');
+      wrap.className = 'sf-group';
+
+      const label = document.createElement('label');
+      label.className = 'sf-label';
+      label.textContent = field.label || field.key;
+
+      const hint = document.createElement('div');
+      hint.className = 'lab-helper';
+      hint.textContent = field.help_text || `Field type: ${field.type}`;
+
+      let input;
+      const inputName = `custom_${field.key}`;
+      if (field.type === 'textarea') {
+        input = document.createElement('textarea');
+        input.rows = 3;
+      } else if (field.type === 'choice') {
+        input = document.createElement('select');
+        const blank = document.createElement('option');
+        blank.value = '';
+        blank.textContent = `Select ${field.label || field.key}`;
+        input.appendChild(blank);
+        (field.options || []).forEach(opt => {
+          const option = document.createElement('option');
+          if (typeof opt === 'object') {
+            option.value = opt.value;
+            option.textContent = opt.label || opt.value;
+          } else {
+            option.value = opt;
+            option.textContent = opt;
+          }
+          input.appendChild(option);
+        });
+      } else if (field.type === 'boolean') {
+        input = document.createElement('select');
+        input.innerHTML = '<option value="">Select yes/no</option><option value="true">Yes</option><option value="false">No</option>';
+      } else {
+        input = document.createElement('input');
+        input.type = field.type === 'date' ? 'date' : 'text';
+        if (field.type === 'number' || field.type === 'decimal' || field.type === 'integer') {
+          input.type = 'number';
+          if (field.type === 'decimal' || field.type === 'number') input.step = 'any';
+        }
+      }
+
+      input.className = 'sf-input';
+      input.name = inputName;
+      input.dataset.fieldKey = field.key;
+      input.dataset.fieldRole = String(field.fill_by || 'doctor').trim().toLowerCase();
+      input.placeholder = field.label || field.key;
+      input.required = !!field.required;
+      input.dataset.required = field.required ? 'true' : 'false';
+
+      wrap.appendChild(label);
+      wrap.appendChild(input);
+      if (field.help_text) wrap.appendChild(hint);
+      grid.appendChild(wrap);
+    });
+
+    container.appendChild(grid);
+    syncCustomFieldValues();
+  }
+
+  function syncCustomFieldValues() {
+    if (!customFieldValuesInput) return;
+    const values = {};
+    const customInputs = document.querySelectorAll('#labCustomFields [data-field-key]');
+    customInputs.forEach(input => {
+      const key = input.dataset.fieldKey;
+      if (!key) return;
+      values[key] = input.value;
+    });
+    customFieldValuesInput.value = JSON.stringify(values);
   }
 
   initSearchableSelect({
@@ -734,15 +844,24 @@
     dropdownId:'labDropdown',
     selectId:'labIdInput',
     selectableId:'labSearchable',
-    onSelect: ({ meta }) => {
+    onSelect: ({ value, meta }) => {
       const labType = meta?.labType || '';
+      const schema = labSchemaMap[value] || [];
       if (!labType) return;
       labDynamicContainer.classList.remove('hidden');
-      labHelperText.textContent = 'Lab selected. Fill the fields below and submit to create a lab request.';
+      labHelperText.textContent = 'Lab selected. Fill the lab-specific fields first, then the default doctor fields below.';
       labTypePill.textContent = labType.toUpperCase();
+      renderCustomFields(schema);
       setLabFieldState(labType);
     }
   });
+
+  document.getElementById('sendToLabForm').addEventListener('submit', () => {
+    syncCustomFieldValues();
+  });
+
+  document.getElementById('labCustomFields').addEventListener('input', syncCustomFieldValues);
+  document.getElementById('labCustomFields').addEventListener('change', syncCustomFieldValues);
   </script>
 
   {% include 'hospitals/partials/theme_toggle.html' %}

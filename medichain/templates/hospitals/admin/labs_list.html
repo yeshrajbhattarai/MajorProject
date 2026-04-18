@@ -23,6 +23,79 @@
     .labs-create-title { font-size: 15px; font-weight: 700; color: var(--text-primary); font-family: 'Syne', sans-serif; }
     .labs-create-sub { font-size: 12px; color: var(--text-muted); }
     .labs-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; }
+    .labs-schema-panel {
+      grid-column: 1 / -1;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--bg-2);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .labs-schema-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+    .labs-schema-title { font-size: 14px; font-weight: 700; color: var(--text-primary); font-family: 'Syne', sans-serif; }
+    .labs-schema-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .labs-schema-rows { display: flex; flex-direction: column; gap: 10px; }
+    .labs-common-panel {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .labs-common-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .labs-common-group { display: flex; flex-direction: column; gap: 8px; }
+    .labs-common-group-title { font-size: 12px; font-weight: 700; color: var(--text-primary); text-transform: uppercase; letter-spacing: 0.05em; }
+    .labs-common-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .labs-common-item {
+      display: inline-flex;
+      flex-direction: column;
+      gap: 3px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 8px 10px;
+      background: var(--bg-2);
+      min-width: 160px;
+    }
+    .labs-common-item strong { font-size: 12px; color: var(--text-primary); }
+    .labs-common-item span { font-size: 11px; color: var(--text-muted); }
+    .schema-row {
+      display: grid;
+      grid-template-columns: 1.2fr 0.75fr 0.75fr 0.45fr 1fr 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+    .schema-row .sf-input { min-width: 0; }
+    .schema-required { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+    .schema-remove {
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 12px;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    .schema-remove:hover { color: var(--danger); border-color: var(--danger); }
+    .schema-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+    .schema-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .schema-note code {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1px 5px;
+      font-size: 11px;
+    }
     .labs-chip {
       font-size: 11px;
       text-transform: uppercase;
@@ -99,8 +172,56 @@
           <input class="sf-input" type="text" name="name" placeholder="Lab name (e.g. CKD Lab)" required>
           <select class="sf-input" name="lab_type" required>
             <option value="">Select lab type</option>
-            <option value="ckd">Chronic Kidney Disease</option>
+            {% for value, label in lab_types %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
           </select>
+          <div class="labs-schema-panel">
+            <div class="labs-schema-head">
+              <div>
+                <div class="labs-schema-title">Custom fields for this lab</div>
+                <div class="labs-schema-sub">Add the input fields doctors must fill and technicians will see later. Common fields stay fixed. You only define the extra ones here.</div>
+              </div>
+              <span class="labs-chip" id="schemaCountChip">0 fields</span>
+            </div>
+
+            <div class="labs-common-panel">
+              <div class="labs-schema-title" style="font-size:13px;">Default fields you do not need to recreate</div>
+              <div class="labs-schema-sub">These are already built into the workflow. If you add them again below, the system will block the duplicate.</div>
+              <div class="labs-common-grid">
+                <div class="labs-common-group">
+                  <div class="labs-common-group-title">Doctor enters these</div>
+                  <div class="labs-common-list">
+                    <div class="labs-common-item"><strong>Diagnosis</strong><span>Key: diagnosis</span></div>
+                    <div class="labs-common-item"><strong>Treatment Plan</strong><span>Key: treatment_plan</span></div>
+                    <div class="labs-common-item"><strong>Notes</strong><span>Key: notes</span></div>
+                  </div>
+                </div>
+                <div class="labs-common-group">
+                  <div class="labs-common-group-title">Technician enters these</div>
+                  <div class="labs-common-list">
+                    <div class="labs-common-item"><strong>Age</strong><span>Key: age</span></div>
+                    <div class="labs-common-item"><strong>Gender</strong><span>Key: gender</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="labs-schema-rows" id="schemaRows"></div>
+
+            <input type="hidden" id="customFieldSchemaInput" name="custom_field_schema" value="[]">
+
+            <div class="schema-actions">
+              <button type="button" class="sf-btn-cancel" id="addSchemaRowBtn">Add Field</button>
+              <button type="button" class="sf-btn-cancel" id="addSamplePathologyBtn">Use Sample Pathology Fields</button>
+              <button type="button" class="sf-btn-cancel" id="addSampleRadiologyBtn">Use Sample Radiology Fields</button>
+            </div>
+
+            <div class="schema-note">
+              Field types: <code>text</code>, <code>textarea</code>, <code>number</code>, <code>integer</code>, <code>decimal</code>, <code>date</code>, <code>choice</code>, <code>boolean</code>.
+              For choice fields, separate options with commas.
+            </div>
+          </div>
           <button class="sf-btn-save" type="submit">Create Lab</button>
         </form>
       </div>
@@ -151,6 +272,196 @@
   </main>
 
   <script>
+    const schemaRows = document.getElementById('schemaRows');
+    const customFieldSchemaInput = document.getElementById('customFieldSchemaInput');
+    const schemaCountChip = document.getElementById('schemaCountChip');
+
+    function slugify(text) {
+      return (text || '')
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || 'field';
+    }
+
+    function createSchemaRow(field = {}) {
+      const row = document.createElement('div');
+      row.className = 'schema-row';
+
+      const label = document.createElement('input');
+      label.className = 'sf-input schema-label';
+      label.type = 'text';
+      label.placeholder = 'Field label';
+      label.value = field.label || '';
+
+      const type = document.createElement('select');
+      type.className = 'sf-input schema-type';
+      type.innerHTML = `
+        <option value="text">Text</option>
+        <option value="textarea">Textarea</option>
+        <option value="number">Number</option>
+        <option value="integer">Integer</option>
+        <option value="decimal">Decimal</option>
+        <option value="date">Date</option>
+        <option value="choice">Choice</option>
+        <option value="boolean">Boolean</option>
+      `;
+      type.value = field.type || 'text';
+
+      const fillBy = document.createElement('select');
+      fillBy.className = 'sf-input schema-fill-by';
+      fillBy.innerHTML = `
+        <option value="doctor">Doctor</option>
+        <option value="technician">Technician</option>
+      `;
+      fillBy.value = field.fill_by || 'doctor';
+
+      const requiredWrap = document.createElement('label');
+      requiredWrap.className = 'schema-required';
+      const required = document.createElement('input');
+      required.type = 'checkbox';
+      required.className = 'schema-required-toggle';
+      required.checked = !!field.required;
+      requiredWrap.appendChild(required);
+      requiredWrap.appendChild(document.createTextNode('Required'));
+
+      const helpText = document.createElement('input');
+      helpText.className = 'sf-input schema-help';
+      helpText.type = 'text';
+      helpText.placeholder = 'Help text (optional)';
+      helpText.value = field.help_text || '';
+
+      const options = document.createElement('input');
+      options.className = 'sf-input schema-options';
+      options.type = 'text';
+      options.placeholder = 'Options: A, B, C';
+      options.value = Array.isArray(field.options)
+        ? field.options.map(opt => typeof opt === 'object' ? (opt.value || opt.label || '') : opt).filter(Boolean).join(', ')
+        : '';
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'schema-remove';
+      remove.textContent = 'Remove';
+
+      function syncVisibility() {
+        options.style.display = type.value === 'choice' ? '' : 'none';
+      }
+      type.addEventListener('change', syncVisibility);
+      remove.addEventListener('click', () => {
+        row.remove();
+        updateSchemaPreview();
+      });
+
+      row.appendChild(label);
+      row.appendChild(type);
+      row.appendChild(fillBy);
+      row.appendChild(requiredWrap);
+      row.appendChild(helpText);
+      row.appendChild(remove);
+      row.appendChild(options);
+      syncVisibility();
+      return row;
+    }
+
+    function collectSchema() {
+      const rows = Array.from(schemaRows.querySelectorAll('.schema-row'));
+      const schema = [];
+
+      for (const row of rows) {
+        const label = row.querySelector('.schema-label').value.trim();
+        const type = row.querySelector('.schema-type').value;
+        const fillBy = row.querySelector('.schema-fill-by').value;
+        const required = row.querySelector('.schema-required-toggle').checked;
+        const helpText = row.querySelector('.schema-help').value.trim();
+        const optionsText = row.querySelector('.schema-options').value.trim();
+
+        if (!label) return { error: 'Please enter a field label for every custom field.' };
+
+        const field = { label, type, fill_by: fillBy, required };
+        if (helpText) field.help_text = helpText;
+        if (type === 'choice') {
+          const options = optionsText.split(',').map(item => item.trim()).filter(Boolean);
+          if (!options.length) return { error: `Choice field "${label}" needs at least one option.` };
+          field.options = options.map(option => ({ value: option, label: option }));
+        }
+
+        schema.push(field);
+      }
+
+      const seen = new Set();
+      const reserved = new Set([
+        'diagnosis', 'treatment_plan', 'notes',
+        'age', 'gender', 'technician_change_reason'
+      ]);
+      for (const field of schema) {
+        const generatedKey = slugify(field.label);
+        if (seen.has(generatedKey)) {
+          return { error: `Duplicate field name after key generation: ${generatedKey}.` };
+        }
+        if (reserved.has(generatedKey)) {
+          return { error: `Field name "${field.label}" maps to reserved key ${generatedKey}.` };
+        }
+        seen.add(generatedKey);
+      }
+
+      return { schema };
+    }
+
+    function updateSchemaPreview() {
+      const rows = schemaRows.querySelectorAll('.schema-row').length;
+      schemaCountChip.textContent = `${rows} field${rows === 1 ? '' : 's'}`;
+      const result = collectSchema();
+      if (result.error) {
+        customFieldSchemaInput.value = '[]';
+        return;
+      }
+      customFieldSchemaInput.value = JSON.stringify(result.schema);
+    }
+
+    function addSchemaField(field = {}) {
+      schemaRows.appendChild(createSchemaRow(field));
+      updateSchemaPreview();
+      const lastRow = schemaRows.lastElementChild;
+      const labelInput = lastRow?.querySelector('.schema-label');
+      if (labelInput && !field.label) labelInput.focus();
+    }
+
+    document.getElementById('addSchemaRowBtn').addEventListener('click', () => addSchemaField());
+    document.getElementById('addSamplePathologyBtn').addEventListener('click', () => {
+      schemaRows.innerHTML = '';
+      [
+        { label: 'Hemoglobin', type: 'number', fill_by: 'technician', required: true, help_text: 'Hemoglobin level in g/dL' },
+        { label: 'WBC Count', type: 'number', fill_by: 'technician', required: true, help_text: 'White blood cell count' },
+        { label: 'Platelet Count', type: 'integer', fill_by: 'technician', required: false, help_text: 'Platelet count per microliter' },
+      ].forEach(addSchemaField);
+      updateSchemaPreview();
+    });
+    document.getElementById('addSampleRadiologyBtn').addEventListener('click', () => {
+      schemaRows.innerHTML = '';
+      [
+        { label: 'Scan Type', type: 'choice', fill_by: 'doctor', required: true, options: ['X-Ray', 'CT', 'MRI', 'Ultrasound'], help_text: 'Select the imaging type' },
+        { label: 'Body Part', type: 'text', fill_by: 'doctor', required: true, help_text: 'Body part being scanned' },
+        { label: 'Findings', type: 'textarea', fill_by: 'technician', required: false, help_text: 'Imaging findings after scan' },
+        { label: 'Impression', type: 'textarea', fill_by: 'technician', required: false, help_text: 'Final impression or summary' },
+      ].forEach(addSchemaField);
+      updateSchemaPreview();
+    });
+
+    schemaRows.addEventListener('input', updateSchemaPreview);
+    schemaRows.addEventListener('change', updateSchemaPreview);
+
+    document.querySelector('.labs-form').addEventListener('submit', (event) => {
+      const result = collectSchema();
+      if (result.error) {
+        event.preventDefault();
+        alert(result.error);
+        return;
+      }
+      customFieldSchemaInput.value = JSON.stringify(result.schema);
+    });
+
     document.getElementById('sidebarToggle').addEventListener('click', () => {
       document.getElementById('sidebar').classList.toggle('sidebar-open');
     });

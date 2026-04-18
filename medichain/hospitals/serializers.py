@@ -1,5 +1,38 @@
+import re
+
 from rest_framework import serializers
-from .models import Hospital, HospitalUser, Patient
+from .models import (
+    Hospital,
+    HospitalUser,
+    Patient,
+    Lab,
+    LabRequest,
+    LabRequestRevision,
+    MedicalRecordMeta,
+)
+
+
+INDIA_MOBILE_REGEX = r'^[6-9]\d{9}$'
+
+
+def _validate_indian_mobile(value):
+    if not re.match(INDIA_MOBILE_REGEX, value):
+        raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
+    return value
+
+
+class StaffContactValidationMixin:
+    def validate_email(self, value):
+        normalized = value.lower()
+        if HospitalUser.objects.filter(email=normalized).exists():
+            raise serializers.ValidationError('A staff member with this email already exists')
+        return normalized
+
+    def validate_phone(self, value):
+        _validate_indian_mobile(value)
+        if HospitalUser.objects.filter(phone=value).exists():
+            raise serializers.ValidationError('This phone number is already registered')
+        return value
 
 
 # ─── Hospital Serializers ─────────────────────────────────────────────────────
@@ -31,9 +64,7 @@ class HospitalRegisterSerializer(serializers.Serializer):
 
     # validate Indian mobile number format
     def validate_contact_number(self, value):
-        import re
-        if not re.match(r'^[6-9]\d{9}$', value):
-            raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
+        _validate_indian_mobile(value)
         if Hospital.objects.filter(contact_number=value).exists():
             raise serializers.ValidationError('This contact number is already registered')
         return value
@@ -62,68 +93,26 @@ class HospitalUserSerializer(serializers.ModelSerializer):
 
 
 # used when hospital admin adds a new doctor
-class AddDoctorSerializer(serializers.Serializer):
+class AddDoctorSerializer(StaffContactValidationMixin, serializers.Serializer):
     full_name      = serializers.CharField(max_length=255)
     email          = serializers.EmailField()
     phone          = serializers.CharField(max_length=10)
     employee_id    = serializers.CharField(max_length=50)
     specialization = serializers.CharField(max_length=255)
 
-    def validate_email(self, value):
-        if HospitalUser.objects.filter(email=value.lower()).exists():
-            raise serializers.ValidationError('A staff member with this email already exists')
-        return value.lower()
-
-    def validate_phone(self, value):
-        import re
-        if not re.match(r'^[6-9]\d{9}$', value):
-            raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
-        if HospitalUser.objects.filter(phone=value).exists():
-            raise serializers.ValidationError('This phone number is already registered')
-        return value
-
-
 # used when hospital admin adds a new nurse
-class AddNurseSerializer(serializers.Serializer):
+class AddNurseSerializer(StaffContactValidationMixin, serializers.Serializer):
     full_name   = serializers.CharField(max_length=255)
     email       = serializers.EmailField()
     phone       = serializers.CharField(max_length=10)
     employee_id = serializers.CharField(max_length=50)
-
-    def validate_email(self, value):
-        if HospitalUser.objects.filter(email=value.lower()).exists():
-            raise serializers.ValidationError('A staff member with this email already exists')
-        return value.lower()
-
-    def validate_phone(self, value):
-        import re
-        if not re.match(r'^[6-9]\d{9}$', value):
-            raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
-        if HospitalUser.objects.filter(phone=value).exists():
-            raise serializers.ValidationError('This phone number is already registered')
-        return value
-
 
 # used when hospital admin adds a new technician
-class AddTechnicianSerializer(serializers.Serializer):
+class AddTechnicianSerializer(StaffContactValidationMixin, serializers.Serializer):
     full_name   = serializers.CharField(max_length=255)
     email       = serializers.EmailField()
     phone       = serializers.CharField(max_length=10)
     employee_id = serializers.CharField(max_length=50)
-
-    def validate_email(self, value):
-        if HospitalUser.objects.filter(email=value.lower()).exists():
-            raise serializers.ValidationError('A staff member with this email already exists')
-        return value.lower()
-
-    def validate_phone(self, value):
-        import re
-        if not re.match(r'^[6-9]\d{9}$', value):
-            raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
-        if HospitalUser.objects.filter(phone=value).exists():
-            raise serializers.ValidationError('This phone number is already registered')
-        return value
-
 
 # ─── Patient Serializers ──────────────────────────────────────────────────────
 
@@ -149,17 +138,19 @@ class AddPatientSerializer(serializers.Serializer):
     full_name     = serializers.CharField(max_length=255)
     gender        = serializers.ChoiceField(choices=['Male', 'Female', 'Other'], required=False, allow_blank=True)
     phone         = serializers.CharField(max_length=10, required=False, allow_blank=True)
-    email         = serializers.EmailField(required=False, allow_blank=True)
+    email         = serializers.EmailField(required=True)
     address       = serializers.CharField(required=False, allow_blank=True)
 
     def validate_phone(self, value):
-        import re
-        if value and not re.match(r'^[6-9]\d{9}$', value):
-            raise serializers.ValidationError('Enter a valid 10-digit Indian mobile number')
+        if value:
+            _validate_indian_mobile(value)
         return value
 
     def validate_email(self, value):
-        return value.lower() if value else value
+        normalized = value.lower()
+        if Patient.objects.filter(email=normalized).exists():
+            raise serializers.ValidationError('A patient with this email already exists')
+        return normalized
 
 
 # ─── Lab Serializers ──────────────────────────────────────────────────────────
@@ -168,13 +159,14 @@ class LabSerializer(serializers.ModelSerializer):
     hospital_name = serializers.CharField(source='hospital.hospital_name', read_only=True)
 
     class Meta:
-        model  = 'hospitals.Lab'
-        fields = ['id', 'hospital_name', 'lab_type', 'name', 'is_active', 'created_at']
+        model  = Lab
+        fields = ['id', 'hospital_name', 'lab_type', 'name', 'custom_field_schema', 'is_active', 'created_at']
 
 
 class CreateLabSerializer(serializers.Serializer):
     lab_type = serializers.CharField(max_length=50)
     name = serializers.CharField(max_length=255)
+    custom_field_schema = serializers.JSONField(required=False)
 
 
 # ─── Lab Request Serializers ──────────────────────────────────────────────────
@@ -185,11 +177,11 @@ class LabRequestSerializer(serializers.ModelSerializer):
     lab_name = serializers.CharField(source='lab.name', read_only=True)
 
     class Meta:
-        model  = 'hospitals.LabRequest'
+        model  = LabRequest
         fields = [
             'id', 'patient_name', 'doctor_name', 'lab_name',
             'status', 'chest_pain_type', 'diagnosis', 'treatment_plan',
-            'notes', 'created_at', 'completed_at',
+            'notes', 'custom_field_values', 'created_at', 'completed_at',
         ]
 
 
@@ -199,6 +191,7 @@ class SendToLabSerializer(serializers.Serializer):
     diagnosis = serializers.CharField()
     treatment_plan = serializers.CharField()
     notes = serializers.CharField(required=False, allow_blank=True)
+    custom_field_values = serializers.JSONField(required=False)
 
 
 class DoctorReassessSerializer(serializers.Serializer):
@@ -207,6 +200,7 @@ class DoctorReassessSerializer(serializers.Serializer):
     treatment_plan = serializers.CharField()
     notes = serializers.CharField(required=False, allow_blank=True)
     reason = serializers.CharField()
+    custom_field_values = serializers.JSONField(required=False)
 
 
 # ─── Lab Request Revision Serializer ──────────────────────────────────────────
@@ -215,7 +209,7 @@ class LabRequestRevisionSerializer(serializers.ModelSerializer):
     revised_by_name = serializers.CharField(source='revised_by.full_name', read_only=True)
 
     class Meta:
-        model  = 'hospitals.LabRequestRevision'
+        model  = LabRequestRevision
         fields = [
             'id', 'lab_request_id', 'revised_by_name', 'changed_fields',
             'reason', 'created_at',
@@ -237,10 +231,10 @@ class MedicalRecordMetaSerializer(serializers.ModelSerializer):
             return 'Unknown User'
 
     class Meta:
-        model  = 'hospitals.MedicalRecordMeta'
+        model  = MedicalRecordMeta
         fields = [
             'record_id', 'patient_name', 'lab_name', 'recorded_by_name',
-            'version', 'created_at', 'updated_at',
+            'version', 'custom_field_values', 'created_at', 'updated_at',
         ]
 
 
@@ -254,3 +248,4 @@ class CreateMedicalRecordSerializer(serializers.Serializer):
     heart_rate = serializers.IntegerField()
     ecg_result = serializers.CharField()
     technician_change_reason = serializers.CharField(required=False, allow_blank=True)
+    custom_field_values = serializers.JSONField(required=False)
