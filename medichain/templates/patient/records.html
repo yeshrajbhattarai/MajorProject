@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Medical Records</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .records-wrap { display: flex; flex-direction: column; gap: 16px; }
+    .records-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .records-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .records-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .records-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+    .filter-row { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .filter-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; margin-right: 4px; }
+    .filter-chip {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg-2);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .filter-chip.active { background: var(--a3-bg-subtle); color: var(--accent-3); border-color: var(--a3-border); }
+    .hospital-section { padding: 16px 18px; border-top: 1px solid var(--border); }
+    .hospital-section.hidden { display: none; }
+    .hospital-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .hospital-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+    .hospital-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+    .record-list { display: flex; flex-direction: column; gap: 10px; }
+    .record-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-2);
+      padding: 10px 12px;
+    }
+    .record-item.hidden { display: none; }
+    .record-name { color: var(--text-primary); font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+    .record-info { color: var(--text-muted); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .record-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .records-empty-filtered { display: none; padding: 16px 18px; color: var(--text-muted); font-size: 13px; border-top: 1px solid var(--border); }
+    .records-empty-filtered.show { display: block; }
+  </style>
+</head>
+<body>
+
+{% include 'patient/partials/sidebar.html' with active_page='records' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="page-title">
+          <h1>Medical Records</h1>
+          <span class="breadcrumb">Hospitals and version history (read-only)</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar">{{ patient.full_name|default:'P'|slice:':1'|upper }}</div>
+      </div>
+    </header>
+
+    <div class="staff-content records-wrap">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <section class="records-card">
+        <div class="records-head">
+          <div class="records-title">Hospitals In Your Record Timeline</div>
+          <div class="records-sub">Choose hospital and report type filters. `All` shows everything, while each hospital shows only its records.</div>
+        </div>
+        {% if hospital_record_groups %}
+          <div class="filter-row" id="hospitalFilters">
+            <span class="filter-title">Hospital</span>
+            <button type="button" class="filter-chip active" data-hospital-filter="all">All</button>
+            {% for group in hospital_record_groups %}
+              <button type="button" class="filter-chip" data-hospital-filter="{{ group.hospital_id }}">{{ group.hospital_name }} ({{ group.total_requests }})</button>
+            {% endfor %}
+          </div>
+
+          <div class="filter-row" id="reportTypeFilters">
+            <span class="filter-title">Report Type</span>
+            <button type="button" class="filter-chip active" data-type-filter="all">All</button>
+            <button type="button" class="filter-chip" data-type-filter="lab">Lab Reports</button>
+            <button type="button" class="filter-chip" data-type-filter="medical">Medical Reports</button>
+          </div>
+
+          {% for group in hospital_record_groups %}
+          <div id="hospital-{{ group.hospital_id }}" class="hospital-section" data-hospital="{{ group.hospital_id }}">
+            <div class="hospital-head">
+              <div class="hospital-name">{{ group.hospital_name }}</div>
+              <div class="hospital-meta">
+                <span class="status-badge status-badge-active">{{ group.total_requests }} total</span>
+                <span class="status-badge status-badge-active">{{ group.pending_requests }} pending</span>
+                <span class="status-badge status-badge-active">{{ group.completed_requests }} completed</span>
+              </div>
+            </div>
+
+            <div class="record-list">
+              {% for item in group.requests %}
+              <div class="record-item" data-report-type="{{ item.report_type }}">
+                <div>
+                  <div class="record-name">{{ item.request.lab.name }} · {{ item.request.get_status_display }}</div>
+                  <div class="record-info">
+                    <span>Doctor: {{ item.request.requested_by.full_name }}{% if item.request.requested_by.employee_id %} (ID: {{ item.request.requested_by.employee_id }}){% endif %}</span>
+                    <span>{{ item.request.created_at|date:'d M Y, h:i A' }}</span>
+                    <span>{{ item.report_type_label }}</span>
+                  </div>
+                </div>
+                <div class="record-actions">
+                  {% if item.record_id %}
+                  <a class="tbl-btn tbl-btn-view" href="{% url 'patient_record_detail' item.record_id %}">View</a>
+                  <a class="tbl-btn" href="{% url 'patient_record_history' item.record_id %}">History</a>
+                  {% else %}
+                  <span class="status-badge status-badge-active">Awaiting record</span>
+                  {% endif %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+          <div class="records-empty-filtered" id="emptyFilteredState">No records match the selected hospital/report filters.</div>
+        {% else %}
+          <div class="staff-empty" style="padding:20px;">
+            <h3>No records yet</h3>
+            <p>Your hospital-wise records will appear here once labs are requested.</p>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+
+  <script>
+  function updateTime() {
+    const now = new Date();
+    const opts = { hour: '2-digit', minute: '2-digit', hour12: true, weekday: 'short', month: 'short', day: 'numeric' };
+    document.getElementById('topbarTime').textContent = now.toLocaleDateString('en-IN', opts);
+  }
+  updateTime();
+  setInterval(updateTime, 60000);
+
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  (function initRecordFilters() {
+    const hospitalButtons = Array.from(document.querySelectorAll('[data-hospital-filter]'));
+    const typeButtons = Array.from(document.querySelectorAll('[data-type-filter]'));
+    const sections = Array.from(document.querySelectorAll('.hospital-section[data-hospital]'));
+    const emptyState = document.getElementById('emptyFilteredState');
+
+    if (!hospitalButtons.length || !typeButtons.length || !sections.length) {
+      return;
+    }
+
+    let selectedHospital = 'all';
+    let selectedType = 'all';
+
+    function applyFilters() {
+      let anyVisible = false;
+
+      sections.forEach(section => {
+        const sectionHospital = section.getAttribute('data-hospital');
+        const matchesHospital = selectedHospital === 'all' || sectionHospital === selectedHospital;
+
+        const rows = Array.from(section.querySelectorAll('.record-item[data-report-type]'));
+        let visibleRows = 0;
+
+        rows.forEach(row => {
+          const rowType = row.getAttribute('data-report-type') || 'lab';
+          const matchesType = selectedType === 'all' || rowType === selectedType;
+          const showRow = matchesHospital && matchesType;
+          row.classList.toggle('hidden', !showRow);
+          if (showRow) {
+            visibleRows += 1;
+            anyVisible = true;
+          }
+        });
+
+        section.classList.toggle('hidden', visibleRows === 0);
+      });
+
+      if (emptyState) {
+        emptyState.classList.toggle('show', !anyVisible);
+      }
+    }
+
+    hospitalButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedHospital = btn.getAttribute('data-hospital-filter') || 'all';
+        hospitalButtons.forEach(b => b.classList.toggle('active', b === btn));
+        applyFilters();
+      });
+    });
+
+    typeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedType = btn.getAttribute('data-type-filter') || 'all';
+        typeButtons.forEach(b => b.classList.toggle('active', b === btn));
+        applyFilters();
+      });
+    });
+
+    applyFilters();
+  })();
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

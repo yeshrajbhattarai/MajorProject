@@ -1,0 +1,700 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Patient Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/register.css' %}">
+  <!-- apply saved theme instantly before render — prevents flash and wrong variable values -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('medichain_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body>
+
+  <div class="bg-grid"      aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+
+  <div class="page">
+
+    <!-- ══════════════════════════════════════
+         LEFT PANEL — Patient-specific messaging
+    ══════════════════════════════════════ -->
+    <aside class="left-panel">
+
+      <div class="brand-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0
+                     2-2V5a2 2 0 0 0-2-2zm-7 3a1 1 0 0 1 1 1v3h3a1 1 0 0 1
+                     0 2h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V7a1 1 0 0 1 1-1z"/>
+          </svg>
+        </div>
+        <span class="brand-name">MediChain</span>
+      </div>
+
+      <h1 class="left-headline">
+        Your health<br>
+        <span>your control.</span>
+      </h1>
+      <p class="left-sub">
+        Access your medical records securely, manage appointments,
+        and connect with healthcare providers anytime.
+      </p>
+
+      <div class="feature-cards">
+        <div class="feature-card">
+          <div class="ph-icon"><!-- TODO: icon --></div>
+          <div class="ph-text">
+            <div class="ph-title"><!-- TODO: Feature title --></div>
+            <div class="ph-desc"><!-- TODO: Feature description --></div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="ph-icon"><!-- TODO: icon --></div>
+          <div class="ph-text">
+            <div class="ph-title"><!-- TODO: Feature title --></div>
+            <div class="ph-desc"><!-- TODO: Feature description --></div>
+          </div>
+        </div>
+        <div class="feature-card">
+          <div class="ph-icon"><!-- TODO: icon --></div>
+          <div class="ph-text">
+            <div class="ph-title"><!-- TODO: Feature title --></div>
+            <div class="ph-desc"><!-- TODO: Feature description --></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-num"><!-- TODO --></span>
+          <span class="stat-label"><!-- TODO --></span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num"><!-- TODO --></span>
+          <span class="stat-label"><!-- TODO --></span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num"><!-- TODO --></span>
+          <span class="stat-label"><!-- TODO --></span>
+        </div>
+      </div>
+
+    </aside>
+
+
+    <!-- ══════════════════════════════════════
+         RIGHT PANEL — sliding viewport
+         .panel-track holds both cards side-by-side.
+         JS adds .show-login to shift the track left.
+    ══════════════════════════════════════ -->
+    <main class="right-panel">
+      <div class="panel-track" id="panelTrack">
+
+        <!-- ── REGISTER CARD ── -->
+        <div class="auth-card" id="registerCard">
+          <div class="card-header">
+            <h2>Create Patient Account</h2>
+            <p>Register to access your health records</p>
+          </div>
+
+          <form method="POST" action="{% url 'patient_register' %}" id="registerForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Full Name -->
+            <div class="input-group" id="grp-full-name">
+              <label for="full_name">Full Name</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </span>
+                <input type="text" id="full_name" name="full_name"
+                       placeholder="e.g. Rajesh Kumar"
+                       autocomplete="name" value="{{ form_data.full_name|default:'' }}" required>
+                <span class="field-status" id="status-full-name" aria-hidden="true"></span>
+              </div>
+              <span class="field-error" id="err-full-name"></span>
+            </div>
+
+            <!-- Email -->
+            <div class="input-group" id="grp-reg-email">
+              <label for="reg_email">Email Address</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                </span>
+                <input type="email" id="reg_email" name="email"
+                       placeholder="your.email@example.com"
+                       autocomplete="email" value="{{ form_data.email|default:'' }}" required>
+                <span class="field-status" id="status-reg-email" aria-hidden="true"></span>
+              </div>
+              <span class="field-error" id="err-reg-email"></span>
+            </div>
+
+            <!-- Phone Number -->
+            <div class="input-group" id="grp-phone">
+              <label for="phone">Mobile Number</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.77 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                </span>
+                <span class="phone-prefix">+91</span>
+                <input type="tel" id="phone" name="phone"
+                       placeholder="98765 43210"
+                       autocomplete="tel-national"
+                       maxlength="10" value="{{ form_data.phone|default:'' }}" required>
+                <span class="field-status" id="status-phone" aria-hidden="true"></span>
+              </div>
+              <span class="field-error" id="err-phone"></span>
+            </div>
+
+            <!-- Password -->
+            <div class="input-group" id="grp-reg-password">
+              <label for="reg_password">Password</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </span>
+                <input type="password" id="reg_password" name="password"
+                       placeholder="Min. 8 characters"
+                       autocomplete="new-password" required>
+                <button type="button" class="toggle-pw" data-target="reg_password" aria-label="Toggle password">
+                  <svg class="eye-show" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-hide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+              <div class="pw-strength" id="pw-strength">
+                <div class="pw-bars">
+                  <div class="pw-bar" id="bar1"></div>
+                  <div class="pw-bar" id="bar2"></div>
+                  <div class="pw-bar" id="bar3"></div>
+                  <div class="pw-bar" id="bar4"></div>
+                </div>
+                <span class="pw-label" id="pw-label"></span>
+              </div>
+              <span class="field-error" id="err-reg-password"></span>
+            </div>
+
+            <!-- Confirm Password -->
+            <div class="input-group" id="grp-confirm">
+              <label for="confirm_password">Confirm Password</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                </span>
+                <input type="password" id="confirm_password" name="confirm_password"
+                       placeholder="Re-enter password"
+                       autocomplete="new-password" required>
+                <button type="button" class="toggle-pw" data-target="confirm_password" aria-label="Toggle confirm password">
+                  <svg class="eye-show" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-hide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+              <span class="match-hint" id="match-hint"></span>
+              <span class="field-error" id="err-confirm"></span>
+            </div>
+
+            <button type="submit" class="auth-btn">
+              <span>Create Account</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            </button>
+          </form>
+
+          <p class="switch-link">
+            Already registered?
+            <button type="button" class="switch-btn" id="goLogin">Login</button>
+          </p>
+          <p class="switch-link">
+            Hospital/Staff user?
+            <a href="/login/" class="switch-btn" style="text-decoration:none;">Go to Staff Portal</a>
+          </p>
+        </div>
+        <!-- /#registerCard -->
+
+
+        <!-- ── LOGIN CARD ── -->
+        <div class="auth-card" id="loginCard">
+          <div class="card-header">
+            <h2>Welcome Back</h2>
+            <p>Sign in to your patient account</p>
+          </div>
+
+          {% if messages %}
+            {% for message in messages %}
+              <div class="notification notification-success" style="margin-bottom:15px;">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <form method="POST" action="{% url 'patient_login' %}" id="loginForm" novalidate>
+            {% csrf_token %}
+
+            <!-- Email -->
+            <div class="input-group" id="grp-login-email">
+              <label for="login_email">Email Address</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                    <polyline points="22,6 12,13 2,6"/>
+                  </svg>
+                </span>
+                <input type="email" id="login_email" name="email"
+                       placeholder="your.email@example.com"
+                       autocomplete="email" value="{{ form_data.email|default:'' }}" required>
+                <span class="field-status" id="status-login-email" aria-hidden="true"></span>
+              </div>
+              <span class="field-error" id="err-login-email"></span>
+            </div>
+
+            <!-- Password -->
+            <div class="input-group" id="grp-login-password">
+              <label for="login_password">Password</label>
+              <div class="input-wrap">
+                <span class="input-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </span>
+                <input type="password" id="login_password" name="password"
+                       placeholder="Enter your password"
+                       autocomplete="current-password" required>
+                <button type="button" class="toggle-pw" data-target="login_password" aria-label="Toggle password">
+                  <svg class="eye-show" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-hide" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+              <span class="field-error" id="err-login-password"></span>
+            </div>
+
+            <!-- Remember me -->
+            <div class="remember-row">
+              <label class="checkbox-label">
+                <input type="checkbox" name="remember_me" id="remember_me">
+                <span class="checkbox-custom"></span>
+                Keep me signed in
+              </label>
+            </div>
+
+            <button type="submit" class="auth-btn" id="loginBtn">
+              <span>Sign In</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                <polyline points="10 17 15 12 10 7"/>
+                <line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+            </button>
+          </form>
+
+          <p class="switch-link">
+            New patient?
+            <button type="button" class="switch-btn" id="goRegister">Create Account</button>
+          </p>
+          <p class="switch-link">
+            Hospital/Staff user?
+            <a href="/login/" class="switch-btn" style="text-decoration:none;">Go to Staff Portal</a>
+          </p>
+        </div>
+        <!-- /#loginCard -->
+
+      </div>
+      <!-- /.panel-track -->
+    </main>
+
+  </div><!-- /.page -->
+
+
+  <script>
+
+  /* ─────────────────────────────────────────────────
+     PANEL SLIDE
+     .panel-track holds both cards stacked side by side.
+     Adding .show-login shifts the track left → shows login card.
+     Register is visible by default.
+  ───────────────────────────────────────────────── */
+  const track      = document.getElementById('panelTrack');
+  const goLogin    = document.getElementById('goLogin');
+  const goRegister = document.getElementById('goRegister');
+
+  function slideToLogin() {
+    track.classList.add('show-login');
+    setTimeout(resetRegisterForm, 400);
+  }
+
+  function slideToRegister() {
+    track.classList.remove('show-login');
+    setTimeout(resetLoginForm, 400);
+  }
+
+  goLogin.addEventListener('click',    slideToLogin);
+  goRegister.addEventListener('click', slideToRegister);
+
+  [goLogin, goRegister].forEach(btn => {
+    btn.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+  });
+
+  function resetRegisterForm() {
+    document.getElementById('registerForm').reset();
+    ['grp-full-name','grp-reg-email','grp-phone','grp-reg-password','grp-confirm'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('has-error','has-success');
+    });
+    ['err-full-name','err-reg-email','err-phone','err-reg-password','err-confirm'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '';
+    });
+    document.getElementById('pw-strength').classList.remove('visible');
+    document.getElementById('match-hint').className  = 'match-hint';
+    ['status-full-name','status-reg-email','status-phone'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '';
+    });
+  }
+
+  function resetLoginForm() {
+    document.getElementById('loginForm').reset();
+    ['grp-login-email','grp-login-password'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('has-error','has-success');
+    });
+    ['err-login-email','err-login-password'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '';
+    });
+    document.getElementById('status-login-email').textContent = '';
+  }
+
+  function setError(groupId, errId, msg) {
+    const g = document.getElementById(groupId);
+    if (!g) return;
+    g.classList.add('has-error');
+    g.classList.remove('has-success');
+    if (errId) document.getElementById(errId).textContent = msg;
+  }
+
+  function setSuccess(groupId, errId) {
+    const g = document.getElementById(groupId);
+    if (!g) return;
+    g.classList.remove('has-error');
+    g.classList.add('has-success');
+    if (errId) document.getElementById(errId).textContent = '';
+  }
+
+  function clearState(groupId, errId) {
+    const g = document.getElementById(groupId);
+    if (!g) return;
+    g.classList.remove('has-error','has-success');
+    if (errId) document.getElementById(errId).textContent = '';
+  }
+
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  function validateEmail(val) {
+    if (!val)                     return 'Email is required';
+    if (!EMAIL_REGEX.test(val))   return 'Enter a valid email — e.g. name@example.com';
+    return '';
+  }
+
+  function getCookie(name) {
+    let value = null;
+    document.cookie.split(';').forEach(c => {
+      const t = c.trim();
+      if (t.startsWith(name + '=')) value = decodeURIComponent(t.slice(name.length + 1));
+    });
+    return value;
+  }
+
+  /* ─────────────────────────────────────────────────
+     REGISTER — LIVE VALIDATION
+  ───────────────────────────────────────────────── */
+
+  // Full Name
+  const fullNameInput = document.getElementById('full_name');
+  const fullNameStatus = document.getElementById('status-full-name');
+
+  fullNameInput.addEventListener('input', () => {
+    const val = fullNameInput.value.trim();
+    if (!val) { clearState('grp-full-name','err-full-name'); fullNameStatus.textContent=''; return; }
+    if (val.length < 2) { clearState('grp-full-name','err-full-name'); fullNameStatus.textContent=''; return; }
+    setSuccess('grp-full-name','err-full-name');
+    fullNameStatus.textContent='✓';
+  });
+
+  fullNameInput.addEventListener('blur', () => {
+    if (!fullNameInput.value.trim()) setError('grp-full-name','err-full-name','Full name is required');
+  });
+
+  // Email
+  const regEmailInput  = document.getElementById('reg_email');
+  const regEmailStatus = document.getElementById('status-reg-email');
+
+  regEmailInput.addEventListener('input', () => {
+    const val = regEmailInput.value.trim();
+    if (!val) { clearState('grp-reg-email','err-reg-email'); regEmailStatus.textContent=''; return; }
+    const err = validateEmail(val);
+    if (err) { setError('grp-reg-email','err-reg-email',err); regEmailStatus.textContent=''; }
+    else     { setSuccess('grp-reg-email','err-reg-email');   regEmailStatus.textContent='✓'; }
+  });
+
+  regEmailInput.addEventListener('blur', () => {
+    if (!regEmailInput.value.trim()) setError('grp-reg-email','err-reg-email','Email is required');
+  });
+
+  // Phone
+  const phoneInput  = document.getElementById('phone');
+  const phoneStatus = document.getElementById('status-phone');
+  const INDIA_MOBILE  = /^[6-9]\d{9}$/;
+
+  phoneInput.addEventListener('input', () => {
+    phoneInput.value = phoneInput.value.replace(/\D/g,'').slice(0,10);
+    const val = phoneInput.value;
+    if (!val)          { clearState('grp-phone','err-phone'); phoneStatus.textContent=''; return; }
+    if (val.length<10) { clearState('grp-phone','err-phone'); phoneStatus.textContent=''; return; }
+    if (!INDIA_MOBILE.test(val)) {
+      setError('grp-phone','err-phone','Valid Indian mobile starts with 6–9');
+      phoneStatus.textContent='';
+    } else {
+      setSuccess('grp-phone','err-phone');
+      phoneStatus.textContent='✓';
+    }
+  });
+
+  phoneInput.addEventListener('blur', () => {
+    const val = phoneInput.value;
+    if (!val)                    { setError('grp-phone','err-phone','Phone is required'); return; }
+    if (!INDIA_MOBILE.test(val))   setError('grp-phone','err-phone','Enter a valid 10-digit Indian mobile number');
+  });
+
+  // Password strength
+  const pwInput    = document.getElementById('reg_password');
+  const strengthEl = document.getElementById('pw-strength');
+  const bars       = ['bar1','bar2','bar3','bar4'].map(id => document.getElementById(id));
+  const pwLabel    = document.getElementById('pw-label');
+
+  function calcStrength(pw) {
+    let s = 0;
+    if (pw.length >= 8)                             s++;
+    if (pw.length >= 12)                            s++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw))      s++;
+    if (/\d/.test(pw)    && /[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }
+
+  pwInput.addEventListener('input', () => {
+    const val = pwInput.value;
+    if (!val) {
+      strengthEl.classList.remove('visible');
+      clearState('grp-reg-password','err-reg-password');
+      checkMatch();
+      return;
+    }
+    strengthEl.classList.add('visible');
+    const score = calcStrength(val);
+    const cls   = score <= 1 ? 'weak'  : score <= 2 ? 'medium' : 'strong';
+    const lbl   = score <= 1 ? 'Weak'  : score <= 2 ? 'Fair'   : score === 3 ? 'Good' : 'Strong';
+    bars.forEach((b,i) => { b.className = 'pw-bar' + (i < score ? ' '+cls : ''); });
+    pwLabel.textContent = lbl;
+    pwLabel.style.color = cls==='weak' ? 'var(--error)' : cls==='medium' ? '#fbbf24' : 'var(--success)';
+    val.length < 8
+      ? setError('grp-reg-password','err-reg-password','Password must be at least 8 characters')
+      : setSuccess('grp-reg-password','err-reg-password');
+    checkMatch();
+  });
+
+  pwInput.addEventListener('blur', () => {
+    if (!pwInput.value) setError('grp-reg-password','err-reg-password','Password is required');
+  });
+
+  const confirmInput = document.getElementById('confirm_password');
+  const matchHint    = document.getElementById('match-hint');
+
+  function checkMatch() {
+    const cp = confirmInput.value;
+    if (!cp) { matchHint.className = 'match-hint'; return; }
+    if (pwInput.value === cp) {
+      matchHint.className   = 'match-hint visible ok';
+      matchHint.textContent = '✓ Passwords match';
+      setSuccess('grp-confirm','err-confirm');
+    } else {
+      matchHint.className   = 'match-hint visible fail';
+      matchHint.textContent = '✗ Passwords do not match';
+    }
+  }
+
+  confirmInput.addEventListener('input', checkMatch);
+  confirmInput.addEventListener('blur', () => {
+    if (!confirmInput.value) setError('grp-confirm','err-confirm','Please confirm your password');
+  });
+
+  /* ─────────────────────────────────────────────────
+     LOGIN — LIVE VALIDATION
+  ───────────────────────────────────────────────── */
+  const loginEmailInput  = document.getElementById('login_email');
+  const loginEmailStatus = document.getElementById('status-login-email');
+
+  loginEmailInput.addEventListener('input', () => {
+    const val = loginEmailInput.value.trim();
+    if (!val) { clearState('grp-login-email','err-login-email'); loginEmailStatus.textContent=''; return; }
+    const err = validateEmail(val);
+    if (err) { setError('grp-login-email','err-login-email',err); loginEmailStatus.textContent=''; }
+    else     { setSuccess('grp-login-email','err-login-email');   loginEmailStatus.textContent='✓'; }
+  });
+
+  loginEmailInput.addEventListener('blur', () => {
+    if (!loginEmailInput.value.trim()) setError('grp-login-email','err-login-email','Email is required');
+  });
+
+  const loginPwInput = document.getElementById('login_password');
+
+  loginPwInput.addEventListener('blur', () => {
+    if (!loginPwInput.value) setError('grp-login-password','err-login-password','Password is required');
+    else setSuccess('grp-login-password','err-login-password');
+  });
+
+  /* ─────────────────────────────────────────────────
+     PASSWORD VISIBILITY TOGGLE
+  ───────────────────────────────────────────────── */
+  document.querySelectorAll('.toggle-pw').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input  = document.getElementById(btn.dataset.target);
+      const isText = input.type === 'text';
+      input.type   = isText ? 'password' : 'text';
+      btn.querySelector('.eye-show').style.display = isText ? ''     : 'none';
+      btn.querySelector('.eye-hide').style.display = isText ? 'none' : '';
+    });
+  });
+
+  /* ─────────────────────────────────────────────────
+     FOCUS ICON HIGHLIGHT
+  ───────────────────────────────────────────────── */
+  document.querySelectorAll('.input-wrap input, .input-wrap select').forEach(inp => {
+    const icon = inp.closest('.input-wrap').querySelector('.input-icon');
+    inp.addEventListener('focus', () => { if (icon) icon.style.color = 'var(--accent)'; });
+    inp.addEventListener('blur',  () => { if (icon) icon.style.color = ''; });
+  });
+
+  /* ─────────────────────────────────────────────────
+     REGISTER SUBMIT
+  ───────────────────────────────────────────────── */
+  document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    let ok = true;
+
+    if (!fullNameInput.value.trim()) {
+      setError('grp-full-name','err-full-name','Full name is required'); ok = false;
+    }
+    const re = validateEmail(regEmailInput.value.trim());
+    if (re) { setError('grp-reg-email','err-reg-email',re); ok = false; }
+
+    const cv = phoneInput.value;
+    if (!cv)                       { setError('grp-phone','err-phone','Phone is required'); ok = false; }
+    else if (!INDIA_MOBILE.test(cv)) { setError('grp-phone','err-phone','Enter a valid 10-digit Indian mobile number'); ok = false; }
+
+    if (!pwInput.value)               { setError('grp-reg-password','err-reg-password','Password is required'); ok = false; }
+    else if (pwInput.value.length < 8) { setError('grp-reg-password','err-reg-password','Min. 8 characters'); ok = false; }
+
+    if (!confirmInput.value)                          { setError('grp-confirm','err-confirm','Please confirm your password'); ok = false; }
+    else if (pwInput.value !== confirmInput.value)    { setError('grp-confirm','err-confirm','Passwords do not match'); ok = false; }
+
+    if (!ok) return;
+
+    try {
+      const response = await fetch(this.action, {
+        method:  'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body:    new FormData(this)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        window.location.href = data.redirect;
+      } else {
+        if (data.errors.full_name)       setError('grp-full-name',       'err-full-name',       data.errors.full_name);
+        if (data.errors.email)           setError('grp-reg-email',       'err-reg-email',       data.errors.email);
+        if (data.errors.phone)           setError('grp-phone',           'err-phone',           data.errors.phone);
+        if (data.errors.password)        setError('grp-reg-password',    'err-reg-password',    data.errors.password);
+        if (data.errors.confirm_password) setError('grp-confirm',        'err-confirm',         data.errors.confirm_password);
+      }
+    } catch(err) {
+      console.error('Register request failed:', err);
+    }
+  });
+
+  /* ─────────────────────────────────────────────────
+     LOGIN SUBMIT
+  ───────────────────────────────────────────────── */
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    let ok = true;
+    const le = validateEmail(loginEmailInput.value.trim());
+    if (le)                { setError('grp-login-email',    'err-login-email',    le); ok = false; }
+    if (!loginPwInput.value) { setError('grp-login-password','err-login-password','Password is required'); ok = false; }
+    if (!ok) return;
+
+    try {
+      const response = await fetch(this.action, {
+        method:  'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body:    new FormData(this)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        window.location.href = data.redirect;
+      } else {
+        if (data.errors.email)    setError('grp-login-email',    'err-login-email',    data.errors.email);
+        if (data.errors.password) setError('grp-login-password', 'err-login-password', data.errors.password);
+      }
+    } catch(err) {
+      console.error('Login request failed:', err);
+    }
+  });
+
+  // Auto-open login panel
+  const mode = "{{ mode|default:'' }}";
+  if (mode === 'login' || new URLSearchParams(window.location.search).get('mode') === 'login') {
+    track.classList.add('show-login');
+  }
+
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

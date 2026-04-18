@@ -1,0 +1,185 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Record Detail</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .detail-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .detail-title { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text-primary); }
+    .detail-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .detail-body { padding: 16px; }
+    .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px; margin-bottom: 9px; }
+    .kv-label { color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .kv-value { color: var(--text-primary); font-size: 13px; }
+    .roadmap-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .roadmap-list { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+    .roadmap-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      background: var(--bg-2);
+    }
+    .roadmap-meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 10px; flex-wrap: wrap; }
+    .roadmap-title { font-size: 13px; color: var(--text-primary); font-weight: 600; margin-bottom: 3px; }
+    .selected-badge {
+      font-size: 11px;
+      border: 1px solid var(--a3-border);
+      border-radius: 20px;
+      padding: 4px 9px;
+      background: var(--a3-bg-subtle);
+      color: var(--accent-3);
+    }
+    @media (max-width: 980px) {
+      .detail-grid { grid-template-columns: 1fr; }
+      .kv { grid-template-columns: 1fr; gap: 4px; }
+      .roadmap-item { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+{% include 'patient/partials/sidebar.html' with active_page='records' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Record Detail</h1>
+          <span class="breadcrumb">Version {{ record.version }} · Read only</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar">{{ patient.full_name|slice:':1'|upper }}</div>
+      </div>
+    </header>
+
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
+      {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="detail-grid">
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Doctor Inputs</div>
+            <div class="detail-sub">Clinical context provided by requesting doctor.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Hospital</div><div class="kv-value">{{ lab_request.lab.hospital.hospital_name }}</div></div>
+            <div class="kv"><div class="kv-label">Lab</div><div class="kv-value">{{ lab_request.lab.name }}</div></div>
+            <div class="kv"><div class="kv-label">Doctor</div><div class="kv-value">{{ lab_request.requested_by.full_name }}{% if lab_request.requested_by.employee_id %} (ID: {{ lab_request.requested_by.employee_id }}){% endif %}</div></div>
+            <div class="kv"><div class="kv-label">Diagnosis</div><div class="kv-value">{{ lab_request.diagnosis }}</div></div>
+            <div class="kv"><div class="kv-label">Treatment Plan</div><div class="kv-value">{{ lab_request.treatment_plan }}</div></div>
+            <div class="kv"><div class="kv-label">Notes</div><div class="kv-value">{{ lab_request.notes|default:'-' }}</div></div>
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Latest Measurements</div>
+            <div class="detail-sub">Technician-measured data for this version.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Age</div><div class="kv-value">{{ record.age }}</div></div>
+            <div class="kv"><div class="kv-label">Gender</div><div class="kv-value">{{ record.gender }}</div></div>
+            {% if custom_field_values %}
+              {% for key, value in custom_field_values.items %}
+              <div class="kv"><div class="kv-label">{{ key|title }}</div><div class="kv-value">{{ value }}</div></div>
+              {% endfor %}
+            {% endif %}
+            <div class="kv"><div class="kv-label">Version</div><div class="kv-value">v{{ record.version }}{% if record.is_latest %} (Latest){% endif %}</div></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="detail-card">
+        <div class="detail-head">
+          <div class="detail-title">Record Audit Summary</div>
+          <div class="detail-sub">Who created and updated this record.</div>
+        </div>
+        <div class="detail-body">
+          <div class="kv"><div class="kv-label">Created By</div><div class="kv-value">{{ audit.created_by_name }} ({{ audit.created_by_role|title }}){% if audit.created_by_staff_code %} (ID: {{ audit.created_by_staff_code }}){% endif %}</div></div>
+          <div class="kv"><div class="kv-label">Created At</div><div class="kv-value">{{ audit.created_at|date:'d M Y, h:i A' }}</div></div>
+          <div class="kv"><div class="kv-label">Latest Updated By</div><div class="kv-value">{{ audit.latest_updated_by_name }} ({{ audit.latest_updated_by_role|title }}){% if audit.latest_updated_by_staff_code %} (ID: {{ audit.latest_updated_by_staff_code }}){% endif %}</div></div>
+          <div class="kv"><div class="kv-label">Latest Updated At</div><div class="kv-value">{{ audit.latest_updated_at|date:'d M Y, h:i A' }}</div></div>
+          <div class="kv"><div class="kv-label">Current Version Reason</div><div class="kv-value">{{ audit.selected_version_reason|default:'Initial record submission' }}</div></div>
+        </div>
+      </section>
+
+      <section class="roadmap-card">
+        <div class="detail-head">
+          <div class="detail-title">Version Roadmap</div>
+          <div class="detail-sub">Select a version to inspect record state at that point.</div>
+        </div>
+        <div class="roadmap-list">
+          {% for step in timeline %}
+          <div class="roadmap-item">
+            <span class="status-badge status-active">v{{ step.version_number }}</span>
+            <div>
+              <div class="roadmap-title">
+                {% if step.event_type == 'created' %}Created{% else %}Updated{% endif %}
+                by {{ step.changed_by_name }} ({{ step.changed_by_role|title }}){% if step.changed_by_staff_code %} (ID: {{ step.changed_by_staff_code }}){% endif %}
+              </div>
+              <div class="roadmap-meta">
+                <span>{{ step.changed_at|date:'d M Y, h:i A' }}</span>
+                <span>Reason: {{ step.change_reason|default:'Initial record submission' }}</span>
+              </div>
+            </div>
+            <div>
+              {% if step.version_number == record.version %}
+              <span class="selected-badge">Viewing</span>
+              {% else %}
+              <a class="tbl-btn tbl-btn-view" href="{% url 'patient_record_detail' record.record_id %}?v={{ step.version_number }}">View v{{ step.version_number }}</a>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="tbl-btn tbl-btn-view" href="{% url 'patient_record_history' record.record_id %}">View Full History</a>
+        <a class="tbl-btn" href="{% url 'patient_records' %}">Back To Medical Records</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

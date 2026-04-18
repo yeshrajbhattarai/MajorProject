@@ -1,0 +1,203 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Record History</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .history-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .history-head { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .history-title { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text-primary); }
+    .history-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .history-count { border: 1px solid var(--border); border-radius: 20px; padding: 4px 9px; font-size: 11px; color: var(--text-muted); }
+    .history-table { width: 100%; table-layout: fixed; }
+    .history-table th:nth-child(1), .history-table td:nth-child(1) { width: 8%; }
+    .history-table th:nth-child(2), .history-table td:nth-child(2) { width: 10%; }
+    .history-table th:nth-child(3), .history-table td:nth-child(3) { width: 14%; }
+    .history-table th:nth-child(4), .history-table td:nth-child(4) { width: 16%; }
+    .history-table th:nth-child(5), .history-table td:nth-child(5) { width: 14%; }
+    .history-table th:nth-child(6), .history-table td:nth-child(6) { width: 38%; }
+    .history-table td { vertical-align: top; }
+    .snapshot {
+      margin: 0;
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .snapshot-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+    .snapshot-col-head {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding-bottom: 5px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .snapshot-row { display: flex; flex-direction: column; gap: 2px; }
+    .snapshot-label { color: var(--text-primary); font-weight: 600; }
+    .snapshot-value, .snapshot-diff { color: var(--text-secondary); }
+    @media (max-width: 1200px) {
+      .snapshot { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+{% include 'patient/partials/sidebar.html' with active_page='records' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Record History</h1>
+          <span class="breadcrumb">Immutable timeline · Read only</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar">{{ patient.full_name|slice:':1'|upper }}</div>
+      </div>
+    </header>
+
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
+      <div class="history-card">
+        <div class="history-head">
+          <div>
+            <div class="history-title">Version Timeline</div>
+            <div class="history-sub">All created and updated snapshots for this record.</div>
+          </div>
+          <span class="history-count">{{ history|length }} versions</span>
+        </div>
+
+        <div class="staff-table-wrap">
+          <table class="staff-table history-table">
+            <thead>
+              <tr>
+                <th>Version</th>
+                <th>Event</th>
+                <th>Changed At</th>
+                <th>Changed By</th>
+                <th>Reason</th>
+                <th>Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in history %}
+              <tr>
+                <td><span class="status-badge status-active">v{{ item.version_number }}</span></td>
+                <td>
+                  {% if item.event_type == 'created' %}
+                  <span class="status-badge status-active">Created</span>
+                  {% else %}
+                  <span class="status-badge status-pending">Updated</span>
+                  {% endif %}
+                </td>
+                <td class="td-date">{{ item.changed_at|date:'d M Y, h:i A' }}</td>
+                <td>
+                  <div>{{ item.changed_by_name }}</div>
+                  <div class="td-muted">{{ item.changed_by_role|title }}{% if item.changed_by_staff_code %} (ID: {{ item.changed_by_staff_code }}){% endif %}</div>
+                </td>
+                <td>{{ item.change_reason|default:'-' }}</td>
+                <td>
+                  <div class="snapshot">
+                    <div class="snapshot-col">
+                      <div class="snapshot-col-head">Doctor</div>
+                      {% if item.is_full_snapshot %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'doctor' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-value">{{ row.value }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'doctor' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-diff">{{ row.previous }} -> {{ row.current }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+
+                    <div class="snapshot-col">
+                      <div class="snapshot-col-head">Technician</div>
+                      {% if item.is_full_snapshot %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'technician' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-value">{{ row.value }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        {% for row in item.data_snapshot %}
+                          {% if row.source_role == 'technician' %}
+                            <div class="snapshot-row">
+                              <span class="snapshot-label">{{ row.label }}</span>
+                              <span class="snapshot-diff">{{ row.previous }} -> {{ row.current }}</span>
+                            </div>
+                          {% endif %}
+                        {% endfor %}
+                      {% endif %}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="td-muted">No history found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="tbl-btn tbl-btn-view" href="{% url 'patient_record_detail' record_id %}">Back To Record</a>
+        <a class="tbl-btn" href="{% url 'patient_records' %}">Back To Medical Records</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

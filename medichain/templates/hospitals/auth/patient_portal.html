@@ -1,0 +1,98 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Patient Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/register.css' %}">
+  <style>
+    .patient-card {
+      width: min(520px, 92vw);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
+    }
+    .patient-title {
+      font-family: 'Syne', sans-serif;
+      color: var(--text-primary);
+      font-size: 28px;
+      margin: 0 0 8px;
+    }
+    .patient-sub {
+      color: var(--text-secondary);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0 0 18px;
+    }
+    .portal-links {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .portal-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      text-decoration: none;
+      padding: 10px 12px;
+      font-size: 13px;
+      background: var(--bg-2);
+    }
+    .portal-link:hover {
+      border-color: var(--accent-3);
+      color: var(--accent-3);
+    }
+    .portal-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+
+  <main style="min-height:100vh;display:grid;place-items:center;padding:18px;">
+    <section class="patient-card">
+      {% if mode == 'register' %}
+      <h1 class="patient-title">Patient Registration</h1>
+      <p class="patient-sub">
+        Patient accounts are created by hospital admin or doctor. If you already received your credentials on email, continue to patient login.
+      </p>
+      <div class="portal-links">
+        <a class="portal-link" href="/patient/login/">Already registered? Go to Patient Login</a>
+        <a class="portal-link" href="/login/">Hospital/Staff Login</a>
+        <a class="portal-link" href="/">Hospital Registration</a>
+      </div>
+      {% else %}
+      <h1 class="patient-title">Patient Login</h1>
+      <p class="patient-sub">
+        Use your patient email and temporary password sent during registration. Patient authentication flow will be enabled here.
+      </p>
+      <div class="portal-links">
+        <a class="portal-link" href="/patient/register/">Need registration details?</a>
+        <a class="portal-link" href="/login/">Hospital/Staff Login</a>
+        <a class="portal-link" href="/">Hospital Registration</a>
+      </div>
+      {% endif %}
+      <div class="portal-note">
+        Separate links are intentional so the same email can exist for staff and patient without role ambiguity.
+      </div>
+    </section>
+  </main>
+</body>
+</html>
