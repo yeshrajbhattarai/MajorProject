@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MediChain | Medical Records</title>
+  <title>MediChain | My Medical Records</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
@@ -13,34 +13,32 @@
   <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
 </head>
 <body>
-
-  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='medical_records' %}
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='records' %}
 
   <main class="main">
     <header class="topbar">
       <div class="topbar-left">
-        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar"><span></span><span></span><span></span></button>
         <div class="page-title">
-          <h1>Medical Records</h1>
-          <span class="breadcrumb">Dedicated space for richer medical records module</span>
+          <h1>My Medical Records</h1>
+          <span class="breadcrumb">Only records completed by you are visible here</span>
         </div>
       </div>
       <div class="topbar-right">
         <div class="topbar-time" id="topbarTime"></div>
-        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">{{ staff_name|slice:':1'|upper }}</div>
+        <div class="topbar-avatar" style="background:var(--accent);box-shadow:0 0 12px var(--a1-glow);">{{ staff_name|slice:':1'|upper }}</div>
       </div>
     </header>
 
-    <div class="dashboard-content">
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
       <section class="staff-table-wrap">
         <table class="staff-table">
           <thead>
             <tr>
               <th>Record ID</th>
               <th>Patient</th>
-              <th>Nurse</th>
+              <th>Doctor</th>
               <th>Diagnosis</th>
-              <th>Next Date</th>
               <th>Hash</th>
               <th>Finalized</th>
               <th>Action</th>
@@ -51,17 +49,16 @@
               <tr>
                 <td>{{ rec.finalized_record_id|default:'-' }}</td>
                 <td>{{ rec.patient.full_name }}</td>
-                <td>{{ rec.picked_by.full_name|default:'-' }}</td>
+                <td>{{ rec.doctor.full_name }}</td>
                 <td>{{ rec.primary_diagnosis }}</td>
-                <td>{{ rec.next_appointment_date|date:'d M Y'|default:'-' }}</td>
                 <td>{{ rec.finalized_record_hash|default:'-'|slice:':20' }}{% if rec.finalized_record_hash %}...{% endif %}</td>
                 <td>{{ rec.doctor_finalized_at|date:'d M Y, h:i A'|default:'-' }}</td>
                 <td>
-                  <a class="tbl-btn tbl-btn-view" href="{% url 'doctor_medical_record_detail' rec.finalized_record_id|default:rec.id %}">View</a>
+                  <a class="tbl-btn tbl-btn-view" href="{% url 'nurse_medical_record_detail' rec.finalized_record_id|default:rec.id %}">View</a>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="8" class="td-muted">No finalized medical records yet.</td></tr>
+              <tr><td colspan="7" class="td-muted">No finalized records yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -70,17 +67,17 @@
   </main>
 
   <script>
-    document.getElementById('sidebarToggle').addEventListener('click', () => {
-      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      var sidebar = document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('sidebar-open');
     });
     function updateTime() {
-      const el = document.getElementById('topbarTime');
-      if (el) {
-        el.textContent = new Date().toLocaleDateString('en-IN', {
-          hour: '2-digit', minute: '2-digit', hour12: true,
-          weekday: 'short', month: 'short', day: 'numeric'
-        });
-      }
+      var el = document.getElementById('topbarTime');
+      if (!el) return;
+      el.textContent = new Date().toLocaleDateString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true,
+        weekday: 'short', month: 'short', day: 'numeric'
+      });
     }
     updateTime();
     setInterval(updateTime, 60000);

@@ -1,0 +1,1235 @@
+MediChain Second Progress Report - Code-Derived Detailed Technical Notes
+
+Prepared from direct code inspection of implemented modules.
+Primary scope analyzed:
+- hospitals app
+- patient app
+- hospital_local app
+- medichain project configuration
+- templates and static frontend assets
+
+Excluded from ownership scope as requested:
+- auditlog app (partner-owned)
+- consentmanagement app (partner-owned)
+
+Important methodology note:
+- This document is based on source code behavior and wiring, not on README claims.
+- Where placeholders/TODOs exist in code, they are called out explicitly.
+
+================================================================================
+1) CURRENT PRODUCT SHAPE FROM CODE
+================================================================================
+
+The project is a Django + DRF multi-role healthcare platform with two parallel interaction styles:
+1. REST API layer for programmatic clients under /api/v1/ and /api/v1/patient/
+2. Server-rendered web portal layer for hospital admin/staff and patients using Django templates
+
+The implemented role set in code:
+- Hospital admin
+- Doctor
+- Nurse
+- Technician
+- Patient
+
+Core implemented domains:
+- Hospital onboarding and account activation
+- OTP-based email verification for hospital account bootstrap
+- Role-aware auth and authorization via JWT (API) and session decorators (web)
+- Staff lifecycle management (doctor/nurse/technician)
+- Patient lifecycle management with encrypted government ID storage
+- Lab management and lab request workflow
+- Dynamic lab custom fields with per-role field ownership
+- Technician record creation/edit with immutable version timeline
+- Doctor reassessment and versioned record updates
+- Nurse queue workflow and doctor-finalized narrative record workflow
+- Patient portal with profile-completion gate and record access
+- Dynamic per-hospital data storage strategy for local record tables
+
+================================================================================
+2) ARCHITECTURE AND DATA LAYER IMPLEMENTATION
+================================================================================
+
+2.1 Database topology in code
+- Default/shared MySQL database stores common entities:
+  - hospitals, hospital_users, patients, assignments, labs, lab requests, metadata, queue
+- Hospital-local dynamic databases store record payload tables (generated per lab):
+  - lab_record_<labidprefix>
+  - lab_record_version_<labidprefix>
+
+Relevant code:
+- hospitals/db_router.py
+- hospitals/hospital_db.py
+- hospitals/lab_table_manager.py
+- hospitals/middleware.py
+- medichain/settings.py
+
+2.2 Dynamic DB registration and provisioning
+- register_db(hospital_id): creates runtime DB alias like hospital_<uuidprefix>
+- create_hospital_database(hospital_id):
+  - creates physical MySQL DB medichain_h_<uuidprefix>
+  - runs migrations for hospital_local app on that DB
+- ensure_db_exists(hospital_id):
+  - verifies connection
+  - auto-provisions DB on MySQL 1049 unknown database error
+
+2.3 Router behavior
+- hospital_local app reads/writes go to current hospital alias from thread-local context
+- non-hospital_local models stay on default DB
+- migration routing:
+  - hospital_local migrates only on hospital_* aliases
+  - shared apps migrate on default only
+
+2.4 Thread-local context
+- set_hospital_db, get_hospital_db, clear_hospital_db
+- middleware HospitalDBContextMiddleware sets context from request session hospital_id
+- context is always cleared in finally block to avoid leakage
+
+2.5 Dynamic table strategy for lab records
+- lab_table_manager builds SQL schema per lab
+- base columns include:
+  - identity and linkage fields
+  - diagnosis/treatment/notes/chest_pain_type
+  - technician fields age/gender
+  - version/hash/timestamps
+- custom lab fields are appended as columns
+- supported custom field types:
+  - text, textarea, number, integer, decimal, date, choice, boolean
+
+2.6 Versioning approach
+- Current row table keeps latest state (is_latest=1)
+- Version table appends immutable snapshots with:
+  - version_number
+  - changed_by_id
+  - change_reason
+  - snapshot columns
+- fetch_record_history returns ordered version timeline
+
+================================================================================
+3) SECURITY, AUTH, IDENTITY, DATA PROTECTION
+================================================================================
+
+3.1 JWT implementation
+- Custom authentication class: MediChainJWTAuthentication
+- Does not bind to Django User model
+- Returns AnonymousUser and stores custom payload in request.user_payload
+- Payload supports hospital admin/staff/patient claims
+
+3.2 JWT generation
+- token_utils.get_tokens_for_payload writes custom claims into both refresh and access tokens
+- Used across hospital admin login, staff login, and patient login API flows
+
+3.3 API permission classes
+- IsHospitalAdmin: user_type == hospital_admin
+- IsDoctor: staff_role == doctor
+- IsNurse: staff_role == nurse
+- IsTechnician: staff_role == technician
+- IsStaff exists for user_type == staff
+
+3.4 Session-based web auth guards
+- hospital_admin_required
+- doctor_required
+- nurse_required
+- technician_required
+- patient_required (in patient app)
+
+3.5 Password security
+- Passwords are hashed via Django make_password/check_password
+- Shared helper update_password_with_verification enforces:
+  - current password validation
+  - minimum length
+  - new/confirm match
+
+3.6 Government ID protection
+- Plain gov ID is encrypted at rest via Fernet
+- Duplicate detection uses SHA-256 hash of gov_id_type + gov_id_number
+- UI/API expose masked values, not plaintext
+
+3.7 Record integrity checks
+- Record payload hashes are generated and persisted
+- Finalized nurse-doctor flow records include stored hash + computed hash verification in detail bundle
+
+================================================================================
+4) CORE DOMAIN MODELS IMPLEMENTED
+================================================================================
+
+4.1 Hospital
+- Identity and contact
+- Account status states: pending/active/suspended
+- OTP verification fields
+- Name/license lock flags
+- Address/location fields for activation criteria
+
+4.2 HospitalUser
+- Roles: doctor, nurse, technician
+- Profile fields and status active/inactive
+- Credentials managed as password_hash
+
+4.3 Patient
+- gov_id_type, encrypted gov_id_number, gov_id_hash
+- full profile fields, self-registration flag, active flag
+- can be hospital-registered or self-registered
+
+4.4 Assignment and labs
+- PatientAssignment (currently role choices effectively nurse in model)
+- Lab with lab_type, custom_field_schema, active flag
+- LabAssignment for technician mapping
+- LabRequest with clinical fields and request state
+- LabRequestRevision stores doctor reassessment diffs
+
+4.5 Record metadata and nurse queue
+- MedicalRecordMeta tracks logical record pointer, latest hash/version, custom values
+- NurseQueueItem stores doctor instruction, nurse update fields, finalization fields
+
+4.6 Hospital-local models
+- MedicalRecord and MedicalRecordVersion in hospital_local
+- Used for per-hospital table migration baseline
+
+================================================================================
+5) HOSPITAL ADMIN WORKFLOW - IMPLEMENTATION DETAILS
+================================================================================
+
+5.1 Registration and OTP
+- service_register_hospital validates:
+  - hospital_name required
+  - email format and uniqueness
+  - India phone format and uniqueness
+  - password rules
+- Deletes stale unverified records for same email/phone before new registration
+- Generates OTP with 10 min expiry
+- Creates hospital row
+- Provisions dedicated hospital DB immediately
+- Sends verification email
+
+5.2 OTP verification and resend
+- service_verify_otp checks existence, expiry, and correctness
+- On success sets email_verified true and clears OTP fields
+- service_resend_otp rotates OTP and expiry then sends email
+
+5.3 Login behavior
+- service_login checks Hospital table first (admin login path)
+- Enforces email verification and status checks
+- Falls back to HospitalUser for staff login
+- Distinguishes error classes for API status mapping in api_views
+
+5.4 Activation progression
+- check_and_activate_without_session triggers active status when:
+  - license locked
+  - address/city/state/country present
+  - current status pending
+
+5.5 Admin profile locks
+- Name update allowed once then name_locked true
+- License update allowed once then license_locked true
+- Address remains editable
+
+5.6 Admin dashboards
+- Hospital dashboard provides staff/patient counters
+- record/report counters are currently placeholders in both API and web views
+
+================================================================================
+6) STAFF MANAGEMENT - IMPLEMENTATION DETAILS
+================================================================================
+
+6.1 Staff creation
+- Separate service paths for doctor/nurse/technician
+- Validates unique email/phone and hospital-scoped employee_id uniqueness
+- Generates temporary password
+- Stores hashed password
+- Sends role-specific credential email
+
+6.2 Staff status lifecycle
+- Toggle endpoints for active/inactive for each role
+- Staff login blocks inactive users
+
+6.3 Staff profile maintenance
+- Doctor/nurse/technician profile updates for personal details
+- Role-specific password update services with verification
+
+================================================================================
+7) PATIENT MANAGEMENT - IMPLEMENTATION DETAILS
+================================================================================
+
+7.1 Patient creation by admin/doctor
+- service_add_patient stores encrypted gov ID + hash
+- Validates duplicate patient by gov_id_hash globally
+- Requires and validates email format and uniqueness
+- Optional phone validation
+- Sends patient credentials by email
+
+7.2 Patient self-registration flow
+- service_patient_register creates patient with registered_by_self true
+- Initializes with minimal data and hashed password
+
+7.3 Profile completion gate
+- REQUIRED_PROFILE_FIELDS is enforced for record visibility
+- Missing fields and completion percentage computed centrally
+- APIs and web views block record access until profile complete
+
+7.4 Government ID locking behavior for patient self profile
+- If gov ID already set, update path prevents rewriting
+- If missing, validation requires coherent type+number
+- Duplicate hash check executed on first set
+
+================================================================================
+8) LAB WORKFLOW - IMPLEMENTATION DETAILS
+================================================================================
+
+8.1 Lab creation and lifecycle
+- service_create_lab validates lab_type and uniqueness among active labs
+- Supports custom_field_schema normalization and validation
+- Archived lab of same type can be reactivated with new name/schema
+- ensure_lab_tables creates/updates local tables for lab
+
+8.2 Lab archival
+- service_delete_lab does soft archive via is_active false
+- Blocks archive if pending or in-progress requests exist
+- Clears lab assignments on archive
+
+8.3 Technician assignment to lab
+- service_assign_technician_to_lab validates active technician in same hospital
+- Prevents duplicate assignment
+- Removal supported with assignment existence check
+
+8.4 Send-to-lab path
+- service_send_to_lab validates:
+  - active doctor
+  - patient exists
+  - active target lab in same hospital
+  - no duplicate active request for same patient+lab
+- Custom field schema is role-filtered to doctor fields for request creation
+- diagnosis/treatment_plan required
+- chest_pain_type normalized
+
+================================================================================
+9) TECHNICIAN RECORD WORKFLOW - IMPLEMENTATION DETAILS
+================================================================================
+
+9.1 Queue retrieval
+- service_get_lab_queue pulls pending/in-progress requests for technician-assigned labs
+- enriches each request with latest revision if available
+
+9.2 Record create logic
+- service_create_medical_record:
+  - validates request ownership via assignment
+  - ensures DB and lab tables exist
+  - validates technician-side custom fields
+  - merges doctor custom values + technician custom values
+  - creates initial record row and version row
+  - creates MedicalRecordMeta
+  - marks LabRequest completed with completed_at
+
+9.3 Re-submission handling
+- If metadata already exists for lab_request, create path routes to edit flow
+- Requires technician_change_reason for re-submission
+
+9.4 Record edit logic
+- service_edit_medical_record:
+  - fetches latest row (fallback history)
+  - increments version
+  - updates latest row
+  - appends version snapshot row
+  - updates metadata hash/version/recorded_by/custom values
+
+9.5 Timeline and audit assembly
+- service_get_record_history builds role-labeled diffs between versions
+- Resolves actor info from HospitalUser
+- Produces event_type created/updated and full first snapshot
+
+9.6 Record detail payload
+- service_get_record_detail returns:
+  - selected version data
+  - lab request details
+  - audit object (created and latest actor/reason/timestamps)
+  - full timeline
+  - custom fields and schema
+
+================================================================================
+10) DOCTOR REASSESSMENT AND CLINICAL UPDATE FLOW
+================================================================================
+
+10.1 Reassessment entry
+- service_doctor_reassess_record requires active doctor in hospital
+- Validates non-empty diagnosis/treatment/reason
+- Detects changed fields against existing request payload
+- Updates LabRequest clinical fields
+
+10.2 Queue behavior toggle
+- send_to_queue True: sets request status back to pending and clears completed_at
+- send_to_queue False: update-only behavior preserves queue state
+
+10.3 Revision persistence
+- Creates LabRequestRevision with changed_fields and reason
+
+10.4 Record version consequence
+- Reassessment also creates new immutable medical record version:
+  - fetches latest row/history
+  - merges custom values
+  - increments version
+  - updates latest row / inserts if absent
+  - appends version row with reason prefix "Doctor reassessment"
+  - updates MedicalRecordMeta
+
+================================================================================
+11) NURSE QUEUE TO FINALIZED RECORD FLOW
+================================================================================
+
+11.1 Queue item creation
+- Doctors create queue items with:
+  - title, primary diagnosis, key instruction
+  - optional doctor note
+  - handwritten file
+
+11.2 Nurse queue execution
+- Queue states: pending, in_progress, completed
+- Nurse opening pending item auto-picks item and marks in_progress
+- Completion requires full clinical set (bp, pulse, temp, spo2, sugar, tests, observation, treatment, meds)
+- Saves nurse data and completion timestamp
+
+11.3 Doctor approval queue
+- Pulls completed but not finalized items
+- Finalization requires doctor final notes
+- Finalization stores:
+  - consolidated payload
+  - finalized record id
+  - payload hash
+  - finalized_by and finalized_at
+
+11.4 Finalized medical record access service
+- service_get_finalized_medical_record_detail checks role-specific ownership:
+  - doctor must match hospital and doctor_id
+  - nurse must match hospital and picked_by
+  - patient must match patient_id
+- Returns record bundle with hash verification and one-version timeline
+- Includes patient identity display from decrypted gov ID suffix when available
+
+================================================================================
+12) PATIENT PORTAL - IMPLEMENTATION DETAILS
+================================================================================
+
+12.1 Auth and session
+- Patient login/register supports AJAX and normal form submits
+- Session keys: user_type, patient_id, patient_name
+
+12.2 Dashboard and records
+- Dashboard blocked if profile incomplete
+- service_get_patient_dashboard_data computes:
+  - total requests
+  - pending/completed counts
+  - hospitals_count
+- group_lab_requests_by_hospital builds grouped cards for UI
+
+12.3 Record detail and history
+- patient_record_detail fetches record via MedicalRecordMeta ownership check
+- Loads detail from service_get_record_detail using source hospital_id from metadata
+- patient_record_history uses service_get_record_history similarly
+
+12.4 Finalized narrative medical records
+- patient_medical_records uses service_get_patient_medical_records
+- patient_medical_record_detail uses service_get_finalized_medical_record_detail role=patient
+
+12.5 Profile management
+- patient_profile supports updating identity/contact/clinical profile fields
+- computes and displays completion state
+- gov_id lock state shown and respected
+- password update endpoint present via service_patient_update_password
+
+================================================================================
+13) API SURFACE - IMPLEMENTED ROUTE GROUPS
+================================================================================
+
+13.1 Hospital/staff API (/api/v1/)
+Auth:
+- register, verify-otp, resend-otp, login, logout
+
+Admin:
+- dashboard, profile, update-name, update-license, update-address, update-password
+
+Staff management:
+- doctors list/detail toggle
+- nurses list/detail toggle
+- technicians list/detail toggle
+
+Patient management:
+- patients list/create
+- patient detail
+
+Doctor portal:
+- dashboard/profile/update
+- patients list/add/detail
+- assign nurse
+- assign technician endpoint exists in API class but service currently blocks non-nurse assignment (see gaps section)
+- remove assignment
+- send-to-lab
+- reassess record
+
+Technician portal:
+- dashboard/profile/update
+- patient list/detail legacy compatibility endpoints exist
+- lab queue/request detail
+- create record
+- records list
+
+Shared record endpoints:
+- record detail
+- record history
+
+Labs:
+- lab list/create
+- lab detail
+- assign/remove technician
+
+13.2 Patient API (/api/v1/patient/)
+- register, login, logout
+- dashboard
+- records list
+- record detail
+- record history
+- profile
+- update-password
+
+================================================================================
+14) WEB FRONTEND IMPLEMENTATION (TEMPLATES + CSS)
+================================================================================
+
+14.1 Overall frontend approach
+- Server-rendered Django templates with role-specific pages
+- Shared visual system in static/css/theme.css + component styles
+- Sidebar-driven navigation for each role via partial templates
+- Theme toggle partial included across major pages
+
+14.2 Auth UIs
+Hospital/staff auth pages:
+- templates/hospitals/auth/register.html
+- templates/hospitals/auth/verify_otp.html
+
+Implemented UI behavior includes:
+- Combined register/login card interaction
+- client-side validation and field state handling
+- password strength hints and show/hide toggles
+- AJAX submit path with redirect handling
+- OTP segmented input UX and resend form
+
+Patient auth pages:
+- templates/patient/auth/auth.html
+
+Implemented behavior includes:
+- sliding register/login panel
+- JS live validation for both forms
+- AJAX submission and redirect handling
+- explicit role separation links back to staff portal
+
+14.3 Admin frontend pages
+Implemented page set for hospital admin includes:
+- dashboard, profile
+- doctors list/add/detail
+- nurses list/add/detail
+- technicians list/add/detail
+- patients list/add/detail
+- labs list/detail
+
+Behavior implemented:
+- flash message rendering
+- status toggles and management actions
+- lab schema input JSON path in labs create
+- assignment controls for lab technicians
+
+14.4 Doctor frontend pages
+Implemented page set includes:
+- dashboard/profile
+- patient list/detail
+- add patient
+- record lists and record detail/history access
+- nurse assignment and assignment removal actions
+- send-to-lab form with custom field serialization
+- create medical record request to nurse queue
+- doctor approval queue and review/finalization pages
+
+14.5 Nurse frontend pages
+Implemented page set includes:
+- dashboard/profile
+- queue list
+- queue review/complete form
+- finalized records list/detail
+
+Behavior highlights:
+- in-progress lock behavior for picked cases
+- required form checks before completion
+- completion persists vitals + treatment narrative
+
+14.6 Technician frontend pages
+Implemented page set includes:
+- dashboard/profile
+- lab queue
+- lab request detail/fill record
+- records list
+- record detail/history
+
+Behavior highlights:
+- existing record detection and change reason requirement
+- dynamic custom field rendering support
+- create/edit post actions tied to service layer
+
+14.7 Patient frontend pages
+Implemented page set includes:
+- dashboard
+- profile
+- records list/detail/history
+- medical records list/detail
+- complete profile page
+
+Behavior highlights:
+- profile completeness warnings and redirects
+- grouped records by hospital display
+- record and finalized narrative detail pages with file attachment previews
+
+14.8 Styling system
+- theme.css defines dark/light token sets and semantic/accent families
+- h_dashboard.css defines shell layout (sidebar/topbar/main)
+- h_profile.css and h_staff.css provide profile/staff module styling
+- register.css defines animated split-screen auth experience
+- CSS uses variables consistently instead of hardcoded colors in component styles
+
+================================================================================
+15) TEST IMPLEMENTATION STATUS
+================================================================================
+
+15.1 hospitals/tests.py
+- Large API test suite exists covering:
+  - auth
+  - admin profile
+  - staff and patient operations
+  - doctor and technician flows
+  - labs and records
+
+15.2 patient tests
+- No patient/tests.py file exists currently in patient app
+- This is a current quality gap for patient module regression safety
+
+================================================================================
+16) CROSS-MODULE TOUCHPOINTS OBSERVED (OWNERSHIP NOTE)
+================================================================================
+
+Even though consentmanagement is partner-owned, user-owned code has integration touchpoints:
+- hospitals/views.py doctor_patient_lab_reports imports ConsentRequest
+- hospitals/views.py doctor_patient_medical_records imports ConsentRequest
+
+Also global config includes partner apps in INSTALLED_APPS and URL wiring:
+- medichain/settings.py includes consentmanagement and auditlog
+- medichain/urls.py includes /api/consent/ and /api/logs/
+
+This indicates your module is preparing UI integration points for partner flows.
+
+================================================================================
+17) CODE-LEVEL GAPS / PLACEHOLDERS STILL PRESENT
+================================================================================
+
+17.1 Dashboard placeholder counters
+- total_records and total_reports are still hardcoded placeholders in admin dashboard API/web contexts
+
+17.2 Doctor assign technician API mismatch
+- API endpoint/class DoctorAssignTechnicianAPI exists
+- service_assign_staff_to_patient currently explicitly allows only role nurse
+- net effect: technician assignment from that API path fails by design currently
+
+17.3 Legacy technician patient API endpoints
+- service_get_technician_patients currently returns lab queue data for backward compatibility
+- service_get_technician_patient_detail returns explicit legacy removed message
+- implies API endpoints remain but business model shifted to lab-request-centric flow
+
+17.4 Patient app test coverage
+- dedicated automated tests for patient module are missing
+
+17.5 Remaining ownership-dependent integrations
+- Doctor patient-specific pages include consent request awareness
+- end-to-end cross-hospital access behavior will depend on partner module completion
+
+================================================================================
+18) IMPLEMENTATION TIMELINE INFERRED FROM MIGRATIONS
+================================================================================
+
+hospitals migrations indicate development progression:
+- 0001-0005: base hospital profile/account improvements and verification fields
+- 0006-0010: hospital users and patient assignment evolution
+- 0011-0015: lab and lab custom field workflow maturation
+- 0016-0020: nurse queue and finalized record payload/hash enhancements
+
+hospital_local migrations:
+- 0001_initial for local medical record tables
+- 0002 adjusted optional CKD measurements
+
+This migration sequence strongly supports substantial post-initial expansion of:
+- role system
+- lab system
+- nurse-doctor queue workflow
+- finalized record integrity fields
+
+================================================================================
+19) WHY CURRENT DESIGN CHOICES MAKE SENSE (CODE-CONSISTENT RATIONALE)
+================================================================================
+
+19.1 Split shared vs local data
+- Shared DB keeps admin/staff/patient identities manageable
+- Local hospital DB/tables reduce cross-hospital raw record overlap risk
+
+19.2 Metadata + dynamic table combo
+- MedicalRecordMeta in shared DB gives a discoverable index and audit bridge
+- Per-lab physical tables allow custom schema flexibility without repeated global migrations
+
+19.3 Dual access modes (API + web)
+- API endpoints support integration and external clients
+- Web templates support operational staff workflow directly in browser
+
+19.4 Role-specific field ownership in lab custom schema
+- fill_by doctor/technician reduces data-entry ambiguity and enforces workflow ownership
+
+19.5 Profile completion gate for patient access
+- Prevents partial identity profiles from accessing clinical records prematurely
+
+19.6 Hash and version timeline
+- Provides tamper-awareness and traceability over updates and reassessments
+
+================================================================================
+20) REMAINING WORK SUGGESTIONS (OWNERSHIP SCOPE)
+================================================================================
+
+High priority
+1. Replace placeholder dashboard counters with live counts
+2. Resolve doctor->technician assignment mismatch (service role policy vs endpoint intent)
+3. Add patient app automated tests (API + service regression suite)
+4. Clean legacy technician patient endpoints or fully align to current lab queue model
+
+Medium priority
+5. Expand audit event persistence in owned modules once partner audit pipeline finalizes interfaces
+6. Harden input normalization and error detail consistency across all web forms
+7. Add pagination and filtering improvements for large lists in admin/staff UIs
+
+Stability and maintainability
+8. Add contract-level tests for dynamic custom field schema validation and migration behavior
+9. Add integration tests for reassessment versioning and hash updates
+10. Document API response shapes and error contracts generated from current serializers/views
+
+================================================================================
+21) REPORT-READY SUMMARY PARAGRAPH (CAN BE REUSED DIRECTLY)
+================================================================================
+
+Since the first phase, the implemented codebase has expanded into a complete role-based hospital workflow platform with both REST APIs and web portals. The current implementation includes hospital onboarding with OTP verification and activation rules, secure JWT-based role authorization, full staff lifecycle management (doctor, nurse, technician), encrypted patient identity handling, custom lab creation and assignment, doctor-driven lab requests, technician record creation/edit with immutable version history, nurse queue treatment capture, doctor finalization of narrative medical records with integrity hashing, and patient-side dashboard/profile/record access guarded by profile-completion logic. The architecture also implements dynamic per-hospital data routing and per-lab local record tables while retaining shared metadata for discovery and audit context. Remaining work in the owned scope is primarily around placeholder counters, API consistency cleanup, and stronger automated coverage for patient workflows and dynamic record behaviors.
+
+================================================================================
+22) STRICT SCOPE NOTE FOR YOUR SECOND REPORT
+================================================================================
+
+This document intentionally excludes deep analysis of partner-owned consentmanagement and auditlog internals. It only references partner touchpoints where your code directly integrates with or depends on them.
+
+End of report2nd.txt
+
+================================================================================
+================================================================================
+DETAILS ASKED BEFORE (SUPPLEMENTARY APPENDIX FOR REPORT WRITING)
+================================================================================
+
+This appendix answers the exact points requested for academic report depth.
+All details below are derived from current code and runtime checks.
+
+--------------------------------------------------------------------------------
+A) EXACT MODEL FIELDS FOR NEW MODULES (NAME, TYPE, PURPOSE)
+--------------------------------------------------------------------------------
+
+A1) Lab model (hospitals/models.py)
+1. id: UUIDField(pk, default uuid4, editable=False)
+Purpose: unique lab identity.
+2. hospital: ForeignKey(Hospital, CASCADE, related_name='labs')
+Purpose: owner hospital for this lab.
+3. lab_type: CharField(max_length=50, choices=LAB_TYPE_CHOICES)
+Purpose: logical lab category (ckd/pathology/radiology/etc).
+4. name: CharField(max_length=255)
+Purpose: display name of lab.
+5. custom_field_schema: JSONField(default=list, blank=True)
+Purpose: dynamic per-lab field schema definition.
+6. is_active: BooleanField(default=True)
+Purpose: soft-archive toggle for lab lifecycle.
+7. created_at: DateTimeField(auto_now_add=True)
+Purpose: creation timestamp.
+
+Model constraints:
+- unique_together = (hospital, lab_type)
+- ordering = [name]
+
+A2) LabAssignment model
+1. id: UUIDField(pk, default uuid4)
+Purpose: assignment row identity.
+2. lab: ForeignKey(Lab, CASCADE, related_name='assignments')
+Purpose: target lab.
+3. technician: ForeignKey(HospitalUser, CASCADE, related_name='lab_assignments')
+Purpose: assigned technician.
+4. assigned_at: DateTimeField(auto_now_add=True)
+Purpose: assignment timestamp.
+
+Constraints:
+- unique_together = (lab, technician)
+- ordering = [-assigned_at]
+
+A3) LabRequest model
+1. id: UUIDField(pk, default uuid4)
+Purpose: request identity.
+2. patient: ForeignKey(Patient, CASCADE, related_name='lab_requests')
+Purpose: patient under investigation.
+3. lab: ForeignKey(Lab, CASCADE, related_name='requests')
+Purpose: target lab.
+4. requested_by: ForeignKey(HospitalUser, CASCADE, related_name='requested_lab_requests')
+Purpose: doctor who created request.
+5. status: CharField(max_length=20, choices pending/in_progress/completed, default pending)
+Purpose: queue state.
+6. created_at: DateTimeField(auto_now_add=True)
+Purpose: request creation time.
+7. completed_at: DateTimeField(null=True, blank=True)
+Purpose: completion time.
+8. chest_pain_type: CharField(max_length=20, choices typical/atypical/non_anginal/asymptomatic)
+Purpose: clinical classification.
+9. diagnosis: TextField()
+Purpose: doctor diagnosis.
+10. treatment_plan: TextField()
+Purpose: doctor treatment plan.
+11. notes: TextField(null=True, blank=True)
+Purpose: optional doctor notes.
+12. custom_field_values: JSONField(default=dict, blank=True)
+Purpose: doctor-provided dynamic values.
+
+Ordering: [-created_at]
+
+A4) LabRequestRevision model
+1. id: UUIDField(pk)
+Purpose: revision identity.
+2. lab_request: ForeignKey(LabRequest, CASCADE, related_name='revisions')
+Purpose: request being revised.
+3. revised_by: ForeignKey(HospitalUser, CASCADE, related_name='lab_request_revisions')
+Purpose: usually doctor performing reassessment.
+4. changed_fields: JSONField(default=list, blank=True)
+Purpose: list of changed fields.
+5. reason: TextField()
+Purpose: revision reason.
+6. created_at: DateTimeField(auto_now_add=True)
+Purpose: revision timestamp.
+
+Ordering: [-created_at]
+
+A5) MedicalRecordMeta model
+1. record_id: UUIDField(primary_key=True, editable=False)
+Purpose: logical record id shared across versions.
+2. lab_request: ForeignKey(LabRequest, CASCADE, related_name='record_meta')
+Purpose: source lab request linkage.
+3. hospital: ForeignKey(Hospital, CASCADE, related_name='record_meta')
+Purpose: owning hospital context.
+4. patient_id: UUIDField()
+Purpose: patient id snapshot/index field.
+5. recorded_by_id: UUIDField()
+Purpose: actor id for latest write.
+6. sha256_hash: CharField(max_length=64)
+Purpose: integrity hash of latest row payload.
+7. version: IntegerField(default=1)
+Purpose: latest version number.
+8. custom_field_values: JSONField(default=dict, blank=True)
+Purpose: merged custom values snapshot.
+9. created_at: DateTimeField(auto_now_add=True)
+Purpose: metadata creation timestamp.
+10. updated_at: DateTimeField(auto_now=True)
+Purpose: metadata update timestamp.
+
+Ordering: [-updated_at]
+
+A6) NurseQueueItem model
+Identity and linkage:
+1. id: UUIDField(pk)
+2. hospital: ForeignKey(Hospital, CASCADE, related_name='nurse_queue_items')
+3. patient: ForeignKey(Patient, CASCADE, related_name='nurse_queue_items')
+4. doctor: ForeignKey(HospitalUser, CASCADE, related_name='nurse_queue_items_created')
+
+Doctor-created intake fields:
+5. title: CharField(255)
+6. primary_diagnosis: CharField(255)
+7. key_instruction: TextField()
+8. doctor_note: TextField(null=True, blank=True)
+9. handwritten_file: FileField(upload_to='nurse_queue/', null=True, blank=True)
+
+Nurse completion fields:
+10. blood_pressure: CharField(32, null=True, blank=True)
+11. pulse_rate: PositiveIntegerField(null=True, blank=True)
+12. temperature_c: DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+13. spo2_percent: PositiveSmallIntegerField(null=True, blank=True)
+14. random_blood_sugar: CharField(32, null=True, blank=True)
+15. nurse_tests_performed: TextField(null=True, blank=True)
+16. nurse_observation: TextField(null=True, blank=True)
+17. treatment_given: TextField(null=True, blank=True)
+18. medications_administered: TextField(null=True, blank=True)
+19. follow_up_notes: TextField(null=True, blank=True)
+
+Doctor finalization fields:
+20. doctor_medical_record_file: FileField(upload_to='doctor_final_records/', null=True, blank=True)
+21. next_appointment_date: DateField(null=True, blank=True)
+22. closing_statement: TextField(null=True, blank=True)
+23. nurse_discharge_statement: TextField(null=True, blank=True)
+24. doctor_final_notes: TextField(null=True, blank=True)
+25. doctor_finalized: BooleanField(default=False)
+26. finalized_record_id: UUIDField(null=True, blank=True, unique=True)
+27. finalized_record_hash: CharField(max_length=64, null=True, blank=True)
+28. finalized_record_payload: JSONField(default=dict, blank=True)
+29. doctor_finalized_by: ForeignKey(HospitalUser, SET_NULL, null=True, blank=True, related_name='doctor_finalized_queue_items')
+30. doctor_finalized_at: DateTimeField(null=True, blank=True)
+
+Workflow and tracking fields:
+31. status: CharField(max_length=20, choices pending/in_progress/completed, default pending)
+32. picked_by: ForeignKey(HospitalUser, SET_NULL, null=True, blank=True, related_name='nurse_queue_items_picked')
+33. created_at: DateTimeField(auto_now_add=True)
+34. updated_at: DateTimeField(auto_now=True)
+35. completed_at: DateTimeField(null=True, blank=True)
+
+--------------------------------------------------------------------------------
+B) LAB CUSTOM FIELD TYPES + JSON STRUCTURE
+--------------------------------------------------------------------------------
+
+B1) Supported custom field types in code
+From _normalize_custom_field_schema:
+- text
+- textarea
+- number
+- integer
+- decimal
+- date
+- choice
+- boolean
+
+B2) Role ownership in schema
+- fill_by supports only: doctor, technician
+- This is used to split what doctor can fill vs technician can fill.
+
+B3) Schema object structure (per field)
+Each field in custom_field_schema is normalized to:
+{
+  "key": "field_key",
+  "label": "Display Label",
+  "type": "text|textarea|number|integer|decimal|date|choice|boolean",
+  "fill_by": "doctor|technician",
+  "required": true/false,
+  "help_text": "hint",
+  "options": [ {"value":"...", "label":"..."} ]   // only meaningful for choice
+}
+
+B4) Real runtime schema example from database (radiology lab)
+[
+  {
+    "key": "scan_type",
+    "type": "choice",
+    "label": "Scan Type",
+    "fill_by": "doctor",
+    "options": [
+      {"label": "X-Ray", "value": "X-Ray"},
+      {"label": "CT", "value": "CT"},
+      {"label": "MRI", "value": "MRI"},
+      {"label": "Ultrasound", "value": "Ultrasound"}
+    ],
+    "required": true,
+    "help_text": "Select the imaging type"
+  },
+  {
+    "key": "body_part",
+    "type": "text",
+    "label": "Body Part",
+    "fill_by": "doctor",
+    "options": [],
+    "required": true,
+    "help_text": "Body part being scanned"
+  },
+  {
+    "key": "findings",
+    "type": "textarea",
+    "label": "Findings",
+    "fill_by": "technician",
+    "options": [],
+    "required": true,
+    "help_text": "Imaging findings after scan"
+  }
+]
+
+B5) Requested sample (Blood Test lab, 3 fields)
+[
+  {
+    "key": "test_panel",
+    "label": "Test Panel",
+    "type": "choice",
+    "fill_by": "doctor",
+    "required": true,
+    "help_text": "Select requested blood panel",
+    "options": [
+      {"value": "cbc", "label": "CBC"},
+      {"value": "lft", "label": "LFT"},
+      {"value": "rft", "label": "RFT"}
+    ]
+  },
+  {
+    "key": "hemoglobin",
+    "label": "Hemoglobin",
+    "type": "decimal",
+    "fill_by": "technician",
+    "required": true,
+    "help_text": "g/dL",
+    "options": []
+  },
+  {
+    "key": "wbc_count",
+    "label": "WBC Count",
+    "type": "integer",
+    "fill_by": "technician",
+    "required": true,
+    "help_text": "cells per microliter",
+    "options": []
+  }
+]
+
+--------------------------------------------------------------------------------
+C) DUAL DATABASE STRATEGY - LIVE RUNTIME STATUS
+--------------------------------------------------------------------------------
+
+C1) Naming convention in code
+- DB alias: hospital_<first8chars_of_uuid_without_dashes>
+- Physical DB name: medichain_h_<first8chars_of_uuid_without_dashes>
+
+C2) How many hospital-local DBs currently exist in your running system
+Runtime query output (current environment):
+- HOSPITAL_COUNT = 3
+- LOCAL_DB_COUNT = 3
+- LOCAL_DBS =
+  1. medichain_h_776f24b4
+  2. medichain_h_7864aa91
+  3. medichain_h_81fd2f7b
+
+C3) Tables currently present in those local DBs
+- medichain_h_776f24b4:
+  - django_migrations
+  - lab_record_395cd47fac9f
+  - lab_record_54fe195d05fe
+  - lab_record_version_395cd47fac9f
+  - lab_record_version_54fe195d05fe
+- medichain_h_7864aa91:
+  - django_migrations
+  - lab_record_cd8966e6e2dc
+  - lab_record_version_cd8966e6e2dc
+- medichain_h_81fd2f7b:
+  - django_migrations
+
+Interpretation:
+- Local DBs are active and dynamically tabled by lab.
+- Some DBs currently have no lab record tables yet (only migrations).
+
+--------------------------------------------------------------------------------
+D) COMPLETE MEDICAL RECORD ROW SHAPE (LAB RECORD TABLES)
+--------------------------------------------------------------------------------
+
+D1) Generic base columns in lab_record_<prefix>
+1. row_id (char(36), PK)
+2. record_id (char(36), unique logical record id)
+3. lab_request_id (char(36), unique per request)
+4. patient_id (char(36))
+5. hospital_id (char(36))
+6. recorded_by_id (char(36))
+7. version (int)
+8. is_latest (tinyint(1))
+9. sha256_hash (char(64))
+10. created_at (datetime)
+11. updated_at (datetime)
+12. diagnosis (longtext)
+13. treatment_plan (longtext)
+14. notes (longtext, nullable)
+15. chest_pain_type (varchar(20))
+16. age (int)
+17. gender (varchar(10))
+17+ Dynamic custom columns from lab schema
+
+D2) Generic base columns in lab_record_version_<prefix>
+1. version_row_id (char(36), PK)
+2. record_id (char(36))
+3. version_number (int)
+4. changed_by_id (char(36))
+5. change_reason (longtext, nullable)
+6. changed_at (datetime)
+7. row_id (char(36))
+8. lab_request_id (char(36))
+9. patient_id (char(36))
+10. hospital_id (char(36))
+11. recorded_by_id (char(36))
+12. version (int)
+13. is_latest (tinyint(1))
+14. sha256_hash (char(64))
+15. diagnosis (longtext)
+16. treatment_plan (longtext)
+17. notes (longtext, nullable)
+18. chest_pain_type (varchar(20))
+19. age (int)
+20. gender (varchar(10))
+20+ Dynamic custom columns from lab schema
+
+D3) Live sampled table columns (radiology lab example)
+Current runtime table lab_record_395cd47fac9f includes dynamic columns:
+- scan_type (varchar(255))
+- body_part (longtext)
+- findings (longtext)
+- impression (longtext)
+
+Current runtime table lab_record_version_395cd47fac9f includes same dynamic columns.
+
+--------------------------------------------------------------------------------
+E) NURSE QUEUE COMPLETION FIELDS (EXACT)
+--------------------------------------------------------------------------------
+
+E1) Service inputs in service_complete_nurse_queue_item:
+- blood_pressure
+- pulse_rate
+- temperature_c
+- spo2_percent
+- random_blood_sugar
+- nurse_tests_performed
+- nurse_observation
+- treatment_given
+- medications_administered
+- follow_up_notes
+
+E2) Model field mapping and type
+- blood_pressure -> CharField(max_length=32, nullable)
+- pulse_rate -> PositiveIntegerField(nullable)
+- temperature_c -> DecimalField(max_digits=4, decimal_places=1, nullable)
+- spo2_percent -> PositiveSmallIntegerField(nullable)
+- random_blood_sugar -> CharField(max_length=32, nullable)
+- nurse_tests_performed -> TextField(nullable)
+- nurse_observation -> TextField(nullable)
+- treatment_given -> TextField(nullable)
+- medications_administered -> TextField(nullable)
+- follow_up_notes -> TextField(nullable)
+
+--------------------------------------------------------------------------------
+F) FINALIZED RECORD PAYLOAD STRUCTURE (NurseQueueItem.finalized_record_payload)
+--------------------------------------------------------------------------------
+
+Exact keys stored when doctor finalizes queue item:
+1. queue_item_id
+2. hospital_id
+3. patient_id
+4. doctor_id
+5. nurse_id
+6. record_topic
+7. primary_diagnosis
+8. key_instruction
+9. blood_pressure
+10. pulse_rate
+11. temperature_c
+12. spo2_percent
+13. random_blood_sugar
+14. nurse_tests_performed
+15. nurse_observation
+16. treatment_given
+17. medications_administered
+18. follow_up_notes
+19. next_appointment_date
+20. doctor_final_notes
+
+This payload is hashed via _finalized_payload_hash and stored in finalized_record_hash.
+
+--------------------------------------------------------------------------------
+G) PATIENT SELF-REGISTRATION STATUS (WEB UI VS API)
+--------------------------------------------------------------------------------
+
+G1) Web UI
+- Yes, patient can self-register from web UI currently.
+- Routes:
+  - /patient/register/ (web)
+  - /patient/login/ (web)
+- Template auth page contains both Register and Login cards and AJAX submit logic.
+
+G2) API
+- Also supported via API endpoints:
+  - /api/v1/patient/register/
+  - /api/v1/patient/login/
+
+G3) Practical conclusion
+- Patient auth is implemented in both web UI and API paths.
+- From code perspective, both flows are functional.
+
+--------------------------------------------------------------------------------
+H) CURRENT TEST COVERAGE NUMBERS IN hospitals/tests.py
+--------------------------------------------------------------------------------
+
+H1) Total test methods
+- Total def test_* methods found: 81
+
+H2) Test classes grouped by area
+1. AuthTests - 13 tests
+2. AdminDashboardProfileTests - 9 tests
+3. AdminDoctorTests - 7 tests
+4. AdminNurseTests - 4 tests
+5. AdminTechnicianTests - 3 tests
+6. AdminPatientTests - 5 tests
+7. DoctorDashboardProfileTests - 6 tests
+8. DoctorPatientTests - 9 tests
+9. DoctorSendToLabTests - 4 tests
+10. TechnicianTests - 7 tests
+11. LabTests - 8 tests
+12. PermissionBoundaryTests - 6 tests
+
+H3) Notes
+- patient/tests.py does not exist currently.
+- Most automated coverage is concentrated in hospital-side API layer.
+
+--------------------------------------------------------------------------------
+I) SOFTWARE DEPENDENCIES - CURRENT AND LIKELY NEW VS EARLIER CORE SET
+--------------------------------------------------------------------------------
+
+I1) Current requirements.txt packages
+- Django==4.2.11
+- django-environ==0.11.2
+- djangorestframework==3.14.0
+- djangorestframework-simplejwt==5.3.2
+- mysql-connector-python==8.2.0
+- PyMySQL==1.1.0
+- cryptography==42.0.2
+- bcrypt==4.1.1
+- PyJWT==2.8.1
+- python-decouple==3.8
+- requests==2.31.0
+- python-dotenv==1.0.0
+- gunicorn==21.2.0
+- whitenoise==6.6.0
+- pytest==7.4.3
+- pytest-django==4.7.0
+- factory-boy==3.3.0
+
+I2) About "new since report 1"
+- Your first report Table 2.1 content is not present as a machine-readable file in this workspace, so exact one-to-one delta cannot be proven automatically.
+- Based on typical earlier core stack in this project, likely additional/non-core packages now include:
+  - django-environ
+  - PyMySQL
+  - PyJWT
+  - python-decouple
+  - requests
+  - python-dotenv
+  - gunicorn
+  - whitenoise
+  - pytest, pytest-django, factory-boy
+
+--------------------------------------------------------------------------------
+J) check_and_activate_without_session - EXACT FIELD CHECKS
+--------------------------------------------------------------------------------
+
+Function location: hospitals/utils.py
+
+Activation condition is TRUE only if all of these are true:
+1. hospital.license_locked is True
+2. hospital.address is non-empty
+3. hospital.city is non-empty
+4. hospital.state is non-empty
+5. hospital.country is non-empty
+6. hospital.account_status == 'pending'
+
+Then it sets:
+- hospital.account_status = 'active'
+- hospital.save()
+
+================================================================================
+END OF SUPPLEMENTARY APPENDIX
+================================================================================

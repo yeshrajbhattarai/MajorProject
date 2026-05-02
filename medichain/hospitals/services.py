@@ -20,6 +20,7 @@ from .models import (
     LabRequest,
     LabRequestRevision,
     MedicalRecordMeta,
+    NurseQueueItem,
 )
 from .db_router import set_hospital_db
 from .hospital_db import create_hospital_database, ensure_db_exists
@@ -1312,6 +1313,344 @@ def service_update_technician_password(staff_id, current_password, new_password,
     return True, None
 
 
+def service_get_nurse_profile(staff_id):
+    try:
+        return HospitalUser.objects.get(id=staff_id, role='nurse'), None
+    except HospitalUser.DoesNotExist:
+        return None, 'Nurse not found'
+
+
+def service_update_nurse_personal(staff_id, date_of_birth, gender, years_experience,
+                                  license_number, home_address, bio):
+    try:
+        nurse = HospitalUser.objects.get(id=staff_id, role='nurse')
+    except HospitalUser.DoesNotExist:
+        return None, 'Nurse not found'
+
+    if date_of_birth:
+        nurse.date_of_birth = date_of_birth
+    if gender:
+        nurse.gender = gender
+
+    nurse.years_experience = int(years_experience) if years_experience else None
+    nurse.license_number = license_number.strip() or None
+    nurse.home_address = home_address.strip() or None
+    nurse.bio = bio.strip() or None
+
+    nurse.save()
+    return nurse, None
+
+
+def service_update_nurse_password(staff_id, current_password, new_password, confirm_password):
+    try:
+        nurse = HospitalUser.objects.get(id=staff_id, role='nurse')
+    except HospitalUser.DoesNotExist:
+        return False, 'Nurse not found'
+
+    errors = {}
+    if not current_password:
+        errors['current_password'] = 'Current password is required'
+    elif not check_password(current_password, nurse.password_hash):
+        errors['current_password'] = 'Current password is incorrect'
+
+    if not new_password:
+        errors['new_password'] = 'New password is required'
+    elif len(new_password) < 8:
+        errors['new_password'] = 'Password must be at least 8 characters'
+
+    if new_password and confirm_password and new_password != confirm_password:
+        errors['confirm_password'] = 'Passwords do not match'
+
+    if errors:
+        return False, errors
+
+    nurse.password_hash = make_password(new_password)
+    nurse.save()
+    return True, None
+
+
+def service_create_nurse_queue_item(hospital_id, patient_id, doctor_id, title,
+                                    primary_diagnosis, key_instruction,
+                                    doctor_note='', handwritten_file=None):
+    try:
+        hospital = Hospital.objects.get(id=hospital_id)
+    except Hospital.DoesNotExist:
+        return None, 'Hospital not found'
+
+    try:
+        patient = Patient.objects.get(id=patient_id, registered_by_id=hospital_id)
+    except Patient.DoesNotExist:
+        return None, 'Patient not found'
+
+    try:
+        doctor = HospitalUser.objects.get(id=doctor_id, hospital_id=hospital_id, role='doctor')
+    except HospitalUser.DoesNotExist:
+        return None, 'Doctor not found'
+
+    item = NurseQueueItem.objects.create(
+        hospital=hospital,
+        patient=patient,
+        doctor=doctor,
+        title=title.strip(),
+        primary_diagnosis=primary_diagnosis.strip(),
+        key_instruction=key_instruction.strip(),
+        doctor_note=doctor_note.strip() or None,
+        handwritten_file=handwritten_file,
+    )
+    return item, None
+
+
+def service_get_nurse_queue_items(hospital_id, status=None):
+    items = NurseQueueItem.objects.select_related('patient', 'doctor').filter(hospital_id=hospital_id)
+    if status:
+        if isinstance(status, (list, tuple, set)):
+            items = items.filter(status__in=list(status))
+        else:
+            items = items.filter(status=status)
+    return items.order_by('-created_at')
+
+
+def service_get_nurse_queue_item_for_nurse(item_id, hospital_id):
+    try:
+        return NurseQueueItem.objects.select_related('patient', 'doctor', 'picked_by').get(
+            id=item_id,
+            hospital_id=hospital_id,
+        ), None
+    except NurseQueueItem.DoesNotExist:
+        return None, 'Queue item not found'
+
+
+def service_complete_nurse_queue_item(item_id, hospital_id, nurse_id,
+                                      blood_pressure, pulse_rate, temperature_c,
+                                      spo2_percent, random_blood_sugar,
+                                      nurse_tests_performed,
+                                      nurse_observation, treatment_given,
+                                      medications_administered, follow_up_notes=''):
+    item, error = service_get_nurse_queue_item_for_nurse(item_id=item_id, hospital_id=hospital_id)
+    if error:
+        return None, error
+
+    try:
+        nurse = HospitalUser.objects.get(id=nurse_id, hospital_id=hospital_id, role='nurse')
+    except HospitalUser.DoesNotExist:
+        return None, 'Nurse not found'
+
+    if item.status == NurseQueueItem.STATUS_COMPLETED:
+        return None, 'This queue item is already completed'
+
+    if item.picked_by_id and str(item.picked_by_id) != str(nurse_id):
+        return None, f'This case is currently being handled by {item.picked_by.full_name}'
+
+    item.picked_by = nurse
+    item.status = NurseQueueItem.STATUS_COMPLETED
+    item.blood_pressure = (blood_pressure or '').strip()
+    item.pulse_rate = int(pulse_rate)
+    item.temperature_c = temperature_c
+    item.spo2_percent = int(spo2_percent)
+    item.random_blood_sugar = (random_blood_sugar or '').strip()
+    item.nurse_tests_performed = (nurse_tests_performed or '').strip()
+    item.nurse_observation = (nurse_observation or '').strip()
+    item.treatment_given = (treatment_given or '').strip()
+    item.medications_administered = (medications_administered or '').strip()
+    item.follow_up_notes = (follow_up_notes or '').strip() or None
+    item.completed_at = timezone.now()
+    item.save(update_fields=[
+        'picked_by',
+        'status',
+        'blood_pressure',
+        'pulse_rate',
+        'temperature_c',
+        'spo2_percent',
+        'random_blood_sugar',
+        'nurse_tests_performed',
+        'nurse_observation',
+        'treatment_given',
+        'medications_administered',
+        'follow_up_notes',
+        'completed_at',
+        'updated_at',
+    ])
+
+    return item, None
+
+
+def service_get_doctor_approval_queue_items(hospital_id):
+    return NurseQueueItem.objects.select_related('patient', 'doctor', 'picked_by').filter(
+        hospital_id=hospital_id,
+        status=NurseQueueItem.STATUS_COMPLETED,
+        doctor_finalized=False,
+    ).order_by('-updated_at')
+
+
+def service_get_doctor_approval_item(item_id, hospital_id):
+    try:
+        return NurseQueueItem.objects.select_related('patient', 'doctor', 'picked_by').get(
+            id=item_id,
+            hospital_id=hospital_id,
+        ), None
+    except NurseQueueItem.DoesNotExist:
+        return None, 'Case not found'
+
+
+def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
+                                          next_appointment_date,
+                                          doctor_final_notes=''):
+    item, error = service_get_doctor_approval_item(item_id=item_id, hospital_id=hospital_id)
+    if error:
+        return None, error
+
+    try:
+        doctor = HospitalUser.objects.get(id=doctor_id, hospital_id=hospital_id, role='doctor')
+    except HospitalUser.DoesNotExist:
+        return None, 'Doctor not found'
+
+    if item.status != NurseQueueItem.STATUS_COMPLETED:
+        return None, 'This case is not ready for doctor final check yet'
+
+    if item.doctor_finalized:
+        return None, 'This case is already finalized'
+
+    payload = {
+        'queue_item_id': str(item.id),
+        'hospital_id': str(item.hospital_id),
+        'patient_id': str(item.patient_id),
+        'doctor_id': str(item.doctor_id),
+        'nurse_id': str(item.picked_by_id) if item.picked_by_id else None,
+        'record_topic': item.title,
+        'primary_diagnosis': item.primary_diagnosis,
+        'key_instruction': item.key_instruction,
+        'blood_pressure': item.blood_pressure,
+        'pulse_rate': item.pulse_rate,
+        'temperature_c': str(item.temperature_c) if item.temperature_c is not None else None,
+        'spo2_percent': item.spo2_percent,
+        'random_blood_sugar': item.random_blood_sugar,
+        'nurse_tests_performed': item.nurse_tests_performed,
+        'nurse_observation': item.nurse_observation,
+        'treatment_given': item.treatment_given,
+        'medications_administered': item.medications_administered,
+        'follow_up_notes': item.follow_up_notes,
+        'next_appointment_date': str(next_appointment_date) if next_appointment_date else None,
+        'doctor_final_notes': doctor_final_notes,
+    }
+    record_hash = _finalized_payload_hash(payload)
+
+    item.next_appointment_date = next_appointment_date or None
+    item.doctor_final_notes = (doctor_final_notes or '').strip() or None
+    item.doctor_finalized = True
+    item.finalized_record_id = item.finalized_record_id or uuid.uuid4()
+    item.finalized_record_hash = record_hash
+    item.finalized_record_payload = payload
+    item.doctor_finalized_by = doctor
+    item.doctor_finalized_at = timezone.now()
+    item.save(update_fields=[
+        'next_appointment_date',
+        'doctor_final_notes',
+        'doctor_finalized',
+        'finalized_record_id',
+        'finalized_record_hash',
+        'finalized_record_payload',
+        'doctor_finalized_by',
+        'doctor_finalized_at',
+        'updated_at',
+    ])
+
+    return item, None
+
+
+def service_get_doctor_medical_records(hospital_id):
+    return NurseQueueItem.objects.select_related('patient', 'doctor', 'picked_by').filter(
+        hospital_id=hospital_id,
+        doctor_finalized=True,
+    ).order_by('-doctor_finalized_at')
+
+
+def service_get_patient_medical_records(patient_id):
+    return NurseQueueItem.objects.select_related('doctor', 'picked_by').filter(
+        patient_id=patient_id,
+        doctor_finalized=True,
+    ).order_by('-doctor_finalized_at')
+
+
+def service_get_nurse_medical_records(hospital_id, nurse_id):
+    return NurseQueueItem.objects.select_related('patient', 'doctor').filter(
+        hospital_id=hospital_id,
+        picked_by_id=nurse_id,
+        doctor_finalized=True,
+    ).order_by('-doctor_finalized_at')
+
+
+def service_get_finalized_medical_record_detail(record_id, role,
+                                                hospital_id=None,
+                                                staff_id=None,
+                                                patient_id=None,
+                                                version_number=None):
+    item = NurseQueueItem.objects.select_related(
+        'patient',
+        'doctor',
+        'picked_by',
+        'doctor_finalized_by',
+    ).filter(
+        Q(finalized_record_id=record_id) | Q(id=record_id),
+        doctor_finalized=True,
+    ).first()
+
+    if not item:
+        return None, None, 'Medical record not found.'
+
+    if version_number not in (None, 1):
+        return None, None, 'Invalid medical record version requested.'
+
+    if role == 'doctor':
+        if str(item.hospital_id) != str(hospital_id) or str(item.doctor_id) != str(staff_id):
+            return None, None, 'You are not allowed to view this medical record.'
+    elif role == 'nurse':
+        if str(item.hospital_id) != str(hospital_id) or str(item.picked_by_id) != str(staff_id):
+            return None, None, 'You are not allowed to view this medical record.'
+    elif role == 'patient':
+        if str(item.patient_id) != str(patient_id):
+            return None, None, 'You are not allowed to view this medical record.'
+    else:
+        return None, None, 'Invalid role for medical record access.'
+
+    payload = item.finalized_record_payload or {}
+    computed_hash = _finalized_payload_hash(payload)
+    stored_hash = (item.finalized_record_hash or '').strip()
+
+    patient_identity_display = None
+    try:
+        gov_id_plain = decrypt(item.patient.gov_id_number or '') if item.patient and item.patient.gov_id_number else ''
+        gov_id_plain = (gov_id_plain or '').strip()
+        if gov_id_plain:
+            suffix = gov_id_plain[-4:] if len(gov_id_plain) >= 4 else gov_id_plain
+            gov_id_label = dict(Patient.GOV_ID_CHOICES).get(item.patient.gov_id_type, 'Government ID')
+            patient_identity_display = f"{gov_id_label} ending {suffix}"
+    except Exception:
+        patient_identity_display = None
+
+    detail_bundle = {
+        'record': {
+            'version': 1,
+            'is_latest': True,
+        },
+        'hash': {
+            'stored': stored_hash,
+            'computed': computed_hash,
+            'verified': bool(stored_hash) and stored_hash == computed_hash,
+        },
+        'timeline': [{
+            'version_number': 1,
+            'event_type': 'finalized',
+            'changed_by_name': item.doctor_finalized_by.full_name if item.doctor_finalized_by else item.doctor.full_name,
+            'changed_by_role': 'doctor',
+            'changed_at': item.doctor_finalized_at,
+            'change_reason': 'Doctor finalized record',
+        }],
+        'payload_items': list(payload.items()),
+        'patient_identity_display': patient_identity_display,
+    }
+    return item, detail_bundle, None
+
+
 def service_get_lab_queue(staff_id):
     assigned_lab_ids = list(
         LabAssignment.objects.filter(technician_id=staff_id).values_list('lab_id', flat=True)
@@ -1405,6 +1744,11 @@ def _payload_hash(payload):
         return str(value)
 
     canonical = json.dumps(payload, sort_keys=True, separators=(',', ':'), default=_json_default)
+    return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+
+
+def _finalized_payload_hash(payload):
+    canonical = json.dumps(payload or {}, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
@@ -1847,10 +2191,11 @@ def service_get_technician_records(staff_id, hospital_id):
     ).order_by('-updated_at')
 
 
-def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None, lab_id=None, scope='all'):
+def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None, lab_id=None, patient_id=None, scope='all'):
     gov_id_type = (gov_id_type or '').strip().lower()
     gov_id_number = (gov_id_number or '').replace(' ', '').strip()
     lab_id = (lab_id or '').strip()
+    patient_id = (patient_id or '').strip()
     scope = (scope or 'all').strip().lower()
 
     records = MedicalRecordMeta.objects.filter(
@@ -1869,6 +2214,9 @@ def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None
 
     if lab_id:
         records = records.filter(lab_request__lab_id=lab_id)
+
+    if patient_id:
+        records = records.filter(patient_id=patient_id)
 
     if gov_id_type and gov_id_number:
         gov_id_hash = hashlib.sha256(f"{gov_id_type}{gov_id_number}".encode()).hexdigest()

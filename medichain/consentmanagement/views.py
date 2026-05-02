@@ -9,6 +9,7 @@ from .serializers import (
     HospitalDecisionSerializer
 )
 from rest_framework.permissions import AllowAny
+from hospitals.permissions import IsHospitalUserActive
 from django.shortcuts import get_object_or_404
 from hospitals.models import Hospital
 from auditlog.utils import log_action
@@ -47,6 +48,8 @@ def get_hospital_from_payload(request):
     except Hospital.DoesNotExist:
         return None, Response({"error": "Hospital not found"}, status=401)
 
+    # no-op debug
+
     if hospital.account_status != 'active':
         return None, Response({"error": "Hospital account is not active"}, status=403)
 
@@ -58,7 +61,7 @@ def get_hospital_from_payload(request):
 # Returns all active hospitals except the requesting one — used for selecting a target hospital.
 #! TODO: Add pagination when hospital count grows large
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def hospital_directory(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -77,7 +80,7 @@ def hospital_directory(request):
 # Creates a new consent request — requesting hospital is taken from token, not request body.
 #! TODO: Notify the patient and owning hospital when a new request is created
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def create_consent(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -107,7 +110,7 @@ def view_consent(request):
 # Returns all consent requests sent by the authenticated hospital.
 #! TODO: Add date range filtering support
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def sent_requests(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -123,7 +126,7 @@ def sent_requests(request):
 # Returns all consent requests received by the authenticated hospital.
 #! TODO: Add date range filtering support
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def received_requests(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -171,7 +174,7 @@ def patient_decision(request, consent_id):
 # Allows the owning hospital to approve or reject — verified against token identity.
 #! TODO: Notify the requesting hospital once a decision is made
 @api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def hospital_decision(request, consent_id):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -200,7 +203,7 @@ def hospital_decision(request, consent_id):
 # Deletes a pending consent — only the hospital that created it can delete it.
 #! TODO: Add a soft delete option to preserve audit history instead of hard delete
 @api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def delete_consent(request, consent_id):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -225,7 +228,7 @@ def delete_consent(request, consent_id):
 # Fetches a patient record after a 4-step authorization check — auth, consent exists, approved, requester matches.
 #! TODO: Replace dummy record with real fetch from teammate's medical records module
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsHospitalUserActive])
 def fetch_record(request, consent_id):
     hospital, error = get_hospital_from_payload(request)
     if error:

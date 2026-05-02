@@ -1,0 +1,122 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | {{ patient.full_name }} - Medical Records</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstapi.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .records-shell { display: flex; flex-direction: column; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: "Syne", sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+    
+    .patient-hero {
+      display: flex; align-items: center; gap: 20px;
+      padding: 24px;
+      background: var(--surface);
+      border: 1px solid var(--a4-border);
+      border-radius: var(--radius);
+      background-image: linear-gradient(135deg, var(--surface) 60%, var(--a4-bg-subtle));
+    }
+    .patient-hero-avatar {
+      width: 64px; height: 64px; border-radius: 50%;
+      background: var(--a4-bg); border: 2px solid var(--a4-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: "Syne", sans-serif; font-size: 24px; font-weight: 700;
+      color: var(--accent-4); flex-shrink: 0;
+    }
+    .patient-hero-name { font-family: "Syne", sans-serif; font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .patient-hero-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    
+    .records-content { padding: 16px 18px; }
+    .records-grid { display: flex; flex-direction: column; gap: 8px; }
+    .record-card { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--bg-2); transition: all 0.2s; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .record-card:hover { background: var(--surface); border-color: var(--a3-border); }
+    .record-head { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .record-title { font-weight: 600; color: var(--text-primary); font-size: 13px; white-space: nowrap; }
+    .record-meta { display: flex; gap: 8px; align-items: center; white-space: nowrap; }
+    .record-pill { font-size: 10px; padding: 3px 8px; border-radius: 20px; border: 1px solid var(--a3-border); color: var(--accent-3); background: var(--a3-bg-subtle); white-space: nowrap; }
+    .record-time { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    .record-link { padding: 6px 12px; border-radius: var(--radius-sm); background: var(--accent-3); color: white; text-decoration: none; font-size: 11px; font-weight: 600; transition: opacity 0.2s; white-space: nowrap; }
+    .record-link:hover { opacity: 0.85; }
+    
+    .empty-state { padding: 32px; text-align: center; color: var(--text-muted); }
+    .empty-state-icon { width: 48px; height: 48px; margin: 0 auto 12px; opacity: 0.5; }
+    
+    .btn-consent { padding: 12px 20px; border: none; border-radius: var(--radius-sm); background: var(--accent-3); color: white; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    .btn-consent:hover { opacity: 0.85; }
+  </style>
+</head>
+<body>
+  {% include "hospitals/partials/doctor_sidebar.html" with active_page="patients" %}
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>{{ patient.full_name }} - Medical Records</h1>
+          <span class="breadcrumb">
+            <a href="/staff/doctor/dashboard/" class="breadcrumb-link">Dashboard</a> &nbsp;/&nbsp;
+            <a href="/staff/doctor/patients/" class="breadcrumb-link">Patients</a> &nbsp;/&nbsp;
+            <a href="{% url 'doctor_patient_detail' patient.id %}" class="breadcrumb-link">{{ patient.full_name }}</a> &nbsp;/&nbsp; Medical Records
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">{{ staff_name|slice:":1"|upper }}</div>
+      </div>
+    </header>
+
+    <div class="dashboard-content records-shell">
+      {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+      
+      <div class="patient-hero">
+        <div class="patient-hero-avatar">{{ patient.full_name|slice:":1"|upper }}</div>
+        <div><div class="patient-hero-name">{{ patient.full_name }}</div><div class="patient-hero-sub">{{ patient.gender|default:"—" }} &nbsp;·&nbsp; {{ patient.phone|default:"—" }} &nbsp;·&nbsp; Gov ID: {{ gov_id_masked }}</div></div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><div class="panel-title">Medical Records</div><div class="panel-sub">All medical records for this patient from your hospital.</div></div>
+        <div class="records-content">
+          {% if medical_records %}
+            <div class="records-grid">
+              {% for record in medical_records %}
+              <div class="record-card">
+                <div class="record-head">
+                  <div class="record-title">Medical Record</div>
+                  <div class="record-meta"><span class="record-pill">Record</span><span class="record-time">v{{ record.version }} • {{ record.updated_at|date:"d M Y" }}</span></div>
+                </div>
+                <a href="{% url 'view_record_detail' record.record_id %}" class="record-link">View</a>
+              </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="empty-state"><svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12h6m-6 4h6m2-15H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2z"/></svg><p>No medical records found for this patient.</p></div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><div class="panel-title">Access Records from Other Hospitals</div><div class="panel-sub">Send a consent request to access medical records from other hospitals.</div></div>
+        <div class="records-content"><button class="btn-consent" onclick="openConsentModal()">Send Consent Request to Patient</button></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById("sidebarToggle").addEventListener("click", function() { document.querySelector(".sidebar").classList.toggle("open"); });
+    function updateTime() { const now = new Date(); document.getElementById("topbarTime").textContent = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }); }
+    updateTime(); setInterval(updateTime, 1000);
+    function openConsentModal() { alert("yo chai timro kaam la aaba yeshraj\nPatient can choose:\n- All hospitals\n- Specific hospitals\n- Specific records"); }
+  </script>
+</body>
+</html>

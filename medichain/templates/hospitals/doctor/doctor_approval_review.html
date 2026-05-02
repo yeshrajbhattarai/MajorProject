@@ -1,0 +1,162 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Doctor Final Check</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <style>
+    .review-shell { display: flex; flex-direction: column; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .panel-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+    .grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 860px) { .grid-two { grid-template-columns: 1fr; } }
+    .field { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-3); padding: 10px 12px; }
+    .field-label { font-size: 11px; letter-spacing: 0.06em; color: var(--text-muted); text-transform: uppercase; }
+    .field-value { font-size: 13px; color: var(--text-primary); margin-top: 5px; }
+
+    .final-form { display: flex; flex-direction: column; gap: 10px; }
+    .final-form label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+    .final-form input,
+    .final-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-2);
+      color: var(--text-primary);
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+    .final-form textarea { min-height: 88px; resize: vertical; }
+    .required::after { content: ' *'; color: #f97373; }
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-primary {
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--accent-2);
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-link {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--text-primary);
+      background: var(--surface);
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='approval_queue' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Doctor Final Check</h1>
+          <span class="breadcrumb">
+            <a href="/staff/doctor/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp;
+            <a href="{% url 'doctor_approval_queue' %}" class="breadcrumb-link">Approval Queue</a>
+            &nbsp;/&nbsp; Final Check
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">{{ staff_name|slice:":1"|upper }}</div>
+      </div>
+    </header>
+
+    <div class="review-shell">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Nurse Completed Summary</div>
+          <div class="panel-sub">Review nurse-entered baseline and treatment details before finalizing.</div>
+        </div>
+        <div class="panel-body">
+          <div class="grid-two">
+            <div class="field"><div class="field-label">Patient</div><div class="field-value">{{ item.patient.full_name }}</div></div>
+            <div class="field"><div class="field-label">Nurse</div><div class="field-value">{{ item.picked_by.full_name|default:'-' }}</div></div>
+            <div class="field"><div class="field-label">Record Topic</div><div class="field-value">{{ item.title }}</div></div>
+            <div class="field"><div class="field-label">Diagnosis</div><div class="field-value">{{ item.primary_diagnosis }}</div></div>
+            <div class="field"><div class="field-label">Blood Pressure</div><div class="field-value">{{ item.blood_pressure|default:'-' }}</div></div>
+            <div class="field"><div class="field-label">Pulse / Temp / SpO2</div><div class="field-value">{{ item.pulse_rate|default:'-' }} bpm / {{ item.temperature_c|default:'-' }} C / {{ item.spo2_percent|default:'-' }}%</div></div>
+            <div class="field"><div class="field-label">Random Blood Sugar</div><div class="field-value">{{ item.random_blood_sugar|default:'-' }}</div></div>
+            <div class="field"><div class="field-label">Completed At</div><div class="field-value">{{ item.completed_at|date:'d M Y, h:i A' }}</div></div>
+          </div>
+          <div class="field"><div class="field-label">Tests Performed</div><div class="field-value">{{ item.nurse_tests_performed|default:'-' }}</div></div>
+          <div class="field"><div class="field-label">Nurse Observation</div><div class="field-value">{{ item.nurse_observation|default:'-' }}</div></div>
+          <div class="field"><div class="field-label">Treatment Given</div><div class="field-value">{{ item.treatment_given|default:'-' }}</div></div>
+          <div class="field"><div class="field-label">Medications</div><div class="field-value">{{ item.medications_administered|default:'-' }}</div></div>
+          <div class="field"><div class="field-label">Follow Up Notes</div><div class="field-value">{{ item.follow_up_notes|default:'-' }}</div></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Doctor Finalization</div>
+          <div class="panel-sub">Add final notes. Set next appointment date only if follow-up is needed.</div>
+        </div>
+        <div class="panel-body">
+          <form method="POST" enctype="multipart/form-data" class="final-form">
+            {% csrf_token %}
+
+            <div>
+              <label>Next Appointment Date (Optional)</label>
+              <input type="date" name="next_appointment_date" value="{{ item.next_appointment_date|date:'Y-m-d'|default:'' }}">
+            </div>
+
+            <div>
+              <label class="required">Doctor Final Notes</label>
+              <textarea name="doctor_final_notes" required>{{ item.doctor_final_notes|default:'' }}</textarea>
+            </div>
+
+            <div class="btn-row">
+              <button type="submit" class="btn-primary">Finalize Case</button>
+              <a href="{% url 'doctor_approval_queue' %}" class="btn-link">Back to Approval Queue</a>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      var sidebar = document.querySelector('.sidebar');
+      if (sidebar) sidebar.classList.toggle('open');
+    });
+
+    function updateTime() {
+      var el = document.getElementById('topbarTime');
+      if (!el) return;
+      var now = new Date();
+      el.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+</body>
+</html>

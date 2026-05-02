@@ -3,8 +3,8 @@ import json
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
-from .models import Hospital, Lab
-from .decorators import hospital_admin_required , doctor_required , technician_required
+from .models import Hospital, Lab, HospitalUser, PatientAssignment, MedicalRecordMeta
+from .decorators import hospital_admin_required , doctor_required , nurse_required, technician_required
 from .services import (
     service_register_hospital,
     service_verify_otp,
@@ -50,6 +50,19 @@ from .services import (
     service_get_technician_profile,
     service_update_technician_personal, 
     service_update_technician_password,
+    service_get_nurse_profile,
+    service_update_nurse_personal,
+    service_update_nurse_password,
+    service_create_nurse_queue_item,
+    service_get_nurse_queue_items,
+    service_get_nurse_queue_item_for_nurse,
+    service_complete_nurse_queue_item,
+    service_get_doctor_approval_queue_items,
+    service_get_doctor_approval_item,
+    service_finalize_doctor_approval_item,
+    service_get_doctor_medical_records,
+    service_get_nurse_medical_records,
+    service_get_finalized_medical_record_detail,
     service_get_lab_queue,
     service_get_lab_request,
     service_get_latest_lab_request_revision,
@@ -185,6 +198,7 @@ def hospital_dashboard(request):
         'total_nurses':        total_nurses,
         'total_technicians':   total_technicians,
         'recent_logs':         [],     # will be populated after audit log model is built
+        'profile_incomplete':  getattr(request, 'profile_incomplete', False),
     })
 
 
@@ -293,6 +307,7 @@ def doctors_list(request):
     return render(request, 'hospitals/admin/doctors_list.html', {
         'hospital_name': hospital.hospital_name,
         'doctors':       doctors,
+        'profile_incomplete': getattr(request, 'profile_incomplete', False),
     })
 
 
@@ -304,6 +319,15 @@ def add_doctor(request):
     if request.method != 'POST':
         return render(request, 'hospitals/admin/add_doctor.html', {
             'hospital_name': hospital.hospital_name,
+            'profile_incomplete': getattr(request, 'profile_incomplete', False),
+        })
+
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before registering staff.')
+        return render(request, 'hospitals/admin/add_doctor.html', {
+            'hospital_name': hospital.hospital_name,
+            'form_data': request.POST,
         })
 
     doctor, errors = service_add_doctor(
@@ -346,6 +370,11 @@ def toggle_doctor(request, pk):
     if request.method != 'POST':
         return redirect('doctors_list')
 
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before modifying staff status.')
+        return redirect('doctors_list')
+
     doctor, error = service_toggle_doctor(request.session['hospital_id'], pk)
     if error:
         messages.error(request, error)
@@ -365,6 +394,7 @@ def nurses_list(request):
     return render(request, 'hospitals/admin/nurses_list.html', {
         'hospital_name': hospital.hospital_name,
         'nurses':        nurses,
+        'profile_incomplete': getattr(request, 'profile_incomplete', False),
     })
 
 
@@ -376,6 +406,15 @@ def add_nurse(request):
     if request.method != 'POST':
         return render(request, 'hospitals/admin/add_nurse.html', {
             'hospital_name': hospital.hospital_name,
+            'profile_incomplete': getattr(request, 'profile_incomplete', False),
+        })
+
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before registering staff.')
+        return render(request, 'hospitals/admin/add_nurse.html', {
+            'hospital_name': hospital.hospital_name,
+            'form_data': request.POST,
         })
 
     nurse, errors = service_add_nurse(
@@ -417,6 +456,11 @@ def toggle_nurse(request, pk):
     if request.method != 'POST':
         return redirect('nurses_list')
 
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before modifying staff status.')
+        return redirect('nurses_list')
+
     nurse, error = service_toggle_nurse(request.session['hospital_id'], pk)
     if error:
         messages.error(request, error)
@@ -436,6 +480,7 @@ def technicians_list(request):
     return render(request, 'hospitals/admin/technicians_list.html', {
         'hospital_name': hospital.hospital_name,
         'technicians':   technicians,
+        'profile_incomplete': getattr(request, 'profile_incomplete', False),
     })
 
 
@@ -447,6 +492,15 @@ def add_technician(request):
     if request.method != 'POST':
         return render(request, 'hospitals/admin/add_technician.html', {
             'hospital_name': hospital.hospital_name,
+            'profile_incomplete': getattr(request, 'profile_incomplete', False),
+        })
+
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before registering staff.')
+        return render(request, 'hospitals/admin/add_technician.html', {
+            'hospital_name': hospital.hospital_name,
+            'form_data': request.POST,
         })
 
     technician, errors = service_add_technician(
@@ -488,6 +542,11 @@ def toggle_technician(request, pk):
     if request.method != 'POST':
         return redirect('technicians_list')
 
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before modifying staff status.')
+        return redirect('technicians_list')
+
     technician, error = service_toggle_technician(request.session['hospital_id'], pk)
     if error:
         messages.error(request, error)
@@ -507,6 +566,7 @@ def patients_list(request):
     return render(request, 'hospitals/admin/patients_list.html', {
         'hospital_name': hospital.hospital_name,
         'patients':      patients,
+        'profile_incomplete': getattr(request, 'profile_incomplete', False),
     })
 
 
@@ -518,6 +578,15 @@ def add_patient(request):
     if request.method != 'POST':
         return render(request, 'hospitals/admin/add_patient.html', {
             'hospital_name': hospital.hospital_name,
+            'profile_incomplete': getattr(request, 'profile_incomplete', False),
+        })
+
+    # Block POST when profile incomplete
+    if getattr(request, 'profile_incomplete', False):
+        messages.error(request, 'Complete your hospital profile before registering patients.')
+        return render(request, 'hospitals/admin/add_patient.html', {
+            'hospital_name': hospital.hospital_name,
+            'form_data': request.POST,
         })
 
     patient, errors = service_add_patient(
@@ -777,12 +846,14 @@ def doctor_lab_reports_list(request):
     gov_id_type = request.GET.get('gov_id_type', '').strip().lower()
     gov_id_number = request.GET.get('gov_id_number', '').strip()
     lab_id = request.GET.get('lab_id', '').strip()
+    patient_id = request.GET.get('patient_id', '').strip()
 
     records, labs, grouped_records = service_get_doctor_records(
         hospital_id=request.session['hospital_id'],
         gov_id_type=gov_id_type,
         gov_id_number=gov_id_number,
         lab_id=lab_id,
+        patient_id=patient_id,
         scope='lab',
     )
 
@@ -791,6 +862,7 @@ def doctor_lab_reports_list(request):
         'labs': labs,
         'grouped_records': grouped_records,
         'lab_id': lab_id,
+        'patient_id': patient_id,
         'gov_id_type': gov_id_type,
         'gov_id_number': gov_id_number,
         'staff_name': request.session.get('staff_name'),
@@ -800,7 +872,100 @@ def doctor_lab_reports_list(request):
 
 @doctor_required
 def doctor_medical_records_list(request):
+    records = service_get_doctor_medical_records(hospital_id=request.session['hospital_id'])
     return render(request, 'hospitals/doctor/doctor_medical_records_list.html', {
+        'records': records,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
+def doctor_medical_record_detail(request, record_id):
+    version_number = None
+    version_query = request.GET.get('v', '').strip()
+    if version_query:
+        try:
+            version_number = int(version_query)
+        except ValueError:
+            messages.error(request, 'Invalid medical record version requested.')
+            return redirect('doctor_medical_record_detail', record_id=record_id)
+
+    record, detail_bundle, error = service_get_finalized_medical_record_detail(
+        record_id=record_id,
+        role='doctor',
+        hospital_id=request.session.get('hospital_id'),
+        staff_id=request.session.get('staff_id'),
+        version_number=version_number,
+    )
+    if error:
+        messages.error(request, error)
+        return redirect('doctor_medical_records_list')
+
+    return render(request, 'hospitals/medical_record_detail.html', {
+        'record_item': record,
+        'detail_bundle': detail_bundle,
+        'viewer_role': 'doctor',
+        'back_url_name': 'doctor_medical_records_list',
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
+def doctor_approval_queue(request):
+    queue_items = service_get_doctor_approval_queue_items(
+        hospital_id=request.session['hospital_id'],
+    )
+    return render(request, 'hospitals/doctor/doctor_approval_queue.html', {
+        'queue_items': queue_items,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
+def doctor_approval_review(request, item_id):
+    item, error = service_get_doctor_approval_item(
+        item_id=item_id,
+        hospital_id=request.session['hospital_id'],
+    )
+    if error:
+        messages.error(request, error)
+        return redirect('doctor_approval_queue')
+
+    if request.method == 'POST':
+        if item.doctor_finalized:
+            messages.info(request, 'This case is already finalized.')
+            return redirect('doctor_approval_queue')
+
+        next_appointment_date = request.POST.get('next_appointment_date', '').strip()
+        doctor_final_notes = request.POST.get('doctor_final_notes', '').strip()
+
+        if not doctor_final_notes:
+            messages.error(request, 'Please add doctor final notes.')
+            return redirect('doctor_approval_review', item_id=item_id)
+
+        _, finalize_error = service_finalize_doctor_approval_item(
+            item_id=item_id,
+            hospital_id=request.session['hospital_id'],
+            doctor_id=request.session['staff_id'],
+            next_appointment_date=next_appointment_date or None,
+            doctor_final_notes=doctor_final_notes,
+        )
+        if finalize_error:
+            messages.error(request, finalize_error)
+        else:
+            messages.success(request, 'Case finalized successfully.')
+            return redirect('doctor_approval_queue')
+
+        item, _ = service_get_doctor_approval_item(
+            item_id=item_id,
+            hospital_id=request.session['hospital_id'],
+        )
+
+    return render(request, 'hospitals/doctor/doctor_approval_review.html', {
+        'item': item,
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
     })
@@ -905,6 +1070,69 @@ def doctor_assign_nurse(request, pk):
 
 
 @doctor_required
+def doctor_create_medical_record_page(request, pk):
+    patient, gov_id_masked, assigned_nurses, _, _, _, error = service_get_doctor_patient_detail(
+        pk=pk,
+        hospital_id=request.session['hospital_id']
+    )
+
+    if error:
+        messages.error(request, error)
+        return redirect('doctor_patients_list')
+
+    form_values = {
+        'record_topic': '',
+        'primary_diagnosis': '',
+        'key_instruction': '',
+        'doctor_note': '',
+    }
+
+    if request.method == 'POST':
+        for key in form_values:
+            form_values[key] = request.POST.get(key, '').strip()
+
+        required_doctor_fields = {
+            'record_topic': 'Record topic',
+            'primary_diagnosis': 'Primary diagnosis',
+            'key_instruction': 'Key clinical instruction',
+        }
+        missing = [label for key, label in required_doctor_fields.items() if not form_values[key]]
+
+        if missing:
+            messages.error(request, f"Please complete doctor-required fields: {', '.join(missing)}")
+        else:
+            handwritten = request.FILES.get('file_handwritten')
+            if not handwritten:
+                messages.error(request, 'Please upload the handwritten prescription/note before forwarding to nurse queue.')
+            else:
+                item, error = service_create_nurse_queue_item(
+                    hospital_id=request.session['hospital_id'],
+                    patient_id=pk,
+                    doctor_id=request.session['staff_id'],
+                    title=form_values['record_topic'],
+                    primary_diagnosis=form_values['primary_diagnosis'],
+                    key_instruction=form_values['key_instruction'],
+                    doctor_note=form_values['doctor_note'],
+                    handwritten_file=handwritten,
+                )
+
+                if error:
+                    messages.error(request, error)
+                else:
+                    messages.success(request, 'Record forwarded to hospital nursing queue. Any available nurse can pick it up.')
+                    return redirect('doctor_patient_detail', pk=pk)
+
+    return render(request, 'hospitals/doctor/doctor_create_medical_record.html', {
+        'patient': patient,
+        'gov_id_masked': gov_id_masked,
+        'assigned_nurses': assigned_nurses,
+        'form_values': form_values,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
 def doctor_send_to_lab(request, pk):
     if request.method != 'POST':
         return redirect('doctor_patient_detail', pk=pk)
@@ -973,6 +1201,242 @@ def doctor_remove_assignment(request, pk, staff_id):
 
 
 # ─── Technician Portal ────────────────────────────────────────────────────────
+
+@nurse_required
+def nurse_dashboard(request):
+    staff_id = request.session.get('staff_id')
+    hospital_id = request.session.get('hospital_id')
+
+    assigned_patients = PatientAssignment.objects.filter(
+        staff_id=staff_id,
+        role='nurse',
+        patient__registered_by_id=hospital_id,
+    ).count()
+
+    completed_updates = MedicalRecordMeta.objects.filter(
+        hospital_id=hospital_id,
+        recorded_by_id=staff_id,
+    ).count()
+
+    pending_queue = service_get_nurse_queue_items(hospital_id=hospital_id, status='pending').count()
+
+    return render(request, 'hospitals/nurse/nurse_dashboard.html', {
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+        'total_assigned_patients': assigned_patients,
+        'total_pending_queue': pending_queue,
+        'total_completed_updates': completed_updates,
+    })
+
+
+@nurse_required
+def nurse_queue(request):
+    queue_items = service_get_nurse_queue_items(
+        hospital_id=request.session['hospital_id'],
+        status=['pending', 'in_progress'],
+    )
+    return render(request, 'hospitals/nurse/nurse_queue.html', {
+        'queue_items': queue_items,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@nurse_required
+def nurse_queue_review(request, item_id):
+    item, error = service_get_nurse_queue_item_for_nurse(
+        item_id=item_id,
+        hospital_id=request.session['hospital_id'],
+    )
+    if error:
+        messages.error(request, error)
+        return redirect('nurse_queue')
+
+    nurse_id = request.session['staff_id']
+    is_picked_by_other = item.picked_by_id and str(item.picked_by_id) != str(nurse_id)
+
+    if request.method == 'GET' and item.status == 'pending' and not item.picked_by_id:
+        item.picked_by_id = nurse_id
+        item.status = 'in_progress'
+        item.save(update_fields=['picked_by', 'status', 'updated_at'])
+
+    if request.method == 'POST':
+        if item.status == 'completed':
+            messages.info(request, 'This case is already completed.')
+            return redirect('nurse_queue_review', item_id=item_id)
+
+        if is_picked_by_other:
+            messages.error(request, f'This case is currently being handled by {item.picked_by.full_name}.')
+            return redirect('nurse_queue')
+
+        blood_pressure = request.POST.get('blood_pressure', '').strip()
+        pulse_rate = request.POST.get('pulse_rate', '').strip()
+        temperature_c = request.POST.get('temperature_c', '').strip()
+        spo2_percent = request.POST.get('spo2_percent', '').strip()
+        random_blood_sugar = request.POST.get('random_blood_sugar', '').strip()
+        nurse_tests_performed = request.POST.get('nurse_tests_performed', '').strip()
+        nurse_observation = request.POST.get('nurse_observation', '').strip()
+        treatment_given = request.POST.get('treatment_given', '').strip()
+        medications_administered = request.POST.get('medications_administered', '').strip()
+        follow_up_notes = request.POST.get('follow_up_notes', '').strip()
+
+        missing = []
+        if not blood_pressure:
+            missing.append('Blood pressure')
+        if not pulse_rate:
+            missing.append('Pulse rate')
+        if not temperature_c:
+            missing.append('Temperature')
+        if not spo2_percent:
+            missing.append('SpO2')
+        if not random_blood_sugar:
+            missing.append('Random blood sugar')
+        if not nurse_tests_performed:
+            missing.append('Nurse tests performed')
+        if not nurse_observation:
+            missing.append('Nurse observation')
+        if not treatment_given:
+            missing.append('Treatment given')
+        if not medications_administered:
+            missing.append('Medications administered')
+
+        if missing:
+            messages.error(request, f"Please complete required fields: {', '.join(missing)}")
+        else:
+            _, complete_error = service_complete_nurse_queue_item(
+                item_id=item_id,
+                hospital_id=request.session['hospital_id'],
+                nurse_id=nurse_id,
+                blood_pressure=blood_pressure,
+                pulse_rate=pulse_rate,
+                temperature_c=temperature_c,
+                spo2_percent=spo2_percent,
+                random_blood_sugar=random_blood_sugar,
+                nurse_tests_performed=nurse_tests_performed,
+                nurse_observation=nurse_observation,
+                treatment_given=treatment_given,
+                medications_administered=medications_administered,
+                follow_up_notes=follow_up_notes,
+            )
+            if complete_error:
+                messages.error(request, complete_error)
+            else:
+                messages.success(request, 'Nurse treatment details saved successfully.')
+                return redirect('nurse_queue')
+
+        item, _ = service_get_nurse_queue_item_for_nurse(
+            item_id=item_id,
+            hospital_id=request.session['hospital_id'],
+        )
+
+    return render(request, 'hospitals/nurse/nurse_queue_review.html', {
+        'item': item,
+        'is_picked_by_other': is_picked_by_other,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@nurse_required
+def nurse_medical_records_list(request):
+    records = service_get_nurse_medical_records(
+        hospital_id=request.session['hospital_id'],
+        nurse_id=request.session['staff_id'],
+    )
+    return render(request, 'hospitals/nurse/nurse_records_list.html', {
+        'records': records,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@nurse_required
+def nurse_medical_record_detail(request, record_id):
+    version_number = None
+    version_query = request.GET.get('v', '').strip()
+    if version_query:
+        try:
+            version_number = int(version_query)
+        except ValueError:
+            messages.error(request, 'Invalid medical record version requested.')
+            return redirect('nurse_medical_record_detail', record_id=record_id)
+
+    record, detail_bundle, error = service_get_finalized_medical_record_detail(
+        record_id=record_id,
+        role='nurse',
+        hospital_id=request.session.get('hospital_id'),
+        staff_id=request.session.get('staff_id'),
+        version_number=version_number,
+    )
+    if error:
+        messages.error(request, error)
+        return redirect('nurse_medical_records_list')
+
+    return render(request, 'hospitals/medical_record_detail.html', {
+        'record_item': record,
+        'detail_bundle': detail_bundle,
+        'viewer_role': 'nurse',
+        'back_url_name': 'nurse_medical_records_list',
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@nurse_required
+def nurse_profile(request):
+    nurse, error = service_get_nurse_profile(request.session['staff_id'])
+    if error:
+        messages.error(request, error)
+        return redirect('nurse_dashboard')
+
+    return render(request, 'hospitals/nurse/nurse_profile.html', {
+        'nurse': nurse,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@nurse_required
+def nurse_update_personal(request):
+    if request.method != 'POST':
+        return redirect('nurse_profile')
+
+    nurse, error = service_update_nurse_personal(
+        staff_id         = request.session['staff_id'],
+        date_of_birth    = request.POST.get('date_of_birth', '').strip() or None,
+        gender           = request.POST.get('gender', '').strip() or None,
+        years_experience = request.POST.get('years_experience', '').strip() or None,
+        license_number   = request.POST.get('license_number', '').strip(),
+        home_address     = request.POST.get('home_address', '').strip(),
+        bio              = request.POST.get('bio', '').strip(),
+    )
+
+    if error:
+        messages.error(request, error)
+    else:
+        messages.success(request, 'Personal details updated successfully.')
+
+    return redirect('nurse_profile')
+
+
+@nurse_required
+def nurse_update_password(request):
+    if request.method != 'POST':
+        return redirect('nurse_profile')
+
+    success, error = service_update_nurse_password(
+        staff_id         = request.session['staff_id'],
+        current_password = request.POST.get('current_password', ''),
+        new_password     = request.POST.get('new_password', ''),
+        confirm_password = request.POST.get('confirm_new_password', ''),
+    )
+
+    if error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, 'Password updated successfully.')
+
+    return redirect('nurse_profile')
 
 @technician_required
 def technician_dashboard(request):
@@ -1260,4 +1724,92 @@ def view_record_history(request, record_id):
         'staff_hospital': request.session.get('staff_hospital'),
         'staff_role': request.session.get('staff_role'),
         'active_page': 'lab_reports' if request.session.get('staff_role') == 'doctor' else 'lab_queue',
+    })
+
+
+# --- Doctor Patient-Specific Records Pages -----------------------------------
+
+@doctor_required
+def doctor_patient_lab_reports(request, pk):
+    """
+    View lab reports for a specific patient.
+    Shows only that patient's lab reports and buttons to access reports from other hospitals.
+    """
+    from consentmanagement.models import ConsentRequest
+    from .models import Hospital
+    
+    # Get patient details
+    patient, gov_id_masked, _, _, _, patient_records, error = service_get_doctor_patient_detail(
+        pk=pk,
+        hospital_id=request.session['hospital_id']
+    )
+    
+    if error:
+        messages.error(request, error)
+        return redirect('doctor_patients_list')
+    
+    # Filter only lab records (records with lab_request)
+    lab_records = [r for r in patient_records if r.lab_request is not None]
+    
+    # Get all hospitals for consent button display
+    all_hospitals = Hospital.objects.exclude(id=request.session['hospital_id'])
+    
+    # Get existing consent requests for this patient and hospital
+    current_hospital_id = request.session['hospital_id']
+    consent_requests = ConsentRequest.objects.filter(
+        patient_id=str(pk),
+        requesting_hospital=str(current_hospital_id)
+    )
+    
+    return render(request, 'hospitals/doctor/doctor_patient_lab_reports.html', {
+        'patient': patient,
+        'gov_id_masked': gov_id_masked,
+        'lab_records': lab_records,
+        'all_hospitals': all_hospitals,
+        'consent_requests': consent_requests,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
+def doctor_patient_medical_records(request, pk):
+    """
+    View medical records for a specific patient.
+    Shows only that patient's medical records and buttons to access records from other hospitals.
+    """
+    from consentmanagement.models import ConsentRequest
+    from .models import Hospital
+    
+    # Get patient details
+    patient, gov_id_masked, _, _, _, patient_records, error = service_get_doctor_patient_detail(
+        pk=pk,
+        hospital_id=request.session['hospital_id']
+    )
+    
+    if error:
+        messages.error(request, error)
+        return redirect('doctor_patients_list')
+    
+    # Filter only medical records (records without lab_request)
+    medical_records = [r for r in patient_records if r.lab_request is None]
+    
+    # Get all hospitals for consent button display
+    all_hospitals = Hospital.objects.exclude(id=request.session['hospital_id'])
+    
+    # Get existing consent requests for this patient and hospital
+    current_hospital_id = request.session['hospital_id']
+    consent_requests = ConsentRequest.objects.filter(
+        patient_id=str(pk),
+        requesting_hospital=str(current_hospital_id)
+    )
+    
+    return render(request, 'hospitals/doctor/doctor_patient_medical_records.html', {
+        'patient': patient,
+        'gov_id_masked': gov_id_masked,
+        'medical_records': medical_records,
+        'all_hospitals': all_hospitals,
+        'consent_requests': consent_requests,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
     })
