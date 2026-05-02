@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MediChain | Medical Records</title>
+  <title>MediChain | Lab Reports</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
@@ -56,7 +56,7 @@
 </head>
 <body>
 
-{% include 'patient/partials/sidebar.html' with active_page='records' %}
+{% include 'patient/partials/sidebar.html' with active_page='lab_reports' %}
 
   <main class="main">
 
@@ -66,8 +66,8 @@
           <span></span><span></span><span></span>
         </button>
         <div class="page-title">
-          <h1>Medical Records</h1>
-          <span class="breadcrumb">Hospitals and version history (read-only)</span>
+          <h1>Lab Reports</h1>
+          <span class="breadcrumb">Hospitals and lab-report timeline (read-only)</span>
         </div>
       </div>
       <div class="topbar-right">
@@ -85,8 +85,8 @@
 
       <section class="records-card">
         <div class="records-head">
-          <div class="records-title">Hospitals In Your Record Timeline</div>
-          <div class="records-sub">Choose hospital and report type filters. `All` shows everything, while each hospital shows only its records.</div>
+          <div class="records-title">Hospitals In Your Lab Timeline</div>
+          <div class="records-sub">Choose hospital filter. `All` shows everything, while each hospital shows only its records.</div>
         </div>
         {% if hospital_record_groups %}
           <div class="filter-row" id="hospitalFilters">
@@ -95,13 +95,6 @@
             {% for group in hospital_record_groups %}
               <button type="button" class="filter-chip" data-hospital-filter="{{ group.hospital_id }}">{{ group.hospital_name }} ({{ group.total_requests }})</button>
             {% endfor %}
-          </div>
-
-          <div class="filter-row" id="reportTypeFilters">
-            <span class="filter-title">Report Type</span>
-            <button type="button" class="filter-chip active" data-type-filter="all">All</button>
-            <button type="button" class="filter-chip" data-type-filter="lab">Lab Reports</button>
-            <button type="button" class="filter-chip" data-type-filter="medical">Medical Reports</button>
           </div>
 
           {% for group in hospital_record_groups %}
@@ -139,7 +132,7 @@
             </div>
           </div>
           {% endfor %}
-          <div class="records-empty-filtered" id="emptyFilteredState">No records match the selected hospital/report filters.</div>
+          <div class="records-empty-filtered" id="emptyFilteredState">No records match the selected hospital filter.</div>
         {% else %}
           <div class="staff-empty" style="padding:20px;">
             <h3>No records yet</h3>
@@ -165,16 +158,14 @@
 
   (function initRecordFilters() {
     const hospitalButtons = Array.from(document.querySelectorAll('[data-hospital-filter]'));
-    const typeButtons = Array.from(document.querySelectorAll('[data-type-filter]'));
     const sections = Array.from(document.querySelectorAll('.hospital-section[data-hospital]'));
     const emptyState = document.getElementById('emptyFilteredState');
 
-    if (!hospitalButtons.length || !typeButtons.length || !sections.length) {
+    if (!hospitalButtons.length || !sections.length) {
       return;
     }
 
     let selectedHospital = 'all';
-    let selectedType = 'all';
 
     function applyFilters() {
       let anyVisible = false;
@@ -187,9 +178,7 @@
         let visibleRows = 0;
 
         rows.forEach(row => {
-          const rowType = row.getAttribute('data-report-type') || 'lab';
-          const matchesType = selectedType === 'all' || rowType === selectedType;
-          const showRow = matchesHospital && matchesType;
+          const showRow = matchesHospital;
           row.classList.toggle('hidden', !showRow);
           if (showRow) {
             visibleRows += 1;
@@ -209,14 +198,6 @@
       btn.addEventListener('click', () => {
         selectedHospital = btn.getAttribute('data-hospital-filter') || 'all';
         hospitalButtons.forEach(b => b.classList.toggle('active', b === btn));
-        applyFilters();
-      });
-    });
-
-    typeButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        selectedType = btn.getAttribute('data-type-filter') || 'all';
-        typeButtons.forEach(b => b.classList.toggle('active', b === btn));
         applyFilters();
       });
     });

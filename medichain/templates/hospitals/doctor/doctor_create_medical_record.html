@@ -1,0 +1,278 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Create Medical Record</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .record-shell { display: flex; flex-direction: column; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+    .panel-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+
+    .patient-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      flex-wrap: wrap;
+    }
+
+    .record-form { display: grid; grid-template-columns: 1fr; gap: 14px; }
+
+    .section-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-2);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .section-title { margin: 0; font-size: 14px; color: var(--text-primary); }
+    .section-sub { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+    .badge {
+      padding: 4px 8px;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .badge-doc { background: var(--a2-bg-subtle); border-color: var(--a2-border); color: var(--accent-2); }
+    .badge-nurse { background: var(--a1-bg); border-color: var(--a1-border); color: var(--accent); }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 900px) {
+      .field-grid { grid-template-columns: 1fr; }
+    }
+
+    .field-span-2 { grid-column: 1 / -1; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+
+    .record-form input,
+    .record-form select,
+    .record-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-2);
+      color: var(--text-primary);
+      font-size: 13px;
+    }
+    .record-form textarea { min-height: 88px; resize: vertical; }
+
+    .required::after { content: ' *'; color: #f97373; }
+
+    .nurse-list {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .nurse-chip {
+      border: 1px solid var(--a1-border);
+      background: var(--a1-bg);
+      color: var(--accent);
+      border-radius: 14px;
+      padding: 4px 8px;
+    }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      border: none;
+      padding: 9px 14px;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-save { background: var(--accent-2); }
+    .btn-forward { background: var(--accent); }
+    .btn-approve { background: var(--accent-3); }
+
+    .btn-link {
+      text-decoration: none;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 9px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      background: var(--surface);
+    }
+
+    .note {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--a2-bg-subtle);
+      border: 1px dashed var(--a2-border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='patients' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Create Medical Record</h1>
+          <span class="breadcrumb">
+            <a href="/staff/doctor/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp;
+            <a href="/staff/doctor/patients/" class="breadcrumb-link">Patients</a>
+            &nbsp;/&nbsp;
+            <a href="{% url 'doctor_patient_detail' patient.id %}" class="breadcrumb-link">{{ patient.full_name }}</a>
+            &nbsp;/&nbsp; Create Medical Record
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="dashboard-content record-shell">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Minimal Doctor Workflow</div>
+          <div class="panel-sub">Doctor enters only critical points and uploads handwritten prescription. Nurse completes detailed documentation.</div>
+        </div>
+        <div class="panel-body">
+          {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+
+          <div class="patient-strip">
+            <span><strong>Patient:</strong> {{ patient.full_name }}</span>
+            <span><strong>Gov ID:</strong> {{ gov_id_masked }}</span>
+          </div>
+
+          <form method="POST" enctype="multipart/form-data" class="record-form" id="recordForm">
+            {% csrf_token %}
+
+            <div class="section-card">
+              <div class="section-head">
+                <h3 class="section-title">Doctor Quick Entry</h3>
+                <span class="badge badge-doc">Doctor required</span>
+              </div>
+              <p class="section-sub">Only 3 typed fields + handwritten upload are mandatory.</p>
+              <div class="field-grid">
+                <div class="field">
+                  <label for="record_topic" class="required">Record Topic</label>
+                  <input id="record_topic" name="record_topic" type="text" required value="{{ form_values.record_topic }}" placeholder="e.g., OPD Follow-up / CKD Review">
+                </div>
+                <div class="field">
+                  <label for="primary_diagnosis" class="required">Primary Diagnosis</label>
+                  <input id="primary_diagnosis" name="primary_diagnosis" type="text" required value="{{ form_values.primary_diagnosis }}" placeholder="e.g., CKD Stage 2">
+                </div>
+                <div class="field field-span-2">
+                  <label for="key_instruction" class="required">Key Clinical Instruction</label>
+                  <textarea id="key_instruction" name="key_instruction" required placeholder="Main treatment/critical instruction">{{ form_values.key_instruction }}</textarea>
+                </div>
+                <div class="field field-span-2">
+                  <label for="doctor_note">Optional Doctor Note</label>
+                  <textarea id="doctor_note" name="doctor_note" placeholder="Short optional note">{{ form_values.doctor_note }}</textarea>
+                </div>
+                <div class="field field-span-2">
+                  <label for="file_handwritten" class="required">Upload Handwritten Prescription/Note</label>
+                  <input id="file_handwritten" name="file_handwritten" type="file" accept=".jpg,.jpeg,.png,.pdf">
+                </div>
+              </div>
+            </div>
+
+            <div class="section-card">
+              <div class="section-head">
+                <h3 class="section-title">Forward to Nurse</h3>
+                <span class="badge badge-nurse">Handoff</span>
+              </div>
+              <p class="section-sub">Forward to hospital-wide nurse queue. No nurse selection needed at this step.</p>
+              {% if assigned_nurses %}
+              <div class="nurse-list">
+                {% for a in assigned_nurses %}
+                <span class="nurse-chip">{{ a.staff.full_name }}</span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="note">No nurse is specifically assigned right now. Forward still works and will go to all nurses in this hospital.</div>
+              {% endif %}
+            </div>
+
+            <div class="btn-row">
+              <button type="submit" class="btn btn-forward">Forward to Nurse</button>
+              <a class="btn-link" href="{% url 'doctor_patient_detail' patient.id %}">Back to Patient</a>
+            </div>
+          </form>
+
+          <div class="note">
+            This is workflow preview mode. Doctor does not need to wait for nurse completion before attending the next patient.
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      var sidebar = document.querySelector('.sidebar');
+      if (sidebar) sidebar.classList.toggle('open');
+    });
+
+    function updateTime() {
+      var el = document.getElementById('topbarTime');
+      if (!el) return;
+      var now = new Date();
+      el.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+</body>
+</html>

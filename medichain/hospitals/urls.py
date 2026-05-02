@@ -55,15 +55,31 @@ urlpatterns = [
     path('staff/doctor/patients/add/',               views.doctor_add_patient,      name='doctor_add_patient'),
     path('staff/doctor/lab-reports/',                views.doctor_lab_reports_list, name='doctor_lab_reports_list'),
     path('staff/doctor/medical-records/',            views.doctor_medical_records_list, name='doctor_medical_records_list'),
+    path('staff/doctor/medical-records/<uuid:record_id>/', views.doctor_medical_record_detail, name='doctor_medical_record_detail'),
+    path('staff/doctor/approval-queue/',             views.doctor_approval_queue, name='doctor_approval_queue'),
+    path('staff/doctor/approval-queue/<uuid:item_id>/', views.doctor_approval_review, name='doctor_approval_review'),
     path('staff/doctor/records/',                    views.doctor_records_list,     name='doctor_records_list'),
 
      # ── Doctor portal — patients ───────────────────────────────────────────────
     path('staff/doctor/patients/',views.doctor_patients_list, name='doctor_patients_list'),
     path('staff/doctor/patients/<uuid:pk>/', views.doctor_patient_detail, name='doctor_patient_detail'),
+    path('staff/doctor/patients/<uuid:pk>/lab-reports/', views.doctor_patient_lab_reports, name='doctor_patient_lab_reports'),
+    path('staff/doctor/patients/<uuid:pk>/medical-records/', views.doctor_patient_medical_records, name='doctor_patient_medical_records'),
     path('staff/doctor/patients/<uuid:pk>/assign-nurse/', views.doctor_assign_nurse, name='doctor_assign_nurse'),
+    path('staff/doctor/patients/<uuid:pk>/create-medical-record/', views.doctor_create_medical_record_page, name='doctor_create_medical_record_page'),
     path('staff/doctor/patients/<uuid:pk>/send-to-lab/', views.doctor_send_to_lab, name='doctor_send_to_lab'),
     path('staff/doctor/records/<uuid:record_id>/reassess/', views.doctor_reassess_record, name='doctor_reassess_record'),
     path('staff/doctor/patients/<uuid:pk>/remove-assignment/<uuid:staff_id>/',views.doctor_remove_assignment,name='doctor_remove_assignment'),
+
+    # ── Nurse portal ─────────────────────────────────────────────────────────────
+    path('staff/nurse/dashboard/',                      views.nurse_dashboard,          name='nurse_dashboard'),
+    path('staff/nurse/queue/',                          views.nurse_queue,              name='nurse_queue'),
+    path('staff/nurse/queue/<uuid:item_id>/',           views.nurse_queue_review,       name='nurse_queue_review'),
+    path('staff/nurse/records/',                        views.nurse_medical_records_list, name='nurse_medical_records_list'),
+    path('staff/nurse/records/<uuid:record_id>/',       views.nurse_medical_record_detail, name='nurse_medical_record_detail'),
+    path('staff/nurse/profile/',                        views.nurse_profile,            name='nurse_profile'),
+    path('staff/nurse/profile/update-personal/',        views.nurse_update_personal,    name='nurse_update_personal'),
+    path('staff/nurse/profile/update-password/',        views.nurse_update_password,    name='nurse_update_password'),
 
     # ── Technician portal ─────────────────────────────────────────────────────────
     path('staff/technician/dashboard/',                   views.technician_dashboard,        name='technician_dashboard'),

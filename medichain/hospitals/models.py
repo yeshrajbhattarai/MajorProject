@@ -287,3 +287,58 @@ class MedicalRecordMeta(models.Model):
 
     def __str__(self):
         return f"Record {self.record_id} v{self.version}"
+
+
+class NurseQueueItem(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_COMPLETED = 'completed'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_IN_PROGRESS, 'In Progress'),
+        (STATUS_COMPLETED, 'Completed'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name='nurse_queue_items')
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='nurse_queue_items')
+    doctor = models.ForeignKey(HospitalUser, on_delete=models.CASCADE, related_name='nurse_queue_items_created')
+    title = models.CharField(max_length=255)
+    primary_diagnosis = models.CharField(max_length=255)
+    key_instruction = models.TextField()
+    doctor_note = models.TextField(null=True, blank=True)
+    handwritten_file = models.FileField(upload_to='nurse_queue/', null=True, blank=True)
+    blood_pressure = models.CharField(max_length=32, null=True, blank=True)
+    pulse_rate = models.PositiveIntegerField(null=True, blank=True)
+    temperature_c = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    spo2_percent = models.PositiveSmallIntegerField(null=True, blank=True)
+    random_blood_sugar = models.CharField(max_length=32, null=True, blank=True)
+    nurse_tests_performed = models.TextField(null=True, blank=True)
+    nurse_observation = models.TextField(null=True, blank=True)
+    treatment_given = models.TextField(null=True, blank=True)
+    medications_administered = models.TextField(null=True, blank=True)
+    follow_up_notes = models.TextField(null=True, blank=True)
+    doctor_medical_record_file = models.FileField(upload_to='doctor_final_records/', null=True, blank=True)
+    next_appointment_date = models.DateField(null=True, blank=True)
+    closing_statement = models.TextField(null=True, blank=True)
+    nurse_discharge_statement = models.TextField(null=True, blank=True)
+    doctor_final_notes = models.TextField(null=True, blank=True)
+    doctor_finalized = models.BooleanField(default=False)
+    finalized_record_id = models.UUIDField(null=True, blank=True, unique=True)
+    finalized_record_hash = models.CharField(max_length=64, null=True, blank=True)
+    finalized_record_payload = models.JSONField(default=dict, blank=True)
+    doctor_finalized_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='doctor_finalized_queue_items')
+    doctor_finalized_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    picked_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='nurse_queue_items_picked')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'nurse_queue_items'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} - {self.patient.full_name}"

@@ -222,83 +222,45 @@
       resize: vertical;
     }
 
-    /* Records access */
+    /* Reports navigation */
     .records-placeholder {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 20px;
-    }
-    .records-head {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
+      flex-direction: column;
+      gap: 12px;
     }
     .records-head h3 {
       font-size: 15px;
       color: var(--text-primary);
       margin: 0;
     }
-    .records-count {
-      font-size: 11px;
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 4px 10px;
-    }
-    .records-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    .record-row {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items: center;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 10px 12px;
-      background: var(--bg-2);
-    }
-    .record-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 12px;
+    .records-sub {
       font-size: 12px;
       color: var(--text-muted);
+      margin-top: 5px;
     }
-    .record-title {
-      color: var(--text-primary);
-      font-weight: 600;
-      margin-bottom: 4px;
-      font-size: 13px;
-    }
-    .record-actions {
+    .records-nav-actions {
       display: flex;
-      gap: 8px;
-      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
     }
-    .record-btn {
+    .records-nav-btn {
       font-size: 12px;
       text-decoration: none;
       color: var(--text-primary);
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
-      padding: 6px 10px;
+      padding: 8px 12px;
       background: var(--surface);
     }
-    .record-btn-primary {
+    .records-nav-btn-primary {
       border-color: var(--a3-border);
       background: var(--a3-bg-subtle);
       color: var(--accent-3);
-    }
-    .records-empty {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-      padding: 14px 6px;
     }
   </style>
 </head>
@@ -425,35 +387,16 @@
             </div>
           </div>
 
-          <!-- Records access -->
+          <!-- Reports access -->
           <div class="records-placeholder">
             <div class="records-head">
-              <h3>Medical Records</h3>
-              <span class="records-count">{{ patient_records|length }} records</span>
+              <h3>Patient Reports</h3>
+              <div class="records-sub">Open dedicated pages to view this patient's lab reports and medical records.</div>
             </div>
-
-            {% if patient_records %}
-            <div class="records-list">
-              {% for item in patient_records %}
-              <div class="record-row">
-                <div>
-                  <div class="record-title">{{ item.lab_request.lab.name }} · Version {{ item.version }}</div>
-                  <div class="record-meta">
-                    <span>Doctor: {{ item.lab_request.requested_by.full_name }}</span>
-                    <span>Updated: {{ item.updated_at|date:"d M Y, h:i A" }}</span>
-                    <span>ID: {{ item.record_id }}</span>
-                  </div>
-                </div>
-                <div class="record-actions">
-                  <a href="/staff/records/{{ item.record_id }}/" class="record-btn record-btn-primary">View</a>
-                  <a href="/staff/records/{{ item.record_id }}/history/" class="record-btn">History</a>
-                </div>
-              </div>
-              {% endfor %}
+            <div class="records-nav-actions">
+              <a href="{% url 'doctor_patient_lab_reports' patient.id %}" class="records-nav-btn records-nav-btn-primary">Open Lab Reports</a>
+              <a href="{% url 'doctor_patient_medical_records' patient.id %}" class="records-nav-btn">Open Medical Records</a>
             </div>
-            {% else %}
-            <div class="records-empty">No records yet for this patient.</div>
-            {% endif %}
           </div>
 
         </div>
@@ -537,6 +480,25 @@
 
               {% endif %}
 
+            </div>
+          </div>
+
+          <!-- Create Medical Record -->
+          <div class="assign-card">
+            <div class="assign-card-head">
+              <div class="info-card-head-icon" style="background:var(--a2-bg);color:var(--accent-2);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="12" y1="18" x2="12" y2="12"/>
+                  <line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <span class="assign-card-title">Create Medical Record</span>
+            </div>
+            <div class="assign-card-body">
+              <p class="no-assign-text">Create a new medical record entry for this patient before sending to lab.</p>
+              <a href="{% url 'doctor_create_medical_record_page' patient.id %}" class="records-nav-btn records-nav-btn-primary" style="width:max-content;">Create Record</a>
             </div>
           </div>
 

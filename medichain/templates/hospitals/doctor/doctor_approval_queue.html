@@ -1,0 +1,167 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Approval Queue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .queue-shell { display: flex; flex-direction: column; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+    .panel-body { padding: 18px; }
+    .empty-note {
+      font-size: 13px;
+      color: var(--text-muted);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-3);
+      padding: 12px;
+      line-height: 1.5;
+    }
+    .queue-table-wrap { overflow-x: auto; }
+    .queue-table { width: 100%; border-collapse: collapse; }
+    .queue-table th,
+    .queue-table td {
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .queue-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      background: var(--bg-3);
+    }
+    .queue-table tbody tr:hover { background: var(--a2-bg-subtle); }
+    .queue-name { font-weight: 600; color: var(--text-primary); }
+    .queue-sub { display: block; margin-top: 3px; font-size: 12px; color: var(--text-muted); }
+    .queue-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--a2-border);
+      background: var(--a2-bg-subtle);
+      color: var(--accent-2);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .queue-action:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='approval_queue' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Approval Queue</h1>
+          <span class="breadcrumb">
+            <a href="/staff/doctor/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; Approval Queue
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="dashboard-content queue-shell">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Doctor Final Review Queue</div>
+          <div class="panel-sub">Nurse-completed records will appear here for doctor confirmation.</div>
+        </div>
+        <div class="panel-body">
+          {% if queue_items %}
+            <div class="queue-table-wrap">
+              <table class="queue-table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Doctor</th>
+                    <th>Nurse</th>
+                    <th>Topic</th>
+                    <th>Completed</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in queue_items %}
+                    <tr>
+                      <td>
+                        <span class="queue-name">{{ item.patient.full_name }}</span>
+                        <span class="queue-sub">{{ item.patient.phone|default:'No phone' }}</span>
+                      </td>
+                      <td>
+                        <span class="queue-name">{{ item.doctor.full_name }}</span>
+                        <span class="queue-sub">{{ item.doctor.employee_id|default:'Doctor' }}</span>
+                      </td>
+                      <td>
+                        <span class="queue-name">{{ item.picked_by.full_name|default:'-' }}</span>
+                        <span class="queue-sub">Nurse</span>
+                      </td>
+                      <td>
+                        <span class="queue-name">{{ item.title }}</span>
+                        <span class="queue-sub">{{ item.primary_diagnosis }}</span>
+                      </td>
+                      <td>
+                        <span class="queue-name">{{ item.completed_at|date:'d M Y' }}</span>
+                        <span class="queue-sub">{{ item.completed_at|date:'h:i A' }}</span>
+                      </td>
+                      <td>
+                        <a href="{% url 'doctor_approval_review' item.id %}" class="queue-action">Final Check</a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-note">
+              No records in approval queue yet. Once nurse completes required treatment summary and patient condition details, items will appear here for final doctor review.
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      var sidebar = document.querySelector('.sidebar');
+      if (sidebar) sidebar.classList.toggle('open');
+    });
+
+    function updateTime() {
+      var el = document.getElementById('topbarTime');
+      if (!el) return;
+      var now = new Date();
+      el.textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+</body>
+</html>

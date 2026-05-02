@@ -17,7 +17,7 @@ class MediChainJWTAuthentication(JWTAuthentication):
             return None
 
         user, token = result
-
+            # no-op debug logging removed
         request.user_payload = {
             'user_type':      token.get('user_type'),
             'hospital_id':    token.get('hospital_id'),

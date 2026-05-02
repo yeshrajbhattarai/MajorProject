@@ -1,0 +1,511 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Medical Record Detail</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .report-hero {
+      background:
+        radial-gradient(120% 160% at 0% 0%, rgba(37, 99, 235, 0.22) 0%, rgba(37, 99, 235, 0.00) 45%),
+        linear-gradient(140deg, rgba(15, 23, 42, 0.94), rgba(14, 27, 53, 0.92));
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      border-radius: 22px;
+      padding: 26px 26px 22px;
+      box-shadow: 0 24px 44px rgba(2, 6, 23, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      position: relative;
+      overflow: hidden;
+    }
+    .report-hero::after {
+      content: '';
+      position: absolute;
+      right: -28px;
+      top: -28px;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.22), rgba(16, 185, 129, 0));
+      pointer-events: none;
+    }
+    .report-hero-top { display: flex; align-items: flex-start; justify-content: flex-start; gap: 16px; flex-wrap: wrap; }
+    .report-hero-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 30px;
+      line-height: 1.08;
+      color: #f8fbff;
+      margin: 0;
+      letter-spacing: 0.01em;
+    }
+    .report-hero-sub { margin-top: 10px; color: rgba(203, 213, 225, 0.92); font-size: 14px; max-width: 72ch; }
+    .hero-diagnosis-wrap { margin-top: 16px; }
+    .hero-diagnosis-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(186, 230, 253, 0.88);
+      font-weight: 600;
+    }
+    .hero-diagnosis-value {
+      margin-top: 7px;
+      font-family: 'Syne', sans-serif;
+      font-size: 40px;
+      line-height: 1.08;
+      color: #ffffff;
+      text-wrap: balance;
+      max-width: 18ch;
+    }
+    .report-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.42);
+      color: #e2e8f0;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .detail-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 16px; }
+    .subcards-grid {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(0, 1fr));
+      gap: 16px;
+      margin-top: 18px;
+      align-items: stretch;
+    }
+    .detail-card {
+      background: linear-gradient(180deg, rgba(19, 28, 54, 0.96), rgba(17, 26, 50, 0.94));
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 16px 30px rgba(2, 6, 23, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+    .detail-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(96, 165, 250, 0.42);
+      box-shadow: 0 20px 34px rgba(2, 6, 23, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .detail-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.11), rgba(59, 130, 246, 0.02));
+    }
+    .detail-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      color: #f8fafc;
+      letter-spacing: 0.01em;
+    }
+    .detail-sub {
+      font-size: 12px;
+      color: rgba(203, 213, 225, 0.85);
+      margin-top: 5px;
+      line-height: 1.5;
+    }
+    .detail-body { padding: 18px; }
+    .kv {
+      display: grid;
+      grid-template-columns: 165px 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+      align-items: start;
+    }
+    .kv:last-child { margin-bottom: 0; }
+    .kv-label {
+      color: rgba(148, 163, 184, 0.96);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      padding-top: 4px;
+      font-weight: 600;
+    }
+    .kv-value {
+      color: #e2e8f0;
+      font-size: 14px;
+      line-height: 1.66;
+      overflow-wrap: anywhere;
+      font-weight: 450;
+    }
+    .kv-value-strong { font-weight: 700; color: #ffffff; }
+    .section-highlight {
+      margin-top: 14px;
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: linear-gradient(160deg, rgba(30, 64, 175, 0.24), rgba(30, 64, 175, 0.08));
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      position: relative;
+    }
+    .section-highlight::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 10px;
+      bottom: 10px;
+      width: 3px;
+      border-radius: 3px;
+      background: linear-gradient(180deg, #60a5fa, #38bdf8);
+    }
+    .section-highlight-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(186, 230, 253, 0.9);
+      margin-bottom: 7px;
+      padding-left: 10px;
+      font-weight: 600;
+    }
+    .section-highlight-text {
+      color: #f1f5f9;
+      font-size: 14px;
+      line-height: 1.68;
+      padding-left: 10px;
+    }
+    .roadmap-list { display: flex; flex-direction: column; gap: 12px; padding: 18px; }
+    .roadmap-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: linear-gradient(180deg, rgba(30, 41, 59, 0.7), rgba(30, 41, 59, 0.45));
+    }
+    .roadmap-meta {
+      font-size: 12px;
+      color: rgba(203, 213, 225, 0.84);
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .roadmap-title {
+      font-size: 13px;
+      color: #f8fafc;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .selected-badge {
+      font-size: 11px;
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      border-radius: 20px;
+      padding: 4px 9px;
+      background: rgba(30, 64, 175, 0.22);
+      color: #bfdbfe;
+    }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .report-section { margin-top: 18px; }
+    .card-span-2 { grid-column: span 5; }
+    .subcards-grid > .detail-card { grid-column: span 5; }
+    .subcards-grid > .detail-card:nth-child(3),
+    .subcards-grid > .detail-card:nth-child(5) { grid-column: span 6; }
+    .subcards-grid > .detail-card:nth-child(4),
+    .subcards-grid > .detail-card:nth-child(6) { grid-column: span 4; }
+    .attachments-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .attachment-item {
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      background: rgba(15, 23, 42, 0.34);
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 138px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .attachment-preview {
+      width: 138px;
+      height: 106px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(15, 23, 42, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(148, 163, 184, 0.9);
+      font-size: 11px;
+      text-align: center;
+      padding: 8px;
+    }
+    .attachment-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .attachment-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 0;
+    }
+    .attachment-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .attachment-sub {
+      font-size: 12px;
+      color: rgba(203, 213, 225, 0.9);
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+    .attachment-link {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(59, 130, 246, 0.45);
+      background: rgba(30, 64, 175, 0.2);
+      color: #bfdbfe;
+      border-radius: 8px;
+      padding: 6px 10px;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .no-attachment {
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+      border-radius: 12px;
+      padding: 12px;
+      color: rgba(203, 213, 225, 0.9);
+      font-size: 13px;
+      background: rgba(15, 23, 42, 0.28);
+    }
+    @media (max-width: 980px) {
+      .detail-grid { grid-template-columns: 1fr; }
+      .kv { grid-template-columns: 1fr; gap: 4px; }
+      .report-hero-title { font-size: 22px; }
+      .hero-diagnosis-value { font-size: 28px; }
+      .roadmap-item { grid-template-columns: 1fr; }
+      .subcards-grid { grid-template-columns: 1fr; }
+      .card-span-2 { grid-column: span 1; }
+      .subcards-grid > .detail-card,
+      .subcards-grid > .detail-card:nth-child(3),
+      .subcards-grid > .detail-card:nth-child(4),
+      .subcards-grid > .detail-card:nth-child(5),
+      .subcards-grid > .detail-card:nth-child(6) { grid-column: span 1; }
+      .attachment-item { grid-template-columns: 1fr; }
+      .attachment-preview { width: 100%; height: 170px; }
+    }
+  </style>
+</head>
+<body>
+  {% if viewer_role == 'doctor' %}
+    {% include 'hospitals/partials/doctor_sidebar.html' with active_page='medical_records' %}
+  {% else %}
+    {% include 'hospitals/partials/nurse_sidebar.html' with active_page='records' %}
+  {% endif %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Medical Record Detail</h1>
+          <span class="breadcrumb">Version {{ detail_bundle.record.version }} · Finalized Snapshot</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-3);box-shadow:0 0 12px var(--a3-glow);">{{ staff_name|slice:':1'|upper }}</div>
+      </div>
+    </header>
+
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <section class="report-hero">
+        <div class="report-hero-top">
+          <div>
+            <h2 class="report-hero-title">Medical record for {{ record_item.patient.full_name }}</h2>
+            <div class="hero-diagnosis-wrap">
+              <div class="hero-diagnosis-label">Primary Diagnosis</div>
+              <div class="hero-diagnosis-value">{{ record_item.primary_diagnosis|default:'Diagnosis not recorded' }}</div>
+            </div>
+            <div class="report-meta">
+              <span class="meta-pill">Reason: {{ record_item.title|default:'-' }}</span>
+              <span class="meta-pill">{{ record_item.doctor_finalized_at|date:'d M Y, h:i A' }}</span>
+              <span class="meta-pill">{{ detail_bundle.patient_identity_display|default:'Government ID not available' }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="subcards-grid report-section">
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Case Summary</div>
+            <div class="detail-sub">The core problem at a glance.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Reason</div><div class="kv-value">{{ record_item.title|default:record_item.key_instruction|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Primary Diagnosis</div><div class="kv-value kv-value-strong">{{ record_item.primary_diagnosis|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Government ID</div><div class="kv-value">{{ detail_bundle.patient_identity_display|default:'Not available' }}</div></div>
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Clinical Notes</div>
+            <div class="detail-sub">Provider observations and final note.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Nurse Observation</div><div class="kv-value">{{ record_item.nurse_observation|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Doctor Notes</div><div class="kv-value">{{ record_item.doctor_final_notes|default:'-' }}</div></div>
+          </div>
+        </section>
+
+        <section class="detail-card card-span-2">
+          <div class="detail-head">
+            <div class="detail-title">Treatment Given</div>
+            <div class="detail-sub">Instructions, treatment, and medications.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Doctor Instruction</div><div class="kv-value">{{ record_item.key_instruction|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Treatment Given</div><div class="kv-value">{{ record_item.treatment_given|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Medications</div><div class="kv-value">{{ record_item.medications_administered|default:'-' }}</div></div>
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Doctor Attachments</div>
+            <div class="detail-sub">Uploaded files and note images from the doctor.</div>
+          </div>
+          <div class="detail-body">
+            {% if record_item.handwritten_file or record_item.doctor_medical_record_file %}
+              <div class="attachments-list">
+                {% if record_item.handwritten_file %}
+                  <div class="attachment-item">
+                    <div class="attachment-preview">
+                      <img src="{{ record_item.handwritten_file.url }}" alt="Doctor handwritten note" loading="lazy" onerror="this.style.display='none'; this.parentElement.textContent='Preview not available for this file type';">
+                    </div>
+                    <div class="attachment-meta">
+                      <div class="attachment-title">Handwritten Note</div>
+                      <div class="attachment-sub">Original doctor-uploaded note.</div>
+                      <a class="attachment-link" href="{{ record_item.handwritten_file.url }}" target="_blank" rel="noopener">Open File</a>
+                    </div>
+                  </div>
+                {% endif %}
+                {% if record_item.doctor_medical_record_file %}
+                  <div class="attachment-item">
+                    <div class="attachment-preview">
+                      <img src="{{ record_item.doctor_medical_record_file.url }}" alt="Doctor uploaded medical record" loading="lazy" onerror="this.style.display='none'; this.parentElement.textContent='Preview not available for this file type';">
+                    </div>
+                    <div class="attachment-meta">
+                      <div class="attachment-title">Doctor Final Record File</div>
+                      <div class="attachment-sub">Additional file attached by doctor.</div>
+                      <a class="attachment-link" href="{{ record_item.doctor_medical_record_file.url }}" target="_blank" rel="noopener">Open File</a>
+                    </div>
+                  </div>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="no-attachment">No doctor-uploaded files were found for this finalized record.</div>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="detail-card card-span-2">
+          <div class="detail-head">
+            <div class="detail-title">Vitals And Follow-Up</div>
+            <div class="detail-sub">Vitals at that time and what happens next.</div>
+          </div>
+          <div class="detail-body">
+            {% if record_item.blood_pressure %}<div class="kv"><div class="kv-label">Blood Pressure</div><div class="kv-value">{{ record_item.blood_pressure }}</div></div>{% endif %}
+            {% if record_item.pulse_rate %}<div class="kv"><div class="kv-label">Pulse Rate</div><div class="kv-value">{{ record_item.pulse_rate }} bpm</div></div>{% endif %}
+            {% if record_item.temperature_c %}<div class="kv"><div class="kv-label">Temperature</div><div class="kv-value">{{ record_item.temperature_c }} C</div></div>{% endif %}
+            {% if record_item.spo2_percent %}<div class="kv"><div class="kv-label">SpO2</div><div class="kv-value">{{ record_item.spo2_percent }}%</div></div>{% endif %}
+            {% if record_item.random_blood_sugar %}<div class="kv"><div class="kv-label">Random Blood Sugar</div><div class="kv-value">{{ record_item.random_blood_sugar }}</div></div>{% endif %}
+            <div class="kv"><div class="kv-label">Next Appointment</div><div class="kv-value">{{ record_item.next_appointment_date|date:'d M Y'|default:'Not scheduled' }}</div></div>
+            {% if record_item.follow_up_notes %}<div class="kv"><div class="kv-label">Follow Up Notes</div><div class="kv-value">{{ record_item.follow_up_notes }}</div></div>{% endif %}
+            {% if record_item.closing_statement %}<div class="kv"><div class="kv-label">Closing Statement</div><div class="kv-value">{{ record_item.closing_statement }}</div></div>{% endif %}
+            {% if record_item.nurse_discharge_statement %}<div class="kv"><div class="kv-label">Nurse Discharge</div><div class="kv-value">{{ record_item.nurse_discharge_statement }}</div></div>{% endif %}
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Care Team</div>
+            <div class="detail-sub">Who handled this case.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Patient</div><div class="kv-value">{{ record_item.patient.full_name }}</div></div>
+            <div class="kv"><div class="kv-label">Doctor</div><div class="kv-value">{{ record_item.doctor.full_name }}{% if record_item.doctor.employee_id %} ({{ record_item.doctor.employee_id }}){% endif %}</div></div>
+            <div class="kv"><div class="kv-label">Nurse</div><div class="kv-value">{{ record_item.picked_by.full_name|default:'-' }}{% if record_item.picked_by and record_item.picked_by.employee_id %} ({{ record_item.picked_by.employee_id }}){% endif %}</div></div>
+            <div class="kv"><div class="kv-label">Finalized By</div><div class="kv-value">{{ record_item.doctor_finalized_by.full_name|default:record_item.doctor.full_name }}{% if record_item.doctor_finalized_by and record_item.doctor_finalized_by.employee_id %} ({{ record_item.doctor_finalized_by.employee_id }}){% endif %}</div></div>
+            <div class="kv"><div class="kv-label">Finalized At</div><div class="kv-value">{{ record_item.doctor_finalized_at|date:'d M Y, h:i A'|default:'-' }}</div></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="detail-card">
+        <div class="detail-head">
+          <div class="detail-title">Timeline</div>
+          <div class="detail-sub">This record is finalized, so the timeline has a single approved version.</div>
+        </div>
+        <div class="roadmap-list">
+          {% for step in detail_bundle.timeline %}
+          <div class="roadmap-item">
+            <span class="status-badge status-active">v{{ step.version_number }}</span>
+            <div>
+              <div class="roadmap-title">{{ step.event_type|title }} by {{ step.changed_by_name }}</div>
+              <div class="roadmap-meta">
+                <span>{{ step.changed_at|date:'d M Y, h:i A'|default:'-' }}</span>
+                <span>Reason: {{ step.change_reason }}</span>
+              </div>
+            </div>
+            <div>
+              <span class="selected-badge">Viewing</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <div class="actions">
+        <a class="tbl-btn" href="{% url back_url_name %}">Back To Medical Records</a>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      const el = document.getElementById('topbarTime');
+      if (el) {
+        el.textContent = new Date().toLocaleDateString('en-IN', {
+          hour: '2-digit', minute: '2-digit', hour12: true,
+          weekday: 'short', month: 'short', day: 'numeric'
+        });
+      }
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

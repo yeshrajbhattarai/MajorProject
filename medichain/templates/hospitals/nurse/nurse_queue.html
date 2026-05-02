@@ -1,0 +1,238 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Nurse Queue</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <style>
+    .queue-page {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .queue-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .queue-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--surface), var(--a1-bg-subtle));
+    }
+    .queue-card-head h2 {
+      margin: 0;
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      color: var(--text-primary);
+    }
+    .queue-card-head p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .queue-table-wrap { overflow-x: auto; }
+    .queue-table { width: 100%; border-collapse: collapse; }
+    .queue-table th,
+    .queue-table td {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .queue-table th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      background: var(--bg-3);
+    }
+    .queue-table tbody tr:hover { background: var(--a1-bg-subtle); }
+    .queue-name { font-weight: 600; color: var(--text-primary); }
+    .queue-subtext {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .queue-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .queue-status.pending { background: var(--a5-bg); color: var(--warning); }
+    .queue-status.in_progress { background: var(--a1-bg); color: var(--accent); }
+    .queue-status.completed { background: var(--a3-bg); color: var(--accent-3); }
+    .queue-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg-3);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .queue-action:hover {
+      border-color: var(--a1-border);
+      background: var(--a1-hover-bg);
+    }
+    .empty-state {
+      padding: 42px 24px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state svg {
+      width: 40px;
+      height: 40px;
+      margin-bottom: 14px;
+      color: var(--accent);
+    }
+    .empty-state h3 {
+      margin: 0 0 6px;
+      font-family: 'Syne', sans-serif;
+      color: var(--text-primary);
+    }
+  </style>
+</head>
+<body>
+
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='queue' %}
+
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="page-title">
+          <h1>Nurse Queue</h1>
+          <span class="breadcrumb">
+            <a href="/staff/nurse/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; Queue
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent);box-shadow:0 0 12px var(--a1-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="queue-page">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <section class="queue-card">
+        <div class="queue-card-head">
+          <div>
+            <h2>Pending Nurse Queue</h2>
+            <p>Records forwarded by doctors appear here for nursing follow-up.</p>
+          </div>
+        </div>
+
+        {% if queue_items %}
+          <div class="queue-table-wrap">
+            <table class="queue-table">
+              <thead>
+                <tr>
+                  <th>Patient</th>
+                  <th>Doctor</th>
+                  <th>Title</th>
+                  <th>Instruction</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in queue_items %}
+                  <tr>
+                    <td>
+                      <span class="queue-name">{{ item.patient.full_name }}</span>
+                      <span class="queue-subtext">{{ item.patient.phone|default:'No phone' }}</span>
+                    </td>
+                    <td>
+                      <span class="queue-name">{{ item.doctor.full_name }}</span>
+                      <span class="queue-subtext">{{ item.doctor.employee_id }}</span>
+                    </td>
+                    <td>
+                      <span class="queue-name">{{ item.title }}</span>
+                      <span class="queue-subtext">{{ item.primary_diagnosis }}</span>
+                    </td>
+                    <td>
+                      <span class="queue-name">{{ item.key_instruction|truncatechars:48 }}</span>
+                      <span class="queue-subtext">{{ item.created_at|date:'d M Y, h:i A' }}</span>
+                    </td>
+                    <td>
+                      <span class="queue-status {{ item.status }}">{{ item.get_status_display }}</span>
+                    </td>
+                    <td>
+                      <a href="{% url 'nurse_queue_review' item.id %}" class="queue-action">Review</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 12h8M12 8v8"/>
+            </svg>
+            <h3>No queue items yet</h3>
+            <p>Assigned records will show up here once a doctor forwards them to nursing.</p>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      var sidebar = document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      var el = document.getElementById('topbarTime');
+      if (!el) return;
+      el.textContent = new Date().toLocaleDateString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true,
+        weekday: 'short', month: 'short', day: 'numeric'
+      });
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

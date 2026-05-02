@@ -1,0 +1,268 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Nurse Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <style>
+    .review-page { display: flex; flex-direction: column; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .panel-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+
+    .grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    @media (max-width: 860px) { .grid-two { grid-template-columns: 1fr; } }
+
+    .field {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      background: var(--bg-3);
+    }
+    .field-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+    .field-value { margin-top: 5px; color: var(--text-primary); font-size: 13px; }
+
+    .nurse-form { display: flex; flex-direction: column; gap: 10px; }
+    .nurse-form label { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
+    .nurse-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-2);
+      color: var(--text-primary);
+      padding: 10px 12px;
+      resize: vertical;
+      min-height: 88px;
+      font-size: 13px;
+    }
+    .nurse-form input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-2);
+      color: var(--text-primary);
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+    .required::after { content: ' *'; color: #f97373; }
+
+    .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn-primary {
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: #fff;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-link {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      background: var(--surface);
+      padding: 10px 14px;
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .status-pill.pending { background: var(--a5-bg); color: var(--warning); }
+    .status-pill.in_progress { background: var(--a1-bg); color: var(--accent); }
+    .status-pill.completed { background: var(--a3-bg); color: var(--accent-3); }
+
+    .warning {
+      border: 1px solid var(--a5-border);
+      background: var(--a5-bg);
+      color: var(--warning);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='queue' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="page-title">
+          <h1>Nurse Case Review</h1>
+          <span class="breadcrumb">
+            <a href="/staff/nurse/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp;
+            <a href="{% url 'nurse_queue' %}" class="breadcrumb-link">Queue</a>
+            &nbsp;/&nbsp; Review
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent);box-shadow:0 0 12px var(--a1-glow);">
+          {{ staff_name|slice:":1"|upper }}
+        </div>
+      </div>
+    </header>
+
+    <div class="review-page">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Doctor Filled Details</div>
+          <div class="panel-sub">Use these instructions while providing care, then complete the nurse section below.</div>
+        </div>
+        <div class="panel-body">
+          <div class="grid-two">
+            <div class="field"><div class="field-label">Patient</div><div class="field-value">{{ item.patient.full_name }}</div></div>
+            <div class="field"><div class="field-label">Doctor</div><div class="field-value">{{ item.doctor.full_name }}</div></div>
+            <div class="field"><div class="field-label">Record Topic</div><div class="field-value">{{ item.title }}</div></div>
+            <div class="field"><div class="field-label">Primary Diagnosis</div><div class="field-value">{{ item.primary_diagnosis }}</div></div>
+          </div>
+          <div class="field">
+            <div class="field-label">Key Clinical Instruction</div>
+            <div class="field-value">{{ item.key_instruction }}</div>
+          </div>
+          {% if item.doctor_note %}
+            <div class="field">
+              <div class="field-label">Doctor Note</div>
+              <div class="field-value">{{ item.doctor_note }}</div>
+            </div>
+          {% endif %}
+          <div class="field">
+            <div class="field-label">Status</div>
+            <div class="field-value"><span class="status-pill {{ item.status }}">{{ item.get_status_display }}</span></div>
+          </div>
+          {% if item.handwritten_file %}
+            <div class="field">
+              <div class="field-label">Handwritten File</div>
+              <div class="field-value"><a href="{{ item.handwritten_file.url }}" target="_blank" rel="noopener">Open uploaded file</a></div>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Nurse Completion</div>
+          <div class="panel-sub">Enter remaining treatment details after patient care.</div>
+        </div>
+        <div class="panel-body">
+          {% if is_picked_by_other and item.status != 'completed' %}
+            <div class="warning">This case is currently being handled by {{ item.picked_by.full_name }}.</div>
+          {% endif %}
+
+          <form method="POST" class="nurse-form">
+            {% csrf_token %}
+
+            <div class="grid-two">
+              <div>
+                <label class="required">Blood Pressure (mmHg)</label>
+                <input type="text" name="blood_pressure" placeholder="e.g. 120/80"
+                  value="{{ item.blood_pressure|default:'' }}" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>
+              </div>
+              <div>
+                <label class="required">Pulse Rate (bpm)</label>
+                <input type="number" name="pulse_rate" min="20" max="250"
+                  value="{{ item.pulse_rate|default:'' }}" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>
+              </div>
+              <div>
+                <label class="required">Temperature (C)</label>
+                <input type="number" name="temperature_c" step="0.1" min="30" max="45"
+                  value="{{ item.temperature_c|default:'' }}" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>
+              </div>
+              <div>
+                <label class="required">SpO2 (%)</label>
+                <input type="number" name="spo2_percent" min="50" max="100"
+                  value="{{ item.spo2_percent|default:'' }}" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>
+              </div>
+              <div>
+                <label class="required">Random Blood Sugar</label>
+                <input type="text" name="random_blood_sugar" placeholder="e.g. 140 mg/dL"
+                  value="{{ item.random_blood_sugar|default:'' }}" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>
+              </div>
+            </div>
+
+            <div>
+              <label class="required">Basic Tests Performed</label>
+              <textarea name="nurse_tests_performed" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>{{ item.nurse_tests_performed|default:'' }}</textarea>
+            </div>
+
+            <div>
+              <label class="required">Nurse Observation</label>
+              <textarea name="nurse_observation" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>{{ item.nurse_observation|default:'' }}</textarea>
+            </div>
+
+            <div>
+              <label class="required">Treatment Given</label>
+              <textarea name="treatment_given" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>{{ item.treatment_given|default:'' }}</textarea>
+            </div>
+
+            <div>
+              <label class="required">Medications Administered</label>
+              <textarea name="medications_administered" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>{{ item.medications_administered|default:'' }}</textarea>
+            </div>
+
+            <div>
+              <label>Follow Up Notes</label>
+              <textarea name="follow_up_notes" {% if is_picked_by_other or item.status == 'completed' %}readonly{% endif %}>{{ item.follow_up_notes|default:'' }}</textarea>
+            </div>
+
+            <div class="btn-row">
+              {% if not is_picked_by_other and item.status != 'completed' %}
+                <button type="submit" class="btn-primary">Save and Mark Completed</button>
+              {% endif %}
+              <a href="{% url 'nurse_queue' %}" class="btn-link">Back to Queue</a>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', function () {
+      var sidebar = document.getElementById('sidebar');
+      if (sidebar) sidebar.classList.toggle('sidebar-open');
+    });
+
+    function updateTime() {
+      var el = document.getElementById('topbarTime');
+      if (!el) return;
+      el.textContent = new Date().toLocaleDateString('en-IN', {
+        hour: '2-digit', minute: '2-digit', hour12: true,
+        weekday: 'short', month: 'short', day: 'numeric'
+      });
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+  </script>
+
+  {% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

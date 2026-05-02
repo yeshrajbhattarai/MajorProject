@@ -5,7 +5,12 @@ from django.shortcuts import redirect, render
 
 from hospitals.encryption import decrypt
 from hospitals.models import MedicalRecordMeta, Patient
-from hospitals.services import service_get_record_detail, service_get_record_history
+from hospitals.services import (
+    service_get_record_detail,
+    service_get_record_history,
+    service_get_patient_medical_records,
+    service_get_finalized_medical_record_detail,
+)
 
 from .decorators import patient_required
 from .services import (
@@ -180,7 +185,7 @@ def patient_dashboard(request):
 
 
 @patient_required
-def patient_records(request):
+def patient_lab_reports(request):
     patient_id = request.session.get('patient_id')
     patient = Patient.objects.filter(id=patient_id).first()
 
@@ -203,6 +208,69 @@ def patient_records(request):
 
 
 @patient_required
+def patient_medical_records(request):
+    patient_id = request.session.get('patient_id')
+    patient = Patient.objects.filter(id=patient_id).first()
+
+    if not patient:
+        request.session.flush()
+        return redirect('patient_login')
+
+    if not is_profile_complete(patient):
+        messages.warning(request, 'Complete all profile details to unlock medical records and reports.')
+        return redirect('patient_profile')
+
+    records = service_get_patient_medical_records(patient_id=patient.id)
+
+    return render(request, 'patient/medical_records.html', {
+        'patient': patient,
+        'records': records,
+        'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
+    })
+
+
+@patient_required
+def patient_medical_record_detail(request, record_id):
+    patient_id = request.session.get('patient_id')
+    patient = Patient.objects.filter(id=patient_id).first()
+
+    if not patient:
+        request.session.flush()
+        return redirect('patient_login')
+
+    version_number = None
+    version_query = request.GET.get('v', '').strip()
+    if version_query:
+        try:
+            version_number = int(version_query)
+        except ValueError:
+            messages.error(request, 'Invalid medical record version requested.')
+            return redirect('patient_medical_record_detail', record_id=record_id)
+
+    record, detail_bundle, error = service_get_finalized_medical_record_detail(
+        record_id=record_id,
+        role='patient',
+        patient_id=patient.id,
+        version_number=version_number,
+    )
+    if error:
+        messages.error(request, error)
+        return redirect('patient_medical_records')
+
+    return render(request, 'patient/medical_record_detail.html', {
+        'patient': patient,
+        'record_item': record,
+        'detail_bundle': detail_bundle,
+        'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
+    })
+
+
+@patient_required
+def patient_records(request):
+    return redirect('patient_lab_reports')
+
+
+@patient_required
 def patient_record_detail(request, record_id):
     patient_id = request.session.get('patient_id')
     patient = Patient.objects.filter(id=patient_id).first()
@@ -214,7 +282,7 @@ def patient_record_detail(request, record_id):
     meta = MedicalRecordMeta.objects.filter(record_id=record_id, patient_id=patient.id).first()
     if not meta:
         messages.error(request, 'Record not found for your account.')
-        return redirect('patient_records')
+        return redirect('patient_lab_reports')
 
     version_number = None
     version_query = request.GET.get('v', '').strip()
@@ -232,7 +300,7 @@ def patient_record_detail(request, record_id):
     )
     if error:
         messages.error(request, error)
-        return redirect('patient_records')
+        return redirect('patient_lab_reports')
 
     return render(request, 'patient/record_detail.html', {
         'patient': patient,
@@ -257,7 +325,7 @@ def patient_record_history(request, record_id):
     meta = MedicalRecordMeta.objects.filter(record_id=record_id, patient_id=patient.id).first()
     if not meta:
         messages.error(request, 'Record history not found for your account.')
-        return redirect('patient_records')
+        return redirect('patient_lab_reports')
 
     history = service_get_record_history(
         record_id=record_id,

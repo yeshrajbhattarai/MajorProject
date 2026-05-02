@@ -84,15 +84,16 @@
 
         <div class="filter-row">
           <span class="filter-label">Lab</span>
-          <a href="?{% if gov_id_type %}gov_id_type={{ gov_id_type }}&{% endif %}{% if gov_id_number %}gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if not lab_id %}active{% endif %}">All Labs</a>
+          <a href="?{% if patient_id %}patient_id={{ patient_id }}&{% endif %}{% if gov_id_type %}gov_id_type={{ gov_id_type }}&{% endif %}{% if gov_id_number %}gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if not lab_id %}active{% endif %}">All Labs</a>
           {% for lab in labs %}
-            <a href="?lab_id={{ lab.id }}{% if gov_id_type %}&gov_id_type={{ gov_id_type }}{% endif %}{% if gov_id_number %}&gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if lab_id == lab.id|stringformat:'s' %}active{% endif %}">{{ lab.name }}</a>
+            <a href="?lab_id={{ lab.id }}{% if patient_id %}&patient_id={{ patient_id }}{% endif %}{% if gov_id_type %}&gov_id_type={{ gov_id_type }}{% endif %}{% if gov_id_number %}&gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if lab_id == lab.id|stringformat:'s' %}active{% endif %}">{{ lab.name }}</a>
           {% endfor %}
         </div>
 
         <div class="filter-row">
           <form method="GET" class="search-grid" style="width:100%;">
             <input type="hidden" name="lab_id" value="{{ lab_id }}">
+            <input type="hidden" name="patient_id" value="{{ patient_id }}">
             <select name="gov_id_type" class="staff-search">
               <option value="">Gov ID Type</option>
               <option value="aadhar" {% if gov_id_type == 'aadhar' %}selected{% endif %}>Aadhar</option>
@@ -100,7 +101,7 @@
             </select>
             <input type="text" name="gov_id_number" class="staff-search search-input" value="{{ gov_id_number }}" placeholder="Search patient government ID number">
             <button type="submit" class="tbl-btn tbl-btn-view">Search</button>
-            <a href="?{% if lab_id %}lab_id={{ lab_id }}{% endif %}" class="tbl-btn">Clear</a>
+            <a href="?{% if patient_id %}patient_id={{ patient_id }}&{% endif %}{% if lab_id %}lab_id={{ lab_id }}{% endif %}" class="tbl-btn">Clear</a>
           </form>
         </div>
       </section>

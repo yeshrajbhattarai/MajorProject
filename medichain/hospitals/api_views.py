@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .permissions import IsHospitalAdmin, IsDoctor, IsNurse, IsTechnician
+from .permissions import IsHospitalAdmin, IsHospitalAdminActive, IsHospitalUserActive, IsDoctor, IsNurse, IsTechnician
 from .serializers import (
     HospitalSerializer,
     HospitalRegisterSerializer,
@@ -341,7 +341,7 @@ class HospitalUpdatePasswordAPI(APIView):
 # GET  /api/v1/staff/doctors/ — list all doctors
 # POST /api/v1/staff/doctors/ — register a new doctor
 class DoctorsListAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # list all doctors belonging to this hospital
     def get(self, request):
@@ -380,7 +380,7 @@ class DoctorsListAPI(APIView):
 # GET  /api/v1/staff/doctors/<id>/ — doctor detail
 # POST /api/v1/staff/doctors/<id>/ — activate / deactivate toggle
 class DoctorDetailAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # view individual doctor details
     def get(self, request, pk):
@@ -406,7 +406,7 @@ class DoctorDetailAPI(APIView):
 # GET  /api/v1/staff/nurses/ — list all nurses
 # POST /api/v1/staff/nurses/ — register a new nurse
 class NursesListAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # list all nurses belonging to this hospital
     def get(self, request):
@@ -444,7 +444,7 @@ class NursesListAPI(APIView):
 # GET  /api/v1/staff/nurses/<id>/ — nurse detail
 # POST /api/v1/staff/nurses/<id>/ — activate / deactivate toggle
 class NurseDetailAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # view individual nurse details
     def get(self, request, pk):
@@ -470,7 +470,7 @@ class NurseDetailAPI(APIView):
 # GET  /api/v1/staff/technicians/ — list all technicians
 # POST /api/v1/staff/technicians/ — register a new technician
 class TechniciansListAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # list all technicians belonging to this hospital
     def get(self, request):
@@ -508,7 +508,7 @@ class TechniciansListAPI(APIView):
 # GET  /api/v1/staff/technicians/<id>/ — technician detail
 # POST /api/v1/staff/technicians/<id>/ — activate / deactivate toggle
 class TechnicianDetailAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # view individual technician details
     def get(self, request, pk):
@@ -534,7 +534,7 @@ class TechnicianDetailAPI(APIView):
 # GET  /api/v1/staff/patients/ — list all patients registered by this hospital
 # POST /api/v1/staff/patients/ — register a new patient
 class PatientsListAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     # list all patients registered by this hospital
     def get(self, request):
@@ -574,7 +574,7 @@ class PatientsListAPI(APIView):
 
 # GET /api/v1/staff/patients/<id>/ — patient detail with masked gov ID
 class PatientDetailAPI(APIView):
-    permission_classes = [IsHospitalAdmin]
+    permission_classes = [IsHospitalAdminActive]
 
     def get(self, request, pk):
         patient, gov_id_masked, error = service_get_patient(pk)

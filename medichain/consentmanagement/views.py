@@ -9,6 +9,7 @@ from .serializers import (
     HospitalDecisionSerializer
 )
 from rest_framework.permissions import AllowAny
+from hospitals.permissions import IsHospitalUserActive
 from django.shortcuts import get_object_or_404
 from hospitals.models import Hospital, Patient
 from auditlog.utils import log_action
@@ -46,6 +47,8 @@ def get_hospital_from_payload(request):
         hospital = Hospital.objects.get(id=hospital_id)
     except Hospital.DoesNotExist:
         return None, Response({"error": "Hospital not found"}, status=401)
+
+    # no-op debug
 
     if hospital.account_status != 'active':
         return None, Response({"error": "Hospital account is not active"}, status=403)
