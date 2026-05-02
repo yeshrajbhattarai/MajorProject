@@ -10,7 +10,7 @@ from .serializers import (
 )
 from rest_framework.permissions import AllowAny
 from django.shortcuts import get_object_or_404
-from hospitals.models import Hospital
+from hospitals.models import Hospital, Patient
 from auditlog.utils import log_action
 
 
@@ -58,7 +58,7 @@ def get_hospital_from_payload(request):
 # Returns all active hospitals except the requesting one — used for selecting a target hospital.
 #! TODO: Add pagination when hospital count grows large
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def hospital_directory(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -73,11 +73,41 @@ def hospital_directory(request):
     return Response(list(hospitals), status=200)
 
 
+#? ── PATIENT SEARCH ───────────────────────────────────────────────────────────
+
+# Searches patients by 10-digit phone number — powers the patient picker in the consent form.
+# Returns patient_id (UUID), name, phone, and which hospital they registered at.
+#! TODO: Add rate limiting to prevent phone number enumeration
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def patient_search(request):
+    hospital, error = get_hospital_from_payload(request)
+    if error:
+        return error
+
+    phone = request.query_params.get('phone', '').strip()
+    if not phone or len(phone) != 10 or not phone.isdigit():
+        return Response({"error": "Provide a valid 10-digit phone number."}, status=400)
+
+    patients = Patient.objects.filter(phone=phone).select_related('registered_by')
+    results = [
+        {
+            "patient_id":     str(p.id),
+            "full_name":      p.full_name,
+            "phone":          p.phone,
+            "registered_at":  p.registered_by.hospital_name if p.registered_by else "Unknown",
+        }
+        for p in patients
+    ]
+    return Response(results, status=200)
+
+
 #? ── CONSENT MANAGEMENT APIs ──────────────────────────────────────────────────
+
 # Creates a new consent request — requesting hospital is taken from token, not request body.
 #! TODO: Notify the patient and owning hospital when a new request is created
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def create_consent(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -107,7 +137,7 @@ def view_consent(request):
 # Returns all consent requests sent by the authenticated hospital.
 #! TODO: Add date range filtering support
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def sent_requests(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -123,7 +153,7 @@ def sent_requests(request):
 # Returns all consent requests received by the authenticated hospital.
 #! TODO: Add date range filtering support
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def received_requests(request):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -136,14 +166,36 @@ def received_requests(request):
     return Response(serializer.data)
 
 
-# Returns full details of a single consent request by ID.
-#! TODO: Add auth so only involved hospitals or the patient can view this
-@api_view(['GET'])
+# GET returns full detail of a single consent request.
+# DELETE withdraws the request — only the requesting hospital can delete, only if PENDING.
+# Merged into one view so both share the same URL pattern <uuid:consent_id>/.
+#! TODO: Add soft delete option to preserve audit history instead of hard deleting
+@api_view(['GET', 'DELETE'])
 @permission_classes([AllowAny])
 def consent_detail(request, consent_id):
+    if request.method == 'GET':
+        consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
+        return Response(ConsentRequestSerializer(consent).data)
+
+    # DELETE path
+    hospital, error = get_hospital_from_payload(request)
+    if error:
+        return error
+
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
-    serializer = ConsentRequestSerializer(consent)
-    return Response(serializer.data)
+
+    if hospital.hospital_name != consent.requesting_hospital:
+        return Response({"error": "Unauthorized - only requesting hospital can delete"}, status=403)
+
+    if consent.request_status != 'PENDING':
+        return Response({"error": "Cannot delete approved/rejected consent"}, status=400)
+
+    log_action(
+        'CONSENT_DELETED', hospital.hospital_name, consent.consent_id,
+        extra_info=f"Consent between {consent.requesting_hospital} and {consent.requested_to_hospital}"
+    )
+    consent.delete()
+    return Response({"message": "Consent deleted successfully"}, status=200)
 
 
 # Allows the patient to approve or reject a pending consent request.
@@ -171,7 +223,7 @@ def patient_decision(request, consent_id):
 # Allows the owning hospital to approve or reject — verified against token identity.
 #! TODO: Notify the requesting hospital once a decision is made
 @api_view(['PATCH'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def hospital_decision(request, consent_id):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -197,35 +249,12 @@ def hospital_decision(request, consent_id):
     return Response(serializer.errors, status=400)
 
 
-# Deletes a pending consent — only the hospital that created it can delete it.
-#! TODO: Add a soft delete option to preserve audit history instead of hard delete
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_consent(request, consent_id):
-    hospital, error = get_hospital_from_payload(request)
-    if error:
-        return error
-
-    consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
-
-    if hospital.hospital_name != consent.requesting_hospital:
-        return Response({"error": "Unauthorized - only requesting hospital can delete"}, status=403)
-
-    if consent.request_status != 'PENDING':
-        return Response({"error": "Cannot delete approved/rejected consent"}, status=400)
-
-    log_action('CONSENT_DELETED', hospital.hospital_name, consent.consent_id,
-        extra_info=f"Consent between {consent.requesting_hospital} and {consent.requested_to_hospital}")
-    consent.delete()
-    return Response({"message": "Consent deleted successfully"}, status=200)
-
-
 #? ── HOSPITAL API COMMUNICATION ───────────────────────────────────────────────
 
 # Fetches a patient record after a 4-step authorization check — auth, consent exists, approved, requester matches.
 #! TODO: Replace dummy record with real fetch from teammate's medical records module
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def fetch_record(request, consent_id):
     hospital, error = get_hospital_from_payload(request)
     if error:
@@ -241,9 +270,9 @@ def fetch_record(request, consent_id):
         return Response({"error": "Unauthorized hospital"}, status=403)
 
     dummy_record = {
-        "patient_id": consent.patient_id,
-        "diagnosis": "Hypertension",
-        "treatment": "Lifestyle modification + Medication",
+        "patient_id":  consent.patient_id,
+        "diagnosis":   "Hypertension",
+        "treatment":   "Lifestyle modification + Medication",
         "owner_hospital": consent.requested_to_hospital
     }
     log_action('RECORD_ACCESS_SUCCESS', hospital.hospital_name, consent.consent_id)
