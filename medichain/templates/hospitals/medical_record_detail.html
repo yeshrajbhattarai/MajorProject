@@ -241,6 +241,19 @@
       box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
     }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .record-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      margin-bottom: 4px;
+    }
+    .hidden { display: none !important; }
+    .edit-section { margin-top: 18px; }
+    .edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .edit-grid .full-span { grid-column: 1 / -1; }
+    .edit-note { font-size: 12px; color: rgba(203, 213, 225, 0.82); margin-top: 4px; }
+    .edit-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
     .report-section { margin-top: 18px; }
     .card-span-2 { grid-column: span 5; }
     .subcards-grid > .detail-card { grid-column: span 5; }
@@ -380,12 +393,116 @@
             </div>
             <div class="report-meta">
               <span class="meta-pill">Reason: {{ record_item.title|default:'-' }}</span>
+              <span class="meta-pill">Version v{{ detail_bundle.record.version }}</span>
               <span class="meta-pill">{{ record_item.doctor_finalized_at|date:'d M Y, h:i A' }}</span>
               <span class="meta-pill">{{ detail_bundle.patient_identity_display|default:'Government ID not available' }}</span>
             </div>
           </div>
         </div>
       </section>
+
+      <div class="record-actions">
+        {% if can_edit %}
+          <button type="button" class="tbl-btn tbl-btn-view" id="editRecordBtn">Edit Record</button>
+        {% endif %}
+        <a class="tbl-btn" href="#timeline">View History</a>
+        <a class="sf-btn-cancel" href="{% url back_url_name %}">Back to Medical Records</a>
+      </div>
+
+      {% if can_edit %}
+      <section class="detail-card edit-section hidden" id="editSection">
+        <div class="detail-head">
+          <div class="detail-title">Edit Record</div>
+          <div class="detail-sub">Save a new version while keeping all older snapshots intact.</div>
+        </div>
+        <div class="detail-body">
+          <form method="POST" action="" class="edit-grid">
+            {% csrf_token %}
+            <div class="sf-group full-span">
+              <label class="sf-label">Reason / Record Topic</label>
+              <input class="sf-input" type="text" name="title" value="{{ record_item.title|default:'' }}" required>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Primary Diagnosis</label>
+              <input class="sf-input" type="text" name="primary_diagnosis" value="{{ record_item.primary_diagnosis|default:'' }}" required>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Doctor Instruction</label>
+              <textarea class="sf-input" name="key_instruction" rows="3" required>{{ record_item.key_instruction|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Doctor Note</label>
+              <textarea class="sf-input" name="doctor_note" rows="3">{{ record_item.doctor_note|default:'' }}</textarea>
+            </div>
+            <div class="sf-group">
+              <label class="sf-label">Blood Pressure</label>
+              <input class="sf-input" type="text" name="blood_pressure" value="{{ record_item.blood_pressure|default:'' }}">
+            </div>
+            <div class="sf-group">
+              <label class="sf-label">Pulse Rate</label>
+              <input class="sf-input" type="number" name="pulse_rate" value="{{ record_item.pulse_rate|default:'' }}">
+            </div>
+            <div class="sf-group">
+              <label class="sf-label">Temperature (C)</label>
+              <input class="sf-input" type="text" name="temperature_c" value="{{ record_item.temperature_c|default:'' }}">
+            </div>
+            <div class="sf-group">
+              <label class="sf-label">SpO2 (%)</label>
+              <input class="sf-input" type="number" name="spo2_percent" value="{{ record_item.spo2_percent|default:'' }}">
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Random Blood Sugar</label>
+              <input class="sf-input" type="text" name="random_blood_sugar" value="{{ record_item.random_blood_sugar|default:'' }}">
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Tests Performed</label>
+              <textarea class="sf-input" name="nurse_tests_performed" rows="3">{{ record_item.nurse_tests_performed|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Nurse Observation</label>
+              <textarea class="sf-input" name="nurse_observation" rows="3">{{ record_item.nurse_observation|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Treatment Given</label>
+              <textarea class="sf-input" name="treatment_given" rows="3">{{ record_item.treatment_given|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Medications</label>
+              <textarea class="sf-input" name="medications_administered" rows="3">{{ record_item.medications_administered|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Follow Up Notes</label>
+              <textarea class="sf-input" name="follow_up_notes" rows="3">{{ record_item.follow_up_notes|default:'' }}</textarea>
+            </div>
+            <div class="sf-group">
+              <label class="sf-label">Next Appointment Date</label>
+              <input class="sf-input" type="date" name="next_appointment_date" value="{{ record_item.next_appointment_date|date:'Y-m-d'|default:'' }}">
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Doctor Final Notes</label>
+              <textarea class="sf-input" name="doctor_final_notes" rows="3">{{ record_item.doctor_final_notes|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Closing Statement</label>
+              <textarea class="sf-input" name="closing_statement" rows="3">{{ record_item.closing_statement|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Nurse Discharge Statement</label>
+              <textarea class="sf-input" name="nurse_discharge_statement" rows="3">{{ record_item.nurse_discharge_statement|default:'' }}</textarea>
+            </div>
+            <div class="sf-group full-span">
+              <label class="sf-label">Change Reason</label>
+              <input class="sf-input" type="text" name="change_reason" placeholder="Why is this version being updated?" required>
+              <div class="edit-note">A new version will be created and the previous one stays in the timeline.</div>
+            </div>
+            <div class="edit-actions full-span">
+              <button type="submit" class="sf-btn-save">Save New Version</button>
+              <button type="button" class="tbl-btn" id="cancelEditBtn">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </section>
+      {% endif %}
 
       <div class="subcards-grid report-section">
         <section class="detail-card">
@@ -495,11 +612,11 @@
         </section>
       </div>
 
-      <section class="detail-card">
+      <section class="detail-card" id="timeline">
         <div class="detail-head" style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <div class="detail-title">Timeline</div>
-            <div class="detail-sub">This record is finalized, so the timeline has a single approved version.</div>
+            <div class="detail-sub">Each version is immutable, and newer edits appear as new entries in the history.</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
             <span class="verify-badge {% if detail_bundle.hash.verified %}verified{% else %}compromised{% endif %}">Record Integrity: {% if detail_bundle.hash.verified %}Verified{% else %}Compromised{% endif %}</span>
@@ -520,8 +637,12 @@
                 <span>Reason: {{ step.change_reason }}</span>
               </div>
             </div>
-            <div>
+            <div class="actions" style="margin:0;">
+              {% if step.version_number == detail_bundle.record.version %}
               <span class="selected-badge">Viewing</span>
+              {% else %}
+              <a class="tbl-btn tbl-btn-view" href="?v={{ step.version_number }}#timeline">View v{{ step.version_number }}</a>
+              {% endif %}
             </div>
           </div>
           {% endfor %}
@@ -538,6 +659,26 @@
     document.getElementById('sidebarToggle').addEventListener('click', () => {
       document.getElementById('sidebar').classList.toggle('sidebar-open');
     });
+
+    const editRecordBtn = document.getElementById('editRecordBtn');
+    const editSection = document.getElementById('editSection');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    if (editRecordBtn && editSection) {
+      editRecordBtn.addEventListener('click', () => {
+        editSection.classList.remove('hidden');
+        editSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    if (cancelEditBtn && editSection) {
+      cancelEditBtn.addEventListener('click', () => {
+        editSection.classList.add('hidden');
+      });
+    }
+    {% if auto_open_edit %}
+    if (editSection) {
+      editSection.classList.remove('hidden');
+    }
+    {% endif %}
 
     function updateTime() {
       const el = document.getElementById('topbarTime');

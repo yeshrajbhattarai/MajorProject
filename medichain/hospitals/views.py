@@ -64,6 +64,7 @@ from .services import (
     service_get_doctor_medical_records,
     service_get_nurse_medical_records,
     service_get_finalized_medical_record_detail,
+    service_update_finalized_medical_record,
     service_get_lab_queue,
     service_get_lab_request,
     service_get_latest_lab_request_revision,
@@ -955,6 +956,21 @@ def doctor_medical_record_detail(request, record_id):
             messages.error(request, 'Invalid medical record version requested.')
             return redirect('doctor_medical_record_detail', record_id=record_id)
 
+    if request.method == 'POST':
+        _, errors = service_update_finalized_medical_record(
+            record_id=record_id,
+            hospital_id=request.session.get('hospital_id'),
+            doctor_id=request.session.get('staff_id'),
+            data=request.POST,
+            change_reason=request.POST.get('change_reason', ''),
+        )
+        if errors:
+            messages.error(request, ' '.join(errors.values()))
+            return redirect(f'{request.path}?edit=1')
+
+        messages.success(request, 'Medical record updated successfully. A new version was created.')
+        return redirect('doctor_medical_record_detail', record_id=record_id)
+
     record, detail_bundle, error = service_get_finalized_medical_record_detail(
         record_id=record_id,
         role='doctor',
@@ -973,6 +989,8 @@ def doctor_medical_record_detail(request, record_id):
         'back_url_name': 'doctor_medical_records_list',
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
+        'can_edit': bool(detail_bundle and detail_bundle.get('record', {}).get('is_latest')),
+        'auto_open_edit': request.GET.get('edit') == '1',
     })
 
 

@@ -270,7 +270,8 @@ class LabRequestRevision(models.Model):
 
 
 class MedicalRecordMeta(models.Model):
-    record_id = models.UUIDField(primary_key=True, editable=False)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    record_id = models.UUIDField(db_index=True)
     RECORD_TYPE_LAB = 'lab'
     RECORD_TYPE_MEDICAL = 'medical'
     RECORD_TYPE_CHOICES = [
@@ -291,6 +292,7 @@ class MedicalRecordMeta(models.Model):
 
     class Meta:
         db_table = 'medical_record_meta'
+        unique_together = ('record_id', 'version')
         ordering = ['-updated_at']
 
     def __str__(self):
@@ -336,6 +338,7 @@ class NurseQueueItem(models.Model):
     finalized_record_id = models.UUIDField(null=True, blank=True, unique=True)
     finalized_record_hash = models.CharField(max_length=64, null=True, blank=True)
     finalized_record_payload = models.JSONField(default=dict, blank=True)
+    finalized_record_history = models.JSONField(default=list, blank=True)
     doctor_finalized_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='doctor_finalized_queue_items')
     doctor_finalized_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)

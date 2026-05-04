@@ -17,12 +17,12 @@
 
 import uuid
 from unittest.mock import patch, MagicMock
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, Client
 from django.contrib.auth.hashers import make_password
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from hospitals.models import Hospital, HospitalUser, Patient, Lab
+from hospitals.models import Hospital, HospitalUser, Patient, Lab, NurseQueueItem, MedicalRecordMeta
 
 
 # ─── Token factory helpers ────────────────────────────────────────────────────
@@ -738,6 +738,99 @@ class DoctorSendToLabTests(BaseTestCase):
         self.doc_client.post('/api/v1/staff/doctor/patients/' + str(self.patient.id) + '/send-to-lab/', payload, format='json')
         res = self.doc_client.post('/api/v1/staff/doctor/patients/' + str(self.patient.id) + '/send-to-lab/', payload, format='json')
         self.assertEqual(res.status_code, 400)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DOCTOR — MEDICAL RECORD DETAIL / VERSIONING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class DoctorMedicalRecordTests(BaseTestCase):
+    databases = '__all__'
+
+    def setUp(self):
+        super().setUp()
+        self.doctor = self.make_doctor()
+        self.web_client = Client()
+        session = self.web_client.session
+        session['staff_id'] = str(self.doctor.id)
+        session['staff_name'] = self.doctor.full_name
+        session['staff_role'] = 'doctor'
+        session['hospital_id'] = str(self.hospital.id)
+        session['staff_hospital'] = self.hospital.hospital_name
+        session.save()
+        self.patient = self.make_patient()
+
+    def _make_finalized_record(self):
+        from hospitals.services import service_finalize_doctor_approval_item
+
+        item = NurseQueueItem.objects.create(
+            hospital=self.hospital,
+            patient=self.patient,
+            doctor=self.doctor,
+            title='Chest Pain Review',
+            primary_diagnosis='Possible CAD',
+            key_instruction='Monitor symptoms and rest',
+            doctor_note='Initial doctor note',
+            blood_pressure='120/80',
+            pulse_rate=80,
+            temperature_c='36.8',
+            spo2_percent=98,
+            random_blood_sugar='110',
+            nurse_tests_performed='ECG',
+            nurse_observation='Stable',
+            treatment_given='Aspirin',
+            medications_administered='Aspirin',
+            follow_up_notes='Follow up in a week',
+            status=NurseQueueItem.STATUS_COMPLETED,
+        )
+        finalized_item, error = service_finalize_doctor_approval_item(
+            item_id=item.id,
+            hospital_id=self.hospital.id,
+            doctor_id=self.doctor.id,
+            next_appointment_date='2026-05-12',
+            doctor_final_notes='Initial final notes',
+        )
+        self.assertIsNone(error)
+        return finalized_item
+
+    def test_doctor_medical_record_edit_creates_new_version(self):
+        finalized_item = self._make_finalized_record()
+
+        res = self.web_client.post(f'/staff/doctor/medical-records/{finalized_item.finalized_record_id}/', {
+            'title': 'Chest Pain Review',
+            'primary_diagnosis': 'Confirmed CAD',
+            'key_instruction': 'Continue medication and rest',
+            'doctor_note': 'Updated note',
+            'blood_pressure': '118/78',
+            'pulse_rate': '78',
+            'temperature_c': '36.7',
+            'spo2_percent': '99',
+            'random_blood_sugar': '108',
+            'nurse_tests_performed': 'ECG, Troponin',
+            'nurse_observation': 'Improving',
+            'treatment_given': 'Adjusted treatment',
+            'medications_administered': 'Aspirin, Statin',
+            'follow_up_notes': 'Return in 3 days',
+            'next_appointment_date': '2026-05-15',
+            'doctor_final_notes': 'Updated final notes',
+            'closing_statement': 'Stable for discharge',
+            'nurse_discharge_statement': 'Discharge complete',
+            'change_reason': 'Doctor updated the final diagnosis and plan',
+        })
+
+        self.assertEqual(res.status_code, 302)
+        finalized_item.refresh_from_db()
+        meta_versions = MedicalRecordMeta.objects.filter(record_id=finalized_item.finalized_record_id).order_by('version')
+        self.assertEqual(meta_versions.count(), 2)
+        self.assertEqual(meta_versions.last().version, 2)
+        self.assertEqual(len(finalized_item.finalized_record_history), 2)
+        self.assertEqual(finalized_item.primary_diagnosis, 'Confirmed CAD')
+
+    def test_doctor_medical_record_detail_shows_edit_button(self):
+        finalized_item = self._make_finalized_record()
+        res = self.web_client.get(f'/staff/doctor/medical-records/{finalized_item.finalized_record_id}/')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Edit Record')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

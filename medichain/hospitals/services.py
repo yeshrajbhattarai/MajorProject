@@ -580,7 +580,7 @@ def service_get_doctor_dashboard_data(staff_id, hospital_id):
     total_records  = MedicalRecordMeta.objects.filter(
         hospital_id=hospital_id,
         lab_request__requested_by_id=staff_id,
-    ).count()
+    ).values('record_id').distinct().count()
     total_reports  = 0   # TODO: FileUpload.objects.filter(uploaded_by_id=staff_id).count()
     return total_patients, total_records, total_reports
 
@@ -716,7 +716,8 @@ def service_get_doctor_patient_detail(pk, hospital_id):
         'lab_request',
         'lab_request__lab',
         'lab_request__requested_by',
-    ).order_by('-updated_at')
+    )
+    patient_records = _latest_medical_record_meta_list(patient_records)
 
     return (
         patient,
@@ -1108,10 +1109,7 @@ def service_doctor_reassess_record(record_id, doctor_id, hospital_id, chest_pain
     except HospitalUser.DoesNotExist:
         return None, {'doctor': 'Doctor not found or inactive'}
 
-    meta = MedicalRecordMeta.objects.select_related('lab_request').filter(
-        record_id=record_id,
-        hospital_id=hospital_id,
-    ).first()
+    meta = _latest_medical_record_meta(record_id=record_id, hospital_id=hospital_id)
     if not meta:
         return None, {'record': 'Medical record not found'}
 
@@ -1237,12 +1235,15 @@ def service_doctor_reassess_record(record_id, doctor_id, hospital_id, chest_pain
     }
     insert_version(alias, request_obj.lab, version_row)
 
-    MedicalRecordMeta.objects.filter(record_id=record_id).update(
+    MedicalRecordMeta.objects.create(
+        record_id=record_id,
+        lab_request=request_obj,
+        hospital_id=hospital_id,
+        patient_id=request_obj.patient_id,
+        recorded_by_id=doctor_id,
         sha256_hash=record_hash,
         version=next_version,
-        recorded_by_id=doctor_id,
         custom_field_values=meta_custom_field_values,
-        updated_at=timezone.now(),
     )
 
     return request_obj, None
@@ -1253,7 +1254,7 @@ def service_doctor_reassess_record(record_id, doctor_id, hospital_id, chest_pain
 def service_get_technician_dashboard_data(staff_id):
     queue = service_get_lab_queue(staff_id)
     total_requests = len(queue)
-    total_records = service_get_technician_records(staff_id=staff_id, hospital_id=None).count()
+    total_records = len(service_get_technician_records(staff_id=staff_id, hospital_id=None))
     total_reports = total_records
     return total_requests, total_records, total_reports
 
@@ -1493,6 +1494,142 @@ def service_get_doctor_approval_item(item_id, hospital_id):
         return None, 'Case not found'
 
 
+def _medical_record_payload_from_item(item):
+    return {
+        'record_topic': item.title,
+        'primary_diagnosis': item.primary_diagnosis,
+        'key_instruction': item.key_instruction,
+        'doctor_note': item.doctor_note,
+        'blood_pressure': item.blood_pressure,
+        'pulse_rate': item.pulse_rate,
+        'temperature_c': str(item.temperature_c) if item.temperature_c is not None else None,
+        'spo2_percent': item.spo2_percent,
+        'random_blood_sugar': item.random_blood_sugar,
+        'nurse_tests_performed': item.nurse_tests_performed,
+        'nurse_observation': item.nurse_observation,
+        'treatment_given': item.treatment_given,
+        'medications_administered': item.medications_administered,
+        'follow_up_notes': item.follow_up_notes,
+        'next_appointment_date': str(item.next_appointment_date) if item.next_appointment_date else None,
+        'doctor_final_notes': item.doctor_final_notes,
+        'closing_statement': item.closing_statement,
+        'nurse_discharge_statement': item.nurse_discharge_statement,
+    }
+
+
+def _medical_record_history_entry(version_number, payload, changed_by, change_reason, changed_at=None):
+    payload_hash = _finalized_payload_hash(payload)
+    return {
+        'version_number': int(version_number),
+        'event_type': 'finalized' if int(version_number) == 1 else 'updated',
+        'changed_by_id': str(changed_by.id) if changed_by else None,
+        'changed_by_name': changed_by.full_name if changed_by else 'Unknown User',
+        'changed_by_role': changed_by.role if changed_by else 'doctor',
+        'changed_by_staff_code': changed_by.employee_id if changed_by and getattr(changed_by, 'employee_id', None) else None,
+        'changed_at': (changed_at or timezone.now()).isoformat(),
+        'change_reason': change_reason or ('Doctor finalized record' if int(version_number) == 1 else 'Medical record updated'),
+        'is_full_snapshot': int(version_number) == 1,
+        'data_snapshot': list(payload.items()),
+        'payload': _to_json_compatible(payload),
+        'sha256_hash': payload_hash,
+    }
+
+
+def _medical_record_history_from_item(item):
+    history = list(getattr(item, 'finalized_record_history', None) or [])
+    if history:
+        return history
+    payload = _medical_record_payload_from_item(item)
+    return [_medical_record_history_entry(
+        1,
+        payload,
+        item.doctor_finalized_by or item.doctor,
+        'Doctor finalized record',
+        item.doctor_finalized_at or item.updated_at,
+    )]
+
+
+def _parse_medical_record_date(raw_value, fallback=None):
+    if isinstance(raw_value, date):
+        return raw_value
+    if isinstance(raw_value, datetime):
+        return raw_value.date()
+    value = (raw_value or '').strip()
+    if not value:
+        return fallback
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return fallback
+
+
+def _parse_medical_record_datetime(raw_value, fallback=None):
+    if isinstance(raw_value, datetime):
+        return raw_value
+    if isinstance(raw_value, date):
+        return datetime.combine(raw_value, datetime.min.time())
+    value = raw_value or ''
+    if not isinstance(value, str):
+        return fallback
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return fallback
+
+
+def _parse_medical_record_int(raw_value, fallback=None):
+    if isinstance(raw_value, int):
+        return raw_value
+    value = (raw_value or '').strip()
+    if not value:
+        return fallback
+    try:
+        return int(value)
+    except ValueError:
+        return fallback
+
+
+def _parse_medical_record_decimal(raw_value, fallback=None):
+    if isinstance(raw_value, Decimal):
+        return raw_value
+    value = (raw_value or '').strip()
+    if not value:
+        return fallback
+    try:
+        return Decimal(value)
+    except Exception:
+        return fallback
+
+
+def _medical_record_payload_from_request(item, data):
+    title = (data.get('title') or data.get('record_topic') or item.title or '').strip()
+    primary_diagnosis = (data.get('primary_diagnosis') or item.primary_diagnosis or '').strip()
+    key_instruction = (data.get('key_instruction') or item.key_instruction or '').strip()
+    temperature_value = _parse_medical_record_decimal(data.get('temperature_c'), item.temperature_c)
+    next_appointment_value = _parse_medical_record_date(data.get('next_appointment_date'), item.next_appointment_date)
+
+    return {
+        'record_topic': title,
+        'primary_diagnosis': primary_diagnosis,
+        'key_instruction': key_instruction,
+        'doctor_note': (data.get('doctor_note') if data.get('doctor_note') is not None else item.doctor_note) or None,
+        'blood_pressure': (data.get('blood_pressure') if data.get('blood_pressure') is not None else item.blood_pressure) or None,
+        'pulse_rate': _parse_medical_record_int(data.get('pulse_rate'), item.pulse_rate),
+        'temperature_c': str(temperature_value) if temperature_value is not None else None,
+        'spo2_percent': _parse_medical_record_int(data.get('spo2_percent'), item.spo2_percent),
+        'random_blood_sugar': (data.get('random_blood_sugar') if data.get('random_blood_sugar') is not None else item.random_blood_sugar) or None,
+        'nurse_tests_performed': (data.get('nurse_tests_performed') if data.get('nurse_tests_performed') is not None else item.nurse_tests_performed) or None,
+        'nurse_observation': (data.get('nurse_observation') if data.get('nurse_observation') is not None else item.nurse_observation) or None,
+        'treatment_given': (data.get('treatment_given') if data.get('treatment_given') is not None else item.treatment_given) or None,
+        'medications_administered': (data.get('medications_administered') if data.get('medications_administered') is not None else item.medications_administered) or None,
+        'follow_up_notes': (data.get('follow_up_notes') if data.get('follow_up_notes') is not None else item.follow_up_notes) or None,
+        'next_appointment_date': str(next_appointment_value) if next_appointment_value else None,
+        'doctor_final_notes': (data.get('doctor_final_notes') if data.get('doctor_final_notes') is not None else item.doctor_final_notes) or None,
+        'closing_statement': (data.get('closing_statement') if data.get('closing_statement') is not None else item.closing_statement) or None,
+        'nurse_discharge_statement': (data.get('nurse_discharge_statement') if data.get('nurse_discharge_statement') is not None else item.nurse_discharge_statement) or None,
+    }
+
+
 def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
                                           next_appointment_date,
                                           doctor_final_notes=''):
@@ -1534,6 +1671,27 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'doctor_final_notes': doctor_final_notes,
     }
     record_hash = _finalized_payload_hash(payload)
+    finalized_at = timezone.now()
+    final_history = [_medical_record_history_entry(1, _medical_record_payload_from_request(item, {
+        'title': item.title,
+        'primary_diagnosis': item.primary_diagnosis,
+        'key_instruction': item.key_instruction,
+        'doctor_note': item.doctor_note,
+        'blood_pressure': item.blood_pressure,
+        'pulse_rate': item.pulse_rate,
+        'temperature_c': item.temperature_c,
+        'spo2_percent': item.spo2_percent,
+        'random_blood_sugar': item.random_blood_sugar,
+        'nurse_tests_performed': item.nurse_tests_performed,
+        'nurse_observation': item.nurse_observation,
+        'treatment_given': item.treatment_given,
+        'medications_administered': item.medications_administered,
+        'follow_up_notes': item.follow_up_notes,
+        'next_appointment_date': next_appointment_date,
+        'doctor_final_notes': doctor_final_notes,
+        'closing_statement': item.closing_statement,
+        'nurse_discharge_statement': item.nurse_discharge_statement,
+    }), doctor, 'Doctor finalized record', finalized_at)]
 
     item.next_appointment_date = next_appointment_date or None
     item.doctor_final_notes = (doctor_final_notes or '').strip() or None
@@ -1541,8 +1699,9 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
     item.finalized_record_id = item.finalized_record_id or uuid.uuid4()
     item.finalized_record_hash = record_hash
     item.finalized_record_payload = payload
+    item.finalized_record_history = final_history
     item.doctor_finalized_by = doctor
-    item.doctor_finalized_at = timezone.now()
+    item.doctor_finalized_at = finalized_at
     item.save(update_fields=[
         'next_appointment_date',
         'doctor_final_notes',
@@ -1550,23 +1709,116 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'finalized_record_id',
         'finalized_record_hash',
         'finalized_record_payload',
+        'finalized_record_history',
         'doctor_finalized_by',
         'doctor_finalized_at',
         'updated_at',
     ])
 
-    MedicalRecordMeta.objects.update_or_create(
+    MedicalRecordMeta.objects.create(
         record_id=item.finalized_record_id,
-        defaults={
-            'record_type': MedicalRecordMeta.RECORD_TYPE_MEDICAL,
-            'lab_request': None,
-            'hospital': item.hospital,
-            'patient_id': item.patient_id,
-            'recorded_by_id': doctor.id,
-            'sha256_hash': record_hash,
-            'version': 1,
-            'custom_field_values': payload,
-        },
+        record_type=MedicalRecordMeta.RECORD_TYPE_MEDICAL,
+        lab_request=None,
+        hospital=item.hospital,
+        patient_id=item.patient_id,
+        recorded_by_id=doctor.id,
+        sha256_hash=record_hash,
+        version=1,
+        custom_field_values=payload,
+    )
+
+    return item, None
+
+
+def service_update_finalized_medical_record(record_id, hospital_id, doctor_id, data, change_reason):
+    try:
+        doctor = HospitalUser.objects.get(id=doctor_id, hospital_id=hospital_id, role='doctor', status='active')
+    except HospitalUser.DoesNotExist:
+        return None, {'doctor': 'Doctor not found or inactive'}
+
+    item = NurseQueueItem.objects.select_related('patient', 'doctor', 'picked_by', 'doctor_finalized_by').filter(
+        Q(finalized_record_id=record_id) | Q(id=record_id),
+        hospital_id=hospital_id,
+        doctor_finalized=True,
+    ).first()
+    if not item:
+        return None, {'record': 'Medical record not found'}
+
+    if not change_reason or not str(change_reason).strip():
+        return None, {'change_reason': 'Please provide a reason for the update'}
+
+    current_history = _medical_record_history_from_item(item)
+    current_payload = (current_history[-1].get('payload') if current_history else None) or _medical_record_payload_from_item(item)
+    new_payload = _medical_record_payload_from_request(item, data)
+
+    changed_fields = [key for key in new_payload.keys() if new_payload.get(key) != current_payload.get(key)]
+    if not changed_fields:
+        return None, {'changes': 'No updates detected. Please change at least one field.'}
+
+    next_version = (current_history[-1]['version_number'] if current_history else 1) + 1
+    record_hash = _finalized_payload_hash(new_payload)
+    updated_at = timezone.now()
+
+    item.title = new_payload['record_topic']
+    item.primary_diagnosis = new_payload['primary_diagnosis']
+    item.key_instruction = new_payload['key_instruction']
+    item.doctor_note = new_payload.get('doctor_note')
+    item.blood_pressure = new_payload.get('blood_pressure')
+    item.pulse_rate = new_payload.get('pulse_rate')
+    item.temperature_c = new_payload.get('temperature_c')
+    item.spo2_percent = new_payload.get('spo2_percent')
+    item.random_blood_sugar = new_payload.get('random_blood_sugar')
+    item.nurse_tests_performed = new_payload.get('nurse_tests_performed')
+    item.nurse_observation = new_payload.get('nurse_observation')
+    item.treatment_given = new_payload.get('treatment_given')
+    item.medications_administered = new_payload.get('medications_administered')
+    item.follow_up_notes = new_payload.get('follow_up_notes')
+    item.next_appointment_date = _parse_medical_record_date(new_payload.get('next_appointment_date'))
+    item.doctor_final_notes = new_payload.get('doctor_final_notes')
+    item.closing_statement = new_payload.get('closing_statement')
+    item.nurse_discharge_statement = new_payload.get('nurse_discharge_statement')
+    item.finalized_record_payload = new_payload
+    item.finalized_record_hash = record_hash
+    item.finalized_record_history = current_history + [_medical_record_history_entry(next_version, new_payload, doctor, change_reason, updated_at)]
+    item.doctor_finalized_by = doctor
+    item.doctor_finalized_at = updated_at
+    item.save(update_fields=[
+        'title',
+        'primary_diagnosis',
+        'key_instruction',
+        'doctor_note',
+        'blood_pressure',
+        'pulse_rate',
+        'temperature_c',
+        'spo2_percent',
+        'random_blood_sugar',
+        'nurse_tests_performed',
+        'nurse_observation',
+        'treatment_given',
+        'medications_administered',
+        'follow_up_notes',
+        'next_appointment_date',
+        'doctor_final_notes',
+        'closing_statement',
+        'nurse_discharge_statement',
+        'finalized_record_payload',
+        'finalized_record_hash',
+        'finalized_record_history',
+        'doctor_finalized_by',
+        'doctor_finalized_at',
+        'updated_at',
+    ])
+
+    MedicalRecordMeta.objects.create(
+        record_id=item.finalized_record_id or item.id,
+        record_type=MedicalRecordMeta.RECORD_TYPE_MEDICAL,
+        lab_request=None,
+        hospital=item.hospital,
+        patient_id=item.patient_id,
+        recorded_by_id=doctor.id,
+        sha256_hash=record_hash,
+        version=next_version,
+        custom_field_values=new_payload,
     )
 
     return item, None
@@ -1612,9 +1864,6 @@ def service_get_finalized_medical_record_detail(record_id, role,
     if not item:
         return None, None, 'Medical record not found.'
 
-    if version_number not in (None, 1):
-        return None, None, 'Invalid medical record version requested.'
-
     if role == 'doctor':
         if str(item.hospital_id) != str(hospital_id) or str(item.doctor_id) != str(staff_id):
             return None, None, 'You are not allowed to view this medical record.'
@@ -1627,14 +1876,30 @@ def service_get_finalized_medical_record_detail(record_id, role,
     else:
         return None, None, 'Invalid role for medical record access.'
 
-    payload = item.finalized_record_payload or {}
+    history = _medical_record_history_from_item(item)
+    normalized_history = []
+    for row in history:
+        normalized_row = dict(row)
+        normalized_row['changed_at'] = _parse_medical_record_datetime(normalized_row.get('changed_at'), item.doctor_finalized_at)
+        normalized_history.append(normalized_row)
+    history = sorted(normalized_history, key=lambda row: int(row.get('version_number', 1)))
+    latest_version = int(history[-1].get('version_number', 1)) if history else 1
+    selected_version = latest_version if version_number in (None, '') else int(version_number)
+    selected_entry = next((row for row in history if int(row.get('version_number', 1)) == selected_version), None)
+    if not selected_entry:
+        return None, None, 'Invalid medical record version requested.'
+
+    payload = selected_entry.get('payload') or item.finalized_record_payload or {}
     computed_hash = _finalized_payload_hash(payload)
     
-    # Get stored hash from local database
-    local_stored_hash = (item.finalized_record_hash or '').strip()
+    # Get stored hash from the selected history version
+    local_stored_hash = (selected_entry.get('sha256_hash') or item.finalized_record_hash or '').strip()
     
     # Get stored hash from MediChain metadata database
-    medichain_meta = MedicalRecordMeta.objects.filter(record_id=item.finalized_record_id or item.id).first()
+    medichain_meta = _latest_medical_record_meta(
+        record_id=item.finalized_record_id or item.id,
+        version=selected_version,
+    ) or _latest_medical_record_meta(record_id=item.finalized_record_id or item.id)
     medichain_stored_hash = (medichain_meta.sha256_hash or '').strip() if medichain_meta else ''
     
     # Three-tier verification: computed vs local vs medichain
@@ -1656,10 +1921,34 @@ def service_get_finalized_medical_record_detail(record_id, role,
     except Exception:
         patient_identity_display = None
 
+    display_payload = payload
+    field_alias_map = {
+        'record_topic': 'title',
+    }
+    for payload_key, item_attr in field_alias_map.items():
+        if payload_key in display_payload:
+            setattr(item, item_attr, display_payload.get(payload_key))
+    for key, value in display_payload.items():
+        if key in field_alias_map:
+            continue
+        if key == 'next_appointment_date' and value:
+            try:
+                setattr(item, key, date.fromisoformat(str(value)))
+            except ValueError:
+                setattr(item, key, value)
+            continue
+        if hasattr(item, key):
+            setattr(item, key, value)
+
+    selected_changed_at = selected_entry.get('changed_at')
+
+    if selected_changed_at:
+        item.doctor_finalized_at = selected_changed_at
+
     detail_bundle = {
         'record': {
-            'version': 1,
-            'is_latest': True,
+            'version': selected_version,
+            'is_latest': selected_version == latest_version,
         },
         'hash': {
             'computed': computed_hash,
@@ -1669,15 +1958,8 @@ def service_get_finalized_medical_record_detail(record_id, role,
             'medichain_verified': medichain_match,
             'verified': all_verified,
         },
-        'timeline': [{
-            'version_number': 1,
-            'event_type': 'finalized',
-            'changed_by_name': item.doctor_finalized_by.full_name if item.doctor_finalized_by else item.doctor.full_name,
-            'changed_by_role': 'doctor',
-            'changed_at': item.doctor_finalized_at,
-            'change_reason': 'Doctor finalized record',
-        }],
-        'payload_items': list(payload.items()),
+        'timeline': list(reversed(history)),
+        'payload_items': list(display_payload.items()),
         'patient_identity_display': patient_identity_display,
     }
     return item, detail_bundle, None
@@ -1726,10 +2008,7 @@ def service_get_latest_lab_request_revision(lab_request_id):
 
 
 def service_get_existing_record_for_lab_request(lab_request_id, hospital_id):
-    meta = MedicalRecordMeta.objects.filter(
-        lab_request_id=lab_request_id,
-        hospital_id=hospital_id,
-    ).select_related('lab_request', 'lab_request__lab').only('record_id', 'lab_request__lab').first()
+    meta = _latest_medical_record_meta(lab_request_id=lab_request_id, hospital_id=hospital_id)
     if not meta:
         return None
 
@@ -1784,6 +2063,28 @@ def _finalized_payload_hash(payload):
     return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
 
 
+def _latest_medical_record_meta(record_id=None, hospital_id=None, lab_request_id=None, version=None):
+    queryset = MedicalRecordMeta.objects.select_related('lab_request', 'lab_request__lab')
+    if record_id is not None:
+        queryset = queryset.filter(record_id=record_id)
+    if hospital_id is not None:
+        queryset = queryset.filter(hospital_id=hospital_id)
+    if lab_request_id is not None:
+        queryset = queryset.filter(lab_request_id=lab_request_id)
+    if version is not None:
+        queryset = queryset.filter(version=version)
+    return queryset.order_by('-version', '-updated_at').first()
+
+
+def _latest_medical_record_meta_list(queryset):
+    latest_by_record_id = {}
+    for meta in queryset.order_by('record_id', '-version', '-updated_at'):
+        key = str(meta.record_id)
+        if key not in latest_by_record_id:
+            latest_by_record_id[key] = meta
+    return list(latest_by_record_id.values())
+
+
 def _to_json_compatible(value):
     if isinstance(value, dict):
         return {str(k): _to_json_compatible(v) for k, v in value.items()}
@@ -1836,7 +2137,7 @@ def service_create_medical_record(lab_request_id, technician_id, hospital_id, da
         **(normalized_technician_values or {}),
     }
 
-    existing_meta = MedicalRecordMeta.objects.filter(lab_request_id=request_obj.id).first()
+    existing_meta = _latest_medical_record_meta(lab_request_id=request_obj.id)
     if existing_meta:
         cleaned_reason = (technician_reason or '').strip()
         if not cleaned_reason:
@@ -1912,7 +2213,7 @@ def service_edit_medical_record(record_id, technician_id, hospital_id, data, cha
     ensure_db_exists(hospital_id)
     set_hospital_db(hospital_id)
 
-    meta = MedicalRecordMeta.objects.select_related('lab_request', 'lab_request__lab').filter(record_id=record_id).first()
+    meta = _latest_medical_record_meta(record_id=record_id)
     if not meta:
         return None, {'record': 'Record not found'}
 
@@ -1985,12 +2286,15 @@ def service_edit_medical_record(record_id, technician_id, hospital_id, data, cha
     }
     insert_version(alias, request_obj.lab, version_row)
 
-    MedicalRecordMeta.objects.filter(record_id=record_id).update(
+    MedicalRecordMeta.objects.create(
+        record_id=record_id,
+        lab_request=request_obj,
+        hospital_id=hospital_id,
+        patient_id=request_obj.patient_id,
+        recorded_by_id=technician_id,
         sha256_hash=record_hash,
         version=next_version,
-        recorded_by_id=technician_id,
         custom_field_values=custom_field_values,
-        updated_at=timezone.now(),
     )
 
     new_record = SimpleNamespace(**new_record_row)
@@ -2002,7 +2306,7 @@ def service_edit_medical_record(record_id, technician_id, hospital_id, data, cha
 def service_get_record_history(record_id, hospital_id):
     alias = ensure_db_exists(hospital_id)
     set_hospital_db(hospital_id)
-    meta = MedicalRecordMeta.objects.select_related('lab_request', 'lab_request__lab').filter(record_id=record_id).first()
+    meta = _latest_medical_record_meta(record_id=record_id)
     if not meta:
         return []
 
@@ -2126,7 +2430,7 @@ def service_get_record_history(record_id, hospital_id):
 def service_get_record_detail(record_id, hospital_id, version_number=None):
     alias = ensure_db_exists(hospital_id)
     set_hospital_db(hospital_id)
-    meta = MedicalRecordMeta.objects.select_related('lab_request', 'lab_request__requested_by', 'lab_request__lab').filter(record_id=record_id).first()
+    meta = _latest_medical_record_meta(record_id=record_id)
     if not meta:
         return None, None, None, 'Record metadata not found'
 
@@ -2216,7 +2520,7 @@ def service_get_technician_records(staff_id, hospital_id):
     if hospital_id:
         filters['hospital_id'] = hospital_id
 
-    return MedicalRecordMeta.objects.filter(
+    records = MedicalRecordMeta.objects.filter(
         **filters,
         record_type=MedicalRecordMeta.RECORD_TYPE_LAB,
     ).select_related(
@@ -2224,7 +2528,8 @@ def service_get_technician_records(staff_id, hospital_id):
         'lab_request__patient',
         'lab_request__lab',
         'lab_request__requested_by',
-    ).order_by('-updated_at')
+    )
+    return _latest_medical_record_meta_list(records)
 
 
 def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None, lab_id=None, patient_id=None, scope='all'):
@@ -2241,13 +2546,13 @@ def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None
         'lab_request__patient',
         'lab_request__lab',
         'lab_request__requested_by',
-    ).order_by('-updated_at')
+    )
 
     if scope == 'lab':
         records = records.filter(record_type=MedicalRecordMeta.RECORD_TYPE_LAB)
     elif scope == 'medical':
         records = records.filter(record_type=MedicalRecordMeta.RECORD_TYPE_MEDICAL)
-        return records, [], []
+        return _latest_medical_record_meta_list(records), [], []
 
     if lab_id:
         records = records.filter(lab_request__lab_id=lab_id)
@@ -2258,6 +2563,8 @@ def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None
     if gov_id_type and gov_id_number:
         gov_id_hash = hashlib.sha256(f"{gov_id_type}{gov_id_number}".encode()).hexdigest()
         records = records.filter(lab_request__patient__gov_id_hash=gov_id_hash)
+
+    records = _latest_medical_record_meta_list(records)
 
     labs = Lab.objects.filter(hospital_id=hospital_id, is_active=True).order_by('name')
 
