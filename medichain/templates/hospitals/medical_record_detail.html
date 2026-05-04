@@ -203,6 +203,43 @@
       background: rgba(30, 64, 175, 0.22);
       color: #bfdbfe;
     }
+    .verify-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 6px 11px;
+      border-radius: 20px;
+      border: 1.5px solid;
+    }
+    .verify-badge.verified {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+    .verify-badge.compromised {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .verify-badge::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .verify-badge.verified::before {
+      background: #10b981;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    }
+    .verify-badge.compromised::before {
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .report-section { margin-top: 18px; }
     .card-span-2 { grid-column: span 5; }
@@ -459,9 +496,18 @@
       </div>
 
       <section class="detail-card">
-        <div class="detail-head">
-          <div class="detail-title">Timeline</div>
-          <div class="detail-sub">This record is finalized, so the timeline has a single approved version.</div>
+        <div class="detail-head" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="detail-title">Timeline</div>
+            <div class="detail-sub">This record is finalized, so the timeline has a single approved version.</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end;">
+            <span class="verify-badge {% if detail_bundle.hash.verified %}verified{% else %}compromised{% endif %}">Record Integrity: {% if detail_bundle.hash.verified %}Verified{% else %}Compromised{% endif %}</span>
+            <div style="font-size:11px;color:rgba(203,213,225,0.7);text-align:right;">
+              <div>Local DB: {% if detail_bundle.hash.local_verified %}<span style="color:#6ee7b7;">✓</span>{% else %}<span style="color:#fca5a5;">✗</span>{% endif %}</div>
+              <div>MediChain: {% if detail_bundle.hash.medichain_verified %}<span style="color:#6ee7b7;">✓</span>{% else %}<span style="color:#fca5a5;">✗</span>{% endif %}</div>
+            </div>
+          </div>
         </div>
         <div class="roadmap-list">
           {% for step in detail_bundle.timeline %}

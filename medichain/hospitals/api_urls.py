@@ -28,6 +28,8 @@ from .api_views import (
     DoctorRemoveAssignmentAPI,
     DoctorSendToLabAPI,
     DoctorReassessRecordAPI,
+    DoctorLabsListAPI,
+    DoctorLabDetailAPI,
     # nurses
     NursesListAPI,
     NurseDetailAPI,
@@ -111,6 +113,8 @@ urlpatterns = [
     path('staff/doctor/patients/<uuid:pk>/remove-assignment/<uuid:staff_id>/', DoctorRemoveAssignmentAPI.as_view(), name='api_doctor_remove_assignment'),
     path('staff/doctor/patients/<uuid:pk>/send-to-lab/', DoctorSendToLabAPI.as_view(), name='api_doctor_send_to_lab'),
     path('staff/doctor/records/<uuid:record_id>/reassess/', DoctorReassessRecordAPI.as_view(), name='api_doctor_reassess_record'),
+    path('staff/doctor/labs/', DoctorLabsListAPI.as_view(), name='api_doctor_labs_list'),
+    path('staff/doctor/labs/<uuid:lab_id>/', DoctorLabDetailAPI.as_view(), name='api_doctor_lab_detail'),
 
     # ── Technician portal ───────────────────────────────────────────────────
     path('staff/technician/dashboard/', TechnicianDashboardAPI.as_view(), name='api_technician_dashboard'),

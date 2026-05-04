@@ -11,6 +11,26 @@
   <link rel="stylesheet" href="{% static 'css/theme.css' %}">
   <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
   <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+    .filter-row { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .filter-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); font-weight: 700; }
+    .filter-chip {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--bg-2);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .filter-chip.active { background: var(--a2-bg-subtle); color: var(--accent-2); border-color: var(--a2-border); }
+  </style>
 </head>
 <body>
 
@@ -40,16 +60,28 @@
         {% endfor %}
       {% endif %}
 
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Filter Records</div>
+          <div class="panel-sub">Filter your finalized medical records by hospital or view all.</div>
+        </div>
+        <div class="filter-row">
+          <span class="filter-label">Hospital</span>
+          <a href="?" class="filter-chip {% if not hospital_id %}active{% endif %}">All Hospitals</a>
+          {% for hospital in hospitals %}
+            <a href="?hospital_id={{ hospital.id }}" class="filter-chip {% if hospital_id == hospital.id|stringformat:'s' %}active{% endif %}">{{ hospital.hospital_name }}</a>
+          {% endfor %}
+        </div>
+      </section>
+
       <section class="staff-table-wrap">
         <table class="staff-table">
           <thead>
             <tr>
-              <th>Record ID</th>
               <th>Diagnosis</th>
               <th>Doctor</th>
               <th>Nurse</th>
-              <th>Next Date</th>
-              <th>Hash</th>
+              <th>Version</th>
               <th>Finalized</th>
               <th>Action</th>
             </tr>
@@ -57,19 +89,17 @@
           <tbody>
             {% for rec in records %}
               <tr>
-                <td>{{ rec.finalized_record_id|default:'-' }}</td>
                 <td>{{ rec.primary_diagnosis }}</td>
-                <td>{{ rec.doctor.full_name }}</td>
-                <td>{{ rec.picked_by.full_name|default:'-' }}</td>
-                <td>{{ rec.next_appointment_date|date:'d M Y'|default:'-' }}</td>
-                <td>{{ rec.finalized_record_hash|default:'-'|slice:':20' }}{% if rec.finalized_record_hash %}...{% endif %}</td>
+                <td>{{ rec.doctor.full_name }}{% if rec.doctor and rec.doctor.employee_id %} <span class="td-muted">({{ rec.doctor.employee_id }})</span>{% endif %}</td>
+                <td>{{ rec.picked_by.full_name|default:'-' }}{% if rec.picked_by and rec.picked_by.employee_id %} <span class="td-muted">({{ rec.picked_by.employee_id }})</span>{% endif %}</td>
+                <td>v{{ rec.version|default:1 }}</td>
                 <td>{{ rec.doctor_finalized_at|date:'d M Y, h:i A'|default:'-' }}</td>
                 <td>
                   <a class="tbl-btn tbl-btn-view" href="{% url 'patient_medical_record_detail' rec.finalized_record_id|default:rec.id %}">View</a>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="8" class="td-muted">No finalized medical records yet.</td></tr>
+              <tr><td colspan="6" class="td-muted">No finalized medical records yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>

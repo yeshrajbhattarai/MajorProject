@@ -219,9 +219,21 @@ class LabRequestRevisionSerializer(serializers.ModelSerializer):
 # ─── Medical Record Serializer –────────────────────────────────────────────────
 
 class MedicalRecordMetaSerializer(serializers.ModelSerializer):
-    patient_name = serializers.CharField(source='lab_request.patient.full_name', read_only=True)
-    lab_name = serializers.CharField(source='lab_request.lab.name', read_only=True)
+    patient_name = serializers.SerializerMethodField()
+    lab_name = serializers.SerializerMethodField()
+    record_type_display = serializers.CharField(source='get_record_type_display', read_only=True)
     recorded_by_name = serializers.SerializerMethodField()
+
+    def get_patient_name(self, obj):
+        if obj.lab_request and obj.lab_request.patient:
+            return obj.lab_request.patient.full_name
+        patient = Patient.objects.filter(id=obj.patient_id).only('full_name').first()
+        return patient.full_name if patient else None
+
+    def get_lab_name(self, obj):
+        if obj.lab_request and obj.lab_request.lab:
+            return obj.lab_request.lab.name
+        return 'Medical Record' if obj.record_type == MedicalRecordMeta.RECORD_TYPE_MEDICAL else None
 
     def get_recorded_by_name(self, obj):
         try:
@@ -233,7 +245,7 @@ class MedicalRecordMetaSerializer(serializers.ModelSerializer):
     class Meta:
         model  = MedicalRecordMeta
         fields = [
-            'record_id', 'patient_name', 'lab_name', 'recorded_by_name',
+            'record_id', 'record_type', 'record_type_display', 'patient_name', 'lab_name', 'recorded_by_name',
             'version', 'custom_field_values', 'created_at', 'updated_at',
         ]
 

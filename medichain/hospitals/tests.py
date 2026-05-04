@@ -798,6 +798,29 @@ class TechnicianTests(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertEqual(res.data, [])
 
+    def test_technician_patients_list(self):
+        from hospitals.models import LabAssignment, LabRequest
+
+        doctor = self.make_doctor()
+        patient = self.make_patient()
+        lab = Lab.objects.create(hospital=self.hospital, lab_type='biochemistry', name='Bio Lab')
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        LabRequest.objects.create(
+            patient=patient,
+            lab=lab,
+            requested_by=doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+
+        res = self.tech_client.get('/api/v1/staff/technician/patients/')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]['patient']['id'], str(patient.id))
+        self.assertEqual(res.data[0]['assigned_by']['id'], str(doctor.id))
+
     def test_technician_records_list_empty(self):
         res = self.tech_client.get('/api/v1/staff/technician/records/')
         self.assertEqual(res.status_code, 200)

@@ -711,6 +711,7 @@ def service_get_doctor_patient_detail(pk, hospital_id):
     patient_records = MedicalRecordMeta.objects.filter(
         patient_id=patient.id,
         hospital_id=hospital.id,
+        record_type=MedicalRecordMeta.RECORD_TYPE_LAB,
     ).select_related(
         'lab_request',
         'lab_request__lab',
@@ -1554,6 +1555,20 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'updated_at',
     ])
 
+    MedicalRecordMeta.objects.update_or_create(
+        record_id=item.finalized_record_id,
+        defaults={
+            'record_type': MedicalRecordMeta.RECORD_TYPE_MEDICAL,
+            'lab_request': None,
+            'hospital': item.hospital,
+            'patient_id': item.patient_id,
+            'recorded_by_id': doctor.id,
+            'sha256_hash': record_hash,
+            'version': 1,
+            'custom_field_values': payload,
+        },
+    )
+
     return item, None
 
 
@@ -1614,16 +1629,30 @@ def service_get_finalized_medical_record_detail(record_id, role,
 
     payload = item.finalized_record_payload or {}
     computed_hash = _finalized_payload_hash(payload)
-    stored_hash = (item.finalized_record_hash or '').strip()
-
+    
+    # Get stored hash from local database
+    local_stored_hash = (item.finalized_record_hash or '').strip()
+    
+    # Get stored hash from MediChain metadata database
+    medichain_meta = MedicalRecordMeta.objects.filter(record_id=item.finalized_record_id or item.id).first()
+    medichain_stored_hash = (medichain_meta.sha256_hash or '').strip() if medichain_meta else ''
+    
+    # Three-tier verification: computed vs local vs medichain
+    local_match = bool(local_stored_hash) and local_stored_hash == computed_hash
+    medichain_match = bool(medichain_stored_hash) and medichain_stored_hash == computed_hash
+    all_verified = local_match and medichain_match
+    
     patient_identity_display = None
     try:
         gov_id_plain = decrypt(item.patient.gov_id_number or '') if item.patient and item.patient.gov_id_number else ''
         gov_id_plain = (gov_id_plain or '').strip()
         if gov_id_plain:
             suffix = gov_id_plain[-4:] if len(gov_id_plain) >= 4 else gov_id_plain
-            gov_id_label = dict(Patient.GOV_ID_CHOICES).get(item.patient.gov_id_type, 'Government ID')
-            patient_identity_display = f"{gov_id_label} ending {suffix}"
+            id_type = (item.patient.gov_id_type or '').lower().capitalize()
+            if not id_type:
+                id_type = 'Govid'
+            mask = '*' * 8
+            patient_identity_display = f"{id_type}{mask}{suffix}"
     except Exception:
         patient_identity_display = None
 
@@ -1633,9 +1662,12 @@ def service_get_finalized_medical_record_detail(record_id, role,
             'is_latest': True,
         },
         'hash': {
-            'stored': stored_hash,
             'computed': computed_hash,
-            'verified': bool(stored_hash) and stored_hash == computed_hash,
+            'local_stored': local_stored_hash,
+            'medichain_stored': medichain_stored_hash,
+            'local_verified': local_match,
+            'medichain_verified': medichain_match,
+            'verified': all_verified,
         },
         'timeline': [{
             'version_number': 1,
@@ -2098,6 +2130,9 @@ def service_get_record_detail(record_id, hospital_id, version_number=None):
     if not meta:
         return None, None, None, 'Record metadata not found'
 
+    if not meta.lab_request:
+        return None, None, None, 'Record metadata is not linked to a lab request'
+
     if version_number:
         record = fetch_record_version(alias, meta.lab_request.lab, record_id, version_number)
     else:
@@ -2183,6 +2218,7 @@ def service_get_technician_records(staff_id, hospital_id):
 
     return MedicalRecordMeta.objects.filter(
         **filters,
+        record_type=MedicalRecordMeta.RECORD_TYPE_LAB,
     ).select_related(
         'lab_request',
         'lab_request__patient',
@@ -2208,9 +2244,10 @@ def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None
     ).order_by('-updated_at')
 
     if scope == 'lab':
-        records = records
+        records = records.filter(record_type=MedicalRecordMeta.RECORD_TYPE_LAB)
     elif scope == 'medical':
-        records = MedicalRecordMeta.objects.none()
+        records = records.filter(record_type=MedicalRecordMeta.RECORD_TYPE_MEDICAL)
+        return records, [], []
 
     if lab_id:
         records = records.filter(lab_request__lab_id=lab_id)
@@ -2239,7 +2276,32 @@ def service_get_doctor_records(hospital_id, gov_id_type=None, gov_id_number=None
 
 # Backward compatibility for existing API modules that still import legacy names.
 def service_get_technician_patients(staff_id):
-    return service_get_lab_queue(staff_id)
+    assigned_lab_ids = list(
+        LabAssignment.objects.filter(technician_id=staff_id).values_list('lab_id', flat=True)
+    )
+    if not assigned_lab_ids:
+        return []
+
+    requests = LabRequest.objects.filter(
+        lab_id__in=assigned_lab_ids,
+        status__in=[LabRequest.STATUS_PENDING, LabRequest.STATUS_IN_PROGRESS],
+    ).select_related('patient', 'requested_by', 'lab').order_by('-created_at')
+
+    patients = []
+    seen_patient_ids = set()
+    for request_obj in requests:
+        if request_obj.patient_id in seen_patient_ids:
+            continue
+        seen_patient_ids.add(request_obj.patient_id)
+        patients.append({
+            'patient': request_obj.patient,
+            'assigned_by': request_obj.requested_by,
+            'assigned_at': request_obj.created_at,
+            'lab': request_obj.lab,
+            'lab_request': request_obj,
+        })
+
+    return patients
 
 
 def service_get_technician_patient_detail(staff_id, patient_id):

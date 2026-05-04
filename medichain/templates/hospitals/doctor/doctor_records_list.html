@@ -78,38 +78,46 @@
 
       <section class="panel">
         <div class="panel-head">
-          <div class="panel-title">Lab Report Filters</div>
-          <div class="panel-sub">Search quickly by patient government ID or narrow down by specific labs.</div>
+          <div class="panel-title">Lab Reports</div>
+          <div class="panel-sub">View reports by lab and open each record for full read-only details.</div>
         </div>
 
         <div class="filter-row">
           <span class="filter-label">Lab</span>
-          <a href="?{% if patient_id %}patient_id={{ patient_id }}&{% endif %}{% if gov_id_type %}gov_id_type={{ gov_id_type }}&{% endif %}{% if gov_id_number %}gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if not lab_id %}active{% endif %}">All Labs</a>
+          <a href="?{% if gov_id_type %}gov_id_type={{ gov_id_type }}&{% endif %}{% if gov_id_number %}gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if not lab_id %}active{% endif %}">All Labs</a>
           {% for lab in labs %}
-            <a href="?lab_id={{ lab.id }}{% if patient_id %}&patient_id={{ patient_id }}{% endif %}{% if gov_id_type %}&gov_id_type={{ gov_id_type }}{% endif %}{% if gov_id_number %}&gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if lab_id == lab.id|stringformat:'s' %}active{% endif %}">{{ lab.name }}</a>
+            <a href="?lab_id={{ lab.id }}{% if gov_id_type %}&gov_id_type={{ gov_id_type }}{% endif %}{% if gov_id_number %}&gov_id_number={{ gov_id_number }}{% endif %}" class="filter-chip {% if lab_id == lab.id|stringformat:'s' %}active{% endif %}">{{ lab.name }}</a>
           {% endfor %}
         </div>
 
-        <div class="filter-row">
-          <form method="GET" class="search-grid" style="width:100%;">
-            <input type="hidden" name="lab_id" value="{{ lab_id }}">
-            <input type="hidden" name="patient_id" value="{{ patient_id }}">
-            <select name="gov_id_type" class="staff-search">
-              <option value="">Gov ID Type</option>
-              <option value="aadhar" {% if gov_id_type == 'aadhar' %}selected{% endif %}>Aadhar</option>
-              <option value="voter" {% if gov_id_type == 'voter' %}selected{% endif %}>Voter ID</option>
-            </select>
-            <input type="text" name="gov_id_number" class="staff-search search-input" value="{{ gov_id_number }}" placeholder="Search patient government ID number">
-            <button type="submit" class="tbl-btn tbl-btn-view">Search</button>
-            <a href="?{% if patient_id %}patient_id={{ patient_id }}&{% endif %}{% if lab_id %}lab_id={{ lab_id }}{% endif %}" class="tbl-btn">Clear</a>
-          </form>
-        </div>
-      </section>
+        <div class="filter-row" style="display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;">
+          <div class="staff-search-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input type="text" class="staff-search" id="searchInput" placeholder="Search patient name...">
+          </div>
 
-      <section class="panel">
-        <div class="panel-head">
-          <div class="panel-title">Lab Reports</div>
-          <div class="panel-sub">View reports by lab and open each record for full read-only details.</div>
+          <form method="GET" action="" style="display:flex;gap:8px;align-items:center;">
+            <input type="hidden" name="lab_id" value="{{ lab_id }}">
+            <select name="gov_id_type" class="staff-search" style="min-width:150px;">
+              <option value="">ID Type</option>
+              <option value="aadhar" {% if gov_id_type == 'aadhar' %}selected{% endif %}>Aadhar</option>
+              <option value="voter" {% if gov_id_type == 'voter' %}selected{% endif %}>Voter</option>
+            </select>
+            <input
+              type="text"
+              name="gov_id_number"
+              value="{{ gov_id_number }}"
+              placeholder="Find by Government ID Number"
+              class="staff-search"
+              style="min-width:220px;"
+            >
+            <button type="submit" class="tbl-btn tbl-btn-view">Find</button>
+            {% if gov_id_type or gov_id_number %}
+            <a href="?{% if lab_id %}lab_id={{ lab_id }}{% endif %}" class="tbl-btn">Clear</a>
+            {% endif %}
+          </form>
         </div>
 
         {% if grouped_records %}
@@ -135,8 +143,8 @@
                   </thead>
                   <tbody>
                     {% for record in group.records %}
-                    <tr data-report-type="lab">
-                      <td>{{ record.lab_request.patient.full_name }}{% if record.lab_request.patient.gov_id_type %} <span class="td-muted">({{ record.lab_request.patient.get_gov_id_type_display }})</span>{% endif %}</td>
+                    <tr data-report-type="lab" data-patient-name="{{ record.lab_request.patient.full_name|lower }}">
+                      <td>{{ record.lab_request.patient.full_name }}</td>
                       <td>{{ record.lab_request.requested_by.full_name }}{% if record.lab_request.requested_by.employee_id %} <span class="td-muted">(ID: {{ record.lab_request.requested_by.employee_id }})</span>{% endif %}</td>
                       <td>v{{ record.version }}</td>
                       <td class="td-date">{{ record.updated_at|date:'d M Y, h:i A' }}</td>
@@ -176,6 +184,19 @@
     }
     updateTime();
     setInterval(updateTime, 60000);
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase();
+        const rows = document.querySelectorAll('.record-table tbody tr');
+        rows.forEach(row => {
+          const patientName = row.dataset.patientName || '';
+          const match = patientName.startsWith(q);
+          row.style.display = match ? '' : 'none';
+        });
+      });
+    }
   </script>
 
   {% include 'hospitals/partials/theme_toggle.html' %}

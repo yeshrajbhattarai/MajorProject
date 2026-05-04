@@ -1,4 +1,5 @@
 import json
+import hashlib
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -871,12 +872,75 @@ def doctor_lab_reports_list(request):
 
 
 @doctor_required
+def doctor_labs_list(request):
+    labs = [
+        row for row in service_get_labs(request.session['hospital_id'])
+        if row['lab'].is_active
+    ]
+    return render(request, 'hospitals/doctor/doctor_labs_list.html', {
+        'labs': labs,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
+def doctor_lab_detail(request, lab_id):
+    lab, assignments, pending_requests, completed_count, error = service_get_lab_detail(
+        hospital_id=request.session['hospital_id'],
+        lab_id=lab_id,
+    )
+    if error:
+        messages.error(request, error)
+        return redirect('doctor_labs_list')
+
+    custom_field_schema = lab.custom_field_schema or []
+    default_fields = [
+        {'label': 'Diagnosis', 'key': 'diagnosis', 'fill_by': 'doctor'},
+        {'label': 'Treatment Plan', 'key': 'treatment_plan', 'fill_by': 'doctor'},
+        {'label': 'Notes', 'key': 'notes', 'fill_by': 'doctor'},
+        {'label': 'Age', 'key': 'age', 'fill_by': 'technician'},
+        {'label': 'Gender', 'key': 'gender', 'fill_by': 'technician'},
+        {'label': 'Technician Change Reason', 'key': 'technician_change_reason', 'fill_by': 'technician'},
+    ]
+
+    doctor_fields = [field for field in default_fields if field['fill_by'] == 'doctor'] + [
+        field for field in custom_field_schema if field.get('fill_by') == 'doctor'
+    ]
+    technician_fields = [field for field in default_fields if field['fill_by'] == 'technician'] + [
+        field for field in custom_field_schema if field.get('fill_by') == 'technician'
+    ]
+
+    return render(request, 'hospitals/doctor/doctor_lab_detail.html', {
+        'lab': lab,
+        'assignments': assignments,
+        'pending_requests': pending_requests,
+        'completed_count': completed_count,
+        'assigned_technicians_count': len(assignments),
+        'doctor_fields': doctor_fields,
+        'technician_fields': technician_fields,
+        'staff_name': request.session.get('staff_name'),
+        'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+@doctor_required
 def doctor_medical_records_list(request):
+    gov_id_type = request.GET.get('gov_id_type', '').strip().lower()
+    gov_id_number = request.GET.get('gov_id_number', '').replace(' ', '').strip()
+
     records = service_get_doctor_medical_records(hospital_id=request.session['hospital_id'])
+
+    if gov_id_type and gov_id_number:
+        gov_id_hash = hashlib.sha256(f"{gov_id_type}{gov_id_number}".encode()).hexdigest()
+        records = records.filter(patient__gov_id_hash=gov_id_hash)
+
     return render(request, 'hospitals/doctor/doctor_medical_records_list.html', {
         'records': records,
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
+        'gov_id_type': gov_id_type,
+        'gov_id_number': gov_id_number,
     })
 
 
@@ -1339,14 +1403,24 @@ def nurse_queue_review(request, item_id):
 
 @nurse_required
 def nurse_medical_records_list(request):
+    gov_id_type = request.GET.get('gov_id_type', '').strip().lower()
+    gov_id_number = request.GET.get('gov_id_number', '').replace(' ', '').strip()
+
     records = service_get_nurse_medical_records(
         hospital_id=request.session['hospital_id'],
         nurse_id=request.session['staff_id'],
     )
+
+    if gov_id_type and gov_id_number:
+        gov_id_hash = hashlib.sha256(f"{gov_id_type}{gov_id_number}".encode()).hexdigest()
+        records = records.filter(patient__gov_id_hash=gov_id_hash)
+
     return render(request, 'hospitals/nurse/nurse_records_list.html', {
         'records': records,
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
+        'gov_id_type': gov_id_type,
+        'gov_id_number': gov_id_number,
     })
 
 

@@ -796,6 +796,51 @@ class DoctorRemoveAssignmentAPI(APIView):
                         status=status.HTTP_200_OK)
 
 
+# GET /api/v1/staff/doctor/labs/
+class DoctorLabsListAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        labs = [
+            row for row in service_get_labs(request.user_payload['hospital_id'])
+            if row['lab'].is_active
+        ]
+        return Response([
+            {
+                'id': str(row['lab'].id),
+                'name': row['lab'].name,
+                'lab_type': row['lab'].lab_type,
+                'is_active': row['lab'].is_active,
+            }
+            for row in labs
+        ], status=status.HTTP_200_OK)
+
+
+# GET /api/v1/staff/doctor/labs/<lab_id>/
+class DoctorLabDetailAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request, lab_id):
+        lab, assignments, pending_requests, completed_count, error = service_get_lab_detail(
+            hospital_id=request.user_payload['hospital_id'],
+            lab_id=lab_id,
+        )
+
+        if error:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'id': str(lab.id),
+            'name': lab.name,
+            'lab_type': lab.lab_type,
+            'is_active': lab.is_active,
+            'custom_field_schema': lab.custom_field_schema,
+            'assigned_technicians': len(assignments),
+            'pending_requests': len(pending_requests),
+            'completed_requests': completed_count,
+        }, status=status.HTTP_200_OK)
+
+
 # GET /api/v1/staff/technician/dashboard/
 class TechnicianDashboardAPI(APIView):
     permission_classes = [IsTechnician]

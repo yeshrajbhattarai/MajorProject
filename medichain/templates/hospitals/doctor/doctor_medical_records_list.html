@@ -32,36 +32,64 @@
     </header>
 
     <div class="dashboard-content">
+      <div class="staff-toolbar" style="display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;margin-bottom:12px;">
+        <div class="staff-search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" class="staff-search" id="searchInput" placeholder="Search patient name...">
+        </div>
+
+        <form method="GET" action="" style="display:flex;gap:8px;align-items:center;">
+          <select name="gov_id_type" class="staff-search" style="min-width:150px;">
+            <option value="">ID Type</option>
+            <option value="aadhar" {% if gov_id_type == 'aadhar' %}selected{% endif %}>Aadhar</option>
+            <option value="voter" {% if gov_id_type == 'voter' %}selected{% endif %}>Voter ID</option>
+          </select>
+          <input
+            type="text"
+            name="gov_id_number"
+            value="{{ gov_id_number }}"
+            placeholder="Find by Government ID Number"
+            class="staff-search"
+            style="min-width:220px;"
+          >
+          <button type="submit" class="tbl-btn tbl-btn-view">Find</button>
+          {% if gov_id_type or gov_id_number %}
+          <a href="{% url 'doctor_medical_records_list' %}" class="tbl-btn">Clear</a>
+          {% endif %}
+        </form>
+
+        <div class="staff-count" id="staffCount">{{ records|length }} record{{ records|length|pluralize }}</div>
+      </div>
       <section class="staff-table-wrap">
         <table class="staff-table">
           <thead>
             <tr>
-              <th>Record ID</th>
               <th>Patient</th>
-              <th>Nurse</th>
               <th>Diagnosis</th>
-              <th>Next Date</th>
-              <th>Hash</th>
+              <th>Doctor</th>
+              <th>Nurse</th>
+              <th>Version</th>
               <th>Finalized</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {% for rec in records %}
-              <tr>
-                <td>{{ rec.finalized_record_id|default:'-' }}</td>
+              <tr data-patient-name="{{ rec.patient.full_name|lower }}">
                 <td>{{ rec.patient.full_name }}</td>
-                <td>{{ rec.picked_by.full_name|default:'-' }}</td>
                 <td>{{ rec.primary_diagnosis }}</td>
-                <td>{{ rec.next_appointment_date|date:'d M Y'|default:'-' }}</td>
-                <td>{{ rec.finalized_record_hash|default:'-'|slice:':20' }}{% if rec.finalized_record_hash %}...{% endif %}</td>
+                <td>{{ rec.doctor.full_name }}{% if rec.doctor and rec.doctor.employee_id %} <span class="td-muted">({{ rec.doctor.employee_id }})</span>{% endif %}</td>
+                <td>{{ rec.picked_by.full_name|default:'-' }}{% if rec.picked_by and rec.picked_by.employee_id %} <span class="td-muted">({{ rec.picked_by.employee_id }})</span>{% endif %}</td>
+                <td>v{{ rec.version|default:1 }}</td>
                 <td>{{ rec.doctor_finalized_at|date:'d M Y, h:i A'|default:'-' }}</td>
                 <td>
                   <a class="tbl-btn tbl-btn-view" href="{% url 'doctor_medical_record_detail' rec.finalized_record_id|default:rec.id %}">View</a>
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="8" class="td-muted">No finalized medical records yet.</td></tr>
+              <tr><td colspan="7" class="td-muted">No finalized medical records yet.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -69,7 +97,7 @@
     </div>
   </main>
 
-  <script>
+    <script>
     document.getElementById('sidebarToggle').addEventListener('click', () => {
       document.getElementById('sidebar').classList.toggle('sidebar-open');
     });
@@ -84,6 +112,23 @@
     }
     updateTime();
     setInterval(updateTime, 60000);
+
+    const searchInput = document.getElementById('searchInput');
+    const staffCount  = document.getElementById('staffCount');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase();
+        const rows = document.querySelectorAll('.staff-table tbody tr');
+        let visible = 0;
+        rows.forEach(row => {
+          const patientName = row.dataset.patientName || '';
+          const match = patientName.startsWith(q);
+          row.style.display = match ? '' : 'none';
+          if (match) visible++;
+        });
+        if (staffCount) staffCount.textContent = visible + ' record' + (visible !== 1 ? 's' : '');
+      });
+    }
   </script>
 
   {% include 'hospitals/partials/theme_toggle.html' %}

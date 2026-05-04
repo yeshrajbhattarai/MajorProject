@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Labs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .labs-wrap { display: flex; flex-direction: column; gap: 16px; }
+    .labs-hero {
+      display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+      padding: 22px 24px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: linear-gradient(135deg, var(--surface), var(--a2-bg-subtle));
+    }
+    .labs-hero-title { font-family: 'Syne', sans-serif; font-size: 24px; color: var(--text-primary); }
+    .labs-hero-sub { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+    .labs-count { display:inline-flex; padding:6px 10px; border-radius:999px; border:1px solid var(--success-border); background:var(--success-bg); color:var(--success); font-size:12px; font-weight:700; }
+    .labs-grid { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .lab-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+      min-height: 220px;
+    }
+    .lab-card-head { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+    .lab-name { font-family:'Syne', sans-serif; font-size: 17px; color: var(--text-primary); margin:0; }
+    .lab-type { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+    .lab-state { display:inline-flex; padding:5px 10px; border-radius:999px; border:1px solid var(--success-border); background:var(--success-bg); color:var(--success); font-size:11px; font-weight:700; }
+    .lab-stats { display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .lab-stat { border:1px solid var(--border); border-radius:14px; padding:10px; background:var(--bg-2); }
+    .lab-stat-label { display:block; color:var(--text-muted); font-size:11px; text-transform:uppercase; letter-spacing:0.05em; }
+    .lab-stat-value { display:block; color:var(--text-primary); font-size:18px; font-weight:700; margin-top:4px; }
+    .lab-card-actions { margin-top:auto; display:flex; justify-content:flex-end; }
+    .lab-link { text-decoration:none; }
+    .empty-state { padding: 28px; border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); }
+    @media (max-width: 1100px) { .labs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 720px) { .labs-grid { grid-template-columns: 1fr; } .labs-hero { align-items:flex-start; flex-direction:column; } }
+  </style>
+</head>
+<body>
+
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='labs' %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Labs</h1>
+          <span class="breadcrumb">
+            <a href="/staff/doctor/dashboard/" class="breadcrumb-link">Dashboard</a>
+            &nbsp;/&nbsp; Labs
+          </span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-2);box-shadow:0 0 12px var(--a2-glow);">{{ staff_name|slice:":1"|upper }}</div>
+      </div>
+    </header>
+
+    <div class="dashboard-content labs-wrap">
+      <div class="labs-hero">
+        <div>
+          <div class="labs-hero-title">Labs in your hospital</div>
+          <div class="labs-hero-sub">View active labs, open a lab for details, and check technician and request counts at a glance.</div>
+        </div>
+        <span class="labs-count">{{ labs|length }} active labs</span>
+      </div>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      {% if labs %}
+        <div class="labs-grid">
+          {% for row in labs %}
+            <article class="lab-card">
+              <div class="lab-card-head">
+                <div>
+                  <h2 class="lab-name">{{ row.lab.name }}</h2>
+                  <div class="lab-type">{{ row.lab.get_lab_type_display }}</div>
+                </div>
+                <span class="lab-state">Active</span>
+              </div>
+
+              <div class="lab-stats">
+                <div class="lab-stat">
+                  <span class="lab-stat-label">Technicians</span>
+                  <span class="lab-stat-value">{{ row.technicians_count }}</span>
+                </div>
+                <div class="lab-stat">
+                  <span class="lab-stat-label">Pending</span>
+                  <span class="lab-stat-value">{{ row.pending_count }}</span>
+                </div>
+                <div class="lab-stat">
+                  <span class="lab-stat-label">Completed</span>
+                  <span class="lab-stat-value">{{ row.completed_count }}</span>
+                </div>
+              </div>
+
+              <div class="lab-card-actions">
+                <a class="tbl-btn tbl-btn-view lab-link" href="{% url 'doctor_lab_detail' row.lab.id %}">Open Lab</a>
+              </div>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">No active labs are available in your hospital.</div>
+      {% endif %}
+    </div>
+  </main>
+
+  <script>
+    document.getElementById('sidebarToggle').addEventListener('click', () => { document.querySelector('.sidebar').classList.toggle('open'); });
+    function updateTime() { const now = new Date(); document.getElementById('topbarTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); }
+    updateTime(); setInterval(updateTime, 1000);
+  </script>
+</body>
+</html>

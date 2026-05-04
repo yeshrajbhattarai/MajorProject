@@ -107,7 +107,6 @@
       {% endif %}
 
       {% if patients %}
-      <div class="staff-table-card">
         <div class="staff-table-wrap">
         <table class="staff-table" id="staffTable">
           <thead>
@@ -122,7 +121,7 @@
           </thead>
           <tbody>
             {% for patient in patients %}
-            <tr data-search="{{ patient.full_name|lower }} {{ patient.phone|default:''|lower }}">
+            <tr data-patient-name="{{ patient.full_name|lower }}">
               <!-- Name + initials -->
               <td>
                 <div class="staff-name-cell">
@@ -211,7 +210,8 @@
       const rows = document.querySelectorAll('#staffTable tbody tr');
       let visible = 0;
       rows.forEach(row => {
-        const match = row.dataset.search.includes(q);
+        const patientName = row.dataset.patientName || '';
+        const match = patientName.startsWith(q);
         row.style.display = match ? '' : 'none';
         if (match) visible++;
       });

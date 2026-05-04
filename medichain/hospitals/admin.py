@@ -254,17 +254,21 @@ class LabRequestRevisionAdmin(admin.ModelAdmin):
 class MedicalRecordMetaAdmin(admin.ModelAdmin):
     list_display = (
         'record_id',
+        'record_type',
         'hospital',
+        'lab_request',
         'version',
         'created_at',
     )
 
     list_filter = (
         'hospital',
+        'record_type',
     )
 
     readonly_fields = (
         'record_id',
+        'record_type',
         'sha256_hash',
         'custom_field_values',
         'created_at',

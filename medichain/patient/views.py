@@ -221,10 +221,22 @@ def patient_medical_records(request):
         return redirect('patient_profile')
 
     records = service_get_patient_medical_records(patient_id=patient.id)
+    
+    # Get unique hospitals for filter dropdown
+    hospital_ids = set(str(rec.doctor.hospital.id) for rec in records if rec.doctor and rec.doctor.hospital)
+    from hospitals.models import Hospital
+    hospitals = Hospital.objects.filter(id__in=hospital_ids).order_by('hospital_name')
+    
+    # Filter by hospital if hospital_id is provided
+    hospital_id = request.GET.get('hospital_id', '').strip()
+    if hospital_id:
+        records = [rec for rec in records if rec.doctor and str(rec.doctor.hospital.id) == hospital_id]
 
     return render(request, 'patient/medical_records.html', {
         'patient': patient,
         'records': records,
+        'hospitals': hospitals,
+        'hospital_id': hospital_id,
         'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
     })
 

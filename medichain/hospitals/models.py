@@ -271,7 +271,15 @@ class LabRequestRevision(models.Model):
 
 class MedicalRecordMeta(models.Model):
     record_id = models.UUIDField(primary_key=True, editable=False)
-    lab_request = models.ForeignKey(LabRequest, on_delete=models.CASCADE, related_name='record_meta')
+    RECORD_TYPE_LAB = 'lab'
+    RECORD_TYPE_MEDICAL = 'medical'
+    RECORD_TYPE_CHOICES = [
+        (RECORD_TYPE_LAB, 'Lab Record'),
+        (RECORD_TYPE_MEDICAL, 'Medical Record'),
+    ]
+
+    record_type = models.CharField(max_length=16, choices=RECORD_TYPE_CHOICES, default=RECORD_TYPE_LAB, db_index=True)
+    lab_request = models.ForeignKey(LabRequest, on_delete=models.CASCADE, related_name='record_meta', null=True, blank=True)
     hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE, related_name='record_meta')
     patient_id = models.UUIDField()
     recorded_by_id = models.UUIDField()
@@ -286,7 +294,7 @@ class MedicalRecordMeta(models.Model):
         ordering = ['-updated_at']
 
     def __str__(self):
-        return f"Record {self.record_id} v{self.version}"
+        return f"{self.get_record_type_display()} {self.record_id} v{self.version}"
 
 
 class NurseQueueItem(models.Model):
