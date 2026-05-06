@@ -10,6 +10,7 @@ from .views import (
     fetch_record,
     hospital_directory,
     patient_search,
+    verify_hash,
 )
 
 urlpatterns = [
@@ -27,6 +28,8 @@ urlpatterns = [
     path('<uuid:consent_id>/',                   consent_detail,    name='consent_detail'),
     path('<uuid:consent_id>/patient-decision/',  patient_decision,  name='patient_decision'),
     path('<uuid:consent_id>/hospital-decision/', hospital_decision, name='hospital_decision'),
+    
+    path('<uuid:consent_id>/verify-hash/', verify_hash, name='verify_hash'),
     path('<uuid:consent_id>/fetch-record/',      fetch_record,      name='fetch_record'),
 
     # Hospital picker — used by frontend NewConsentModal

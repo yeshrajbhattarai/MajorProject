@@ -1175,6 +1175,7 @@ class TechnicianRecordsListAPI(APIView):
 
 # GET /api/v1/staff/records/<record_id>/
 class RecordDetailAPI(APIView):
+    permission_classes = [IsHospitalUserActive]
     def get(self, request, record_id):
         version_number = request.query_params.get('v')
         if version_number:

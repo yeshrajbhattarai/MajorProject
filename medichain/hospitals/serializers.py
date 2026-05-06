@@ -176,12 +176,25 @@ class LabRequestSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='requested_by.full_name', read_only=True)
     lab_name = serializers.CharField(source='lab.name', read_only=True)
 
+    lab = LabSerializer(read_only=True)
+
     class Meta:
-        model  = LabRequest
+        model = LabRequest
         fields = [
-            'id', 'patient_name', 'doctor_name', 'lab_name',
-            'status', 'chest_pain_type', 'diagnosis', 'treatment_plan',
-            'notes', 'custom_field_values', 'created_at', 'completed_at',
+            'id',
+            'patient_name',
+            'doctor_name',
+            'lab_name',
+            'lab',
+
+            'status',
+            'chest_pain_type',
+            'diagnosis',
+            'treatment_plan',
+            'notes',
+            'custom_field_values',
+            'created_at',
+            'completed_at',
         ]
 
 
