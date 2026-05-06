@@ -1304,8 +1304,7 @@ class DoctorRecordsAPI(APIView):
 
         return Response({
             'records': MedicalRecordMetaSerializer(records, many=True).data if records is not None else [],
-            'labs': [ {'id': str(r['lab'].id), 'name': r['lab'].name} for r in labs ] if labs else [],
-            'grouped': grouped_records,
+            'labs': [{'id': str(r.id), 'name': r.name} for r in labs] if labs else [],
         }, status=status.HTTP_200_OK)
 
 
