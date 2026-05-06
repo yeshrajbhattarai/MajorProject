@@ -1,5 +1,6 @@
 import json
 import hashlib
+import logging
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -78,6 +79,7 @@ from .services import (
     service_doctor_reassess_record,
    
 )
+logger = logging.getLogger(__name__)
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -1781,6 +1783,17 @@ def view_record_detail(request, record_id):
         return redirect('doctor_patients_list')
 
     staff_role = request.session.get('staff_role')
+    try:
+        logger.info(
+            "view_record_detail staff_id=%s record_id=%s requested_version=%s selected_hash=%s",
+            request.session.get('staff_id'),
+            record_id,
+            version_number,
+            detail_bundle.get('hash') if detail_bundle else None,
+        )
+    except Exception:
+        pass
+    # Debug print removed; use structured logging above.
     can_edit = staff_role == 'technician' and record.is_latest
     can_doctor_reassess = staff_role == 'doctor' and record.is_latest
 
@@ -1789,6 +1802,7 @@ def view_record_detail(request, record_id):
     return render(request, 'hospitals/technician/record_detail.html', {
         'record': record,
         'lab_request': lab_request,
+        'detail_bundle': detail_bundle,
         'audit': detail_bundle['audit'],
         'timeline': detail_bundle['timeline'],
         'custom_field_values': detail_bundle.get('custom_field_values', {}),

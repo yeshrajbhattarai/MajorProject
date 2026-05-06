@@ -319,6 +319,7 @@ def patient_record_detail(request, record_id):
         'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
         'record': record,
         'lab_request': lab_request,
+        'detail_bundle': detail_bundle,
         'audit': detail_bundle['audit'],
         'timeline': detail_bundle['timeline'],
         'custom_field_values': detail_bundle.get('custom_field_values', {}),

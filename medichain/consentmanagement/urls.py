@@ -25,6 +25,8 @@ urlpatterns = [
 
     # Single consent — GET for detail, DELETE to withdraw (merged view)
     path('<uuid:consent_id>/',                   consent_detail,    name='consent_detail'),
+    # Legacy/delete path used by tests and some clients — maps to same view that handles DELETE
+    path('<uuid:consent_id>/delete/',            consent_detail,    name='consent_delete'),
     path('<uuid:consent_id>/patient-decision/',  patient_decision,  name='patient_decision'),
     path('<uuid:consent_id>/hospital-decision/', hospital_decision, name='hospital_decision'),
     path('<uuid:consent_id>/fetch-record/',      fetch_record,      name='fetch_record'),
