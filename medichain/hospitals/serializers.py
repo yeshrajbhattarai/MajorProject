@@ -267,4 +267,4 @@ class CreateMedicalRecordSerializer(serializers.Serializer):
     age = serializers.IntegerField(required=False)
     gender = serializers.CharField(required=False)
     technician_change_reason = serializers.CharField(required=False, allow_blank=True)
-    custom_field_values = serializers.JSONField(required=False)
+    custom_field_values = serializers.JSONField(required=True)
