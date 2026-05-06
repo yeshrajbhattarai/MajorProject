@@ -46,6 +46,9 @@ from .emails import (
     send_patient_credentials,
 )
 from .encryption import encrypt, decrypt
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Auth Services ────────────────────────────────────────────────────────────
@@ -1648,7 +1651,9 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
     if item.doctor_finalized:
         return None, 'This case is already finalized'
 
-    payload = {
+    # Build the user-facing medical payload (used for history) and an administrative payload
+    # (used historically for other systems). We prefer the history payload for canonical hashing.
+    admin_payload = {
         'queue_item_id': str(item.id),
         'hospital_id': str(item.hospital_id),
         'patient_id': str(item.patient_id),
@@ -1670,9 +1675,8 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'next_appointment_date': str(next_appointment_date) if next_appointment_date else None,
         'doctor_final_notes': doctor_final_notes,
     }
-    record_hash = _finalized_payload_hash(payload)
     finalized_at = timezone.now()
-    final_history = [_medical_record_history_entry(1, _medical_record_payload_from_request(item, {
+    history_payload = _medical_record_payload_from_request(item, {
         'title': item.title,
         'primary_diagnosis': item.primary_diagnosis,
         'key_instruction': item.key_instruction,
@@ -1691,14 +1695,17 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'doctor_final_notes': doctor_final_notes,
         'closing_statement': item.closing_statement,
         'nurse_discharge_statement': item.nurse_discharge_statement,
-    }), doctor, 'Doctor finalized record', finalized_at)]
+    })
+    final_history = [_medical_record_history_entry(1, history_payload, doctor, 'Doctor finalized record', finalized_at)]
+    # Use the history payload as the canonical payload for hashing
+    record_hash = _finalized_payload_hash(final_history[0]['payload'])
 
     item.next_appointment_date = next_appointment_date or None
     item.doctor_final_notes = (doctor_final_notes or '').strip() or None
     item.doctor_finalized = True
     item.finalized_record_id = item.finalized_record_id or uuid.uuid4()
     item.finalized_record_hash = record_hash
-    item.finalized_record_payload = payload
+    item.finalized_record_payload = final_history[0]['payload']
     item.finalized_record_history = final_history
     item.doctor_finalized_by = doctor
     item.doctor_finalized_at = finalized_at
@@ -1724,7 +1731,7 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         recorded_by_id=doctor.id,
         sha256_hash=record_hash,
         version=1,
-        custom_field_values=payload,
+        custom_field_values=final_history[0]['payload'],
     )
 
     return item, None
@@ -1892,8 +1899,19 @@ def service_get_finalized_medical_record_detail(record_id, role,
     payload = selected_entry.get('payload') or item.finalized_record_payload or {}
     computed_hash = _finalized_payload_hash(payload)
     
-    # Get stored hash from the selected history version
-    local_stored_hash = (selected_entry.get('sha256_hash') or item.finalized_record_hash or '').strip()
+    # Get stored hash from the selected history version. If the history entry lacks an explicit
+    # `sha256_hash` field (some code paths may omit it), compute it from the stored payload
+    # so older versions still verify deterministically.
+    raw_history_hash = selected_entry.get('sha256_hash')
+    if raw_history_hash:
+        local_stored_hash = str(raw_history_hash).strip()
+    else:
+        # fallback: compute hash from the stored payload snapshot
+        try:
+            hist_payload = selected_entry.get('payload') or {}
+            local_stored_hash = _finalized_payload_hash(hist_payload)
+        except Exception:
+            local_stored_hash = (item.finalized_record_hash or '').strip()
     
     # Get stored hash from MediChain metadata database
     medichain_meta = _latest_medical_record_meta(
@@ -1901,6 +1919,7 @@ def service_get_finalized_medical_record_detail(record_id, role,
         version=selected_version,
     ) or _latest_medical_record_meta(record_id=item.finalized_record_id or item.id)
     medichain_stored_hash = (medichain_meta.sha256_hash or '').strip() if medichain_meta else ''
+
     
     # Three-tier verification: computed vs local vs medichain
     local_match = bool(local_stored_hash) and local_stored_hash == computed_hash
@@ -2451,6 +2470,73 @@ def service_get_record_detail(record_id, hospital_id, version_number=None):
         else:
             record = history_rows[-1]
 
+    selected_meta = _latest_medical_record_meta(record_id=record_id, version=getattr(record, 'version', None)) or meta
+
+    def _record_hash_source(row):
+        excluded_keys = {
+            'sha256_hash',
+            'created_at',
+            'updated_at',
+            'version_row_id',
+            'version_number',
+            'changed_by_id',
+            'change_reason',
+            'changed_at',
+            'lab_request',
+            'custom_field_values',
+        }
+        return {
+            key: value
+            for key, value in vars(row).items()
+            if not key.startswith('_') and key not in excluded_keys
+        }
+
+    # Prefer computing hash from the immutable version snapshot (version table) when available.
+    version_row_for_hash = None
+    try:
+        version_num = getattr(record, 'version', None)
+        if version_num is not None:
+            version_row_for_hash = fetch_record_version(alias, meta.lab_request.lab, record_id, version_num)
+    except Exception:
+        version_row_for_hash = None
+
+    try:
+        payload_source_row = version_row_for_hash or record
+        payload_for_hash = _record_hash_source(payload_source_row)
+        canonical_payload = json.dumps(payload_for_hash, sort_keys=True, separators=(',', ':'), default=str)
+    except Exception:
+        payload_for_hash = None
+        canonical_payload = None
+    computed_hash = _payload_hash(payload_for_hash) if payload_for_hash is not None else ''
+    local_stored_hash = (getattr(record, 'sha256_hash', '') or '').strip()
+    medichain_stored_hash = (selected_meta.sha256_hash or '').strip() if selected_meta else ''
+
+    local_match = bool(local_stored_hash) and local_stored_hash == computed_hash
+    medichain_match = bool(medichain_stored_hash) and medichain_stored_hash == computed_hash
+    all_verified = local_match and medichain_match
+
+    try:
+        logger.info(
+            "service_get_record_detail record_id=%s hospital_id=%s requested_version=%s fetched_version=%s selected_meta_id=%s selected_meta_version=%s computed_hash=%s local_hash=%s medichain_hash=%s local_match=%s medichain_match=%s payload_source=%s payload=%s",
+            record_id,
+            hospital_id,
+            version_number,
+            getattr(record, 'version', None),
+            getattr(selected_meta, 'id', None) if selected_meta else None,
+            getattr(selected_meta, 'version', None) if selected_meta else None,
+            computed_hash,
+            local_stored_hash,
+            medichain_stored_hash,
+            local_match,
+            medichain_match,
+            'version_table' if version_row_for_hash else 'live_record',
+            (canonical_payload[:1000] + '...') if canonical_payload and len(canonical_payload) > 1000 else canonical_payload,
+        )
+    except Exception:
+        # keep logging best-effort and avoid crashing the service
+        pass
+    # Debug prints removed; structured logging above remains.
+
     history = service_get_record_history(record_id=record_id, hospital_id=hospital_id)
     history_asc = list(reversed(history))
 
@@ -2501,6 +2587,14 @@ def service_get_record_detail(record_id, hospital_id, version_number=None):
 
     return record, meta.lab_request, {
         'audit': audit,
+        'hash': {
+            'computed': computed_hash,
+            'local_stored': local_stored_hash,
+            'medichain_stored': medichain_stored_hash,
+            'local_verified': local_match,
+            'medichain_verified': medichain_match,
+            'verified': all_verified,
+        },
         'timeline': history,
         'custom_field_values': extract_custom_values_from_row(record, meta.lab_request.lab),
         'lab_custom_field_schema': meta.lab_request.lab.custom_field_schema or [],

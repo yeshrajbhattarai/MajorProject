@@ -832,6 +832,123 @@ class DoctorMedicalRecordTests(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertContains(res, 'Edit Record')
 
+    def test_lab_record_detail_shows_integrity_badge_for_selected_version(self):
+        from hospitals.models import Lab, LabRequest, LabAssignment
+        from hospitals.services import service_create_medical_record, service_edit_medical_record
+
+        technician = self.make_technician('42')
+        lab = Lab.objects.create(hospital=self.hospital, lab_type='biochemistry', name='Bio Lab')
+        lab_request = LabRequest.objects.create(
+            patient=self.patient,
+            lab=lab,
+            requested_by=self.doctor,
+            chest_pain_type='typical',
+            diagnosis='Initial diagnosis',
+            treatment_plan='Initial plan',
+            notes='Initial notes',
+        )
+        LabAssignment.objects.create(lab=lab, technician=technician)
+
+        record, error = service_create_medical_record(
+            lab_request_id=lab_request.id,
+            technician_id=technician.id,
+            hospital_id=self.hospital.id,
+            data={'age': '31', 'gender': 'Male'},
+        )
+        self.assertIsNone(error)
+
+        updated_record, error = service_edit_medical_record(
+            record_id=record.record_id,
+            technician_id=technician.id,
+            hospital_id=self.hospital.id,
+            data={'age': '32', 'gender': 'Male'},
+            change_reason='Updated age after review',
+        )
+        self.assertIsNone(error)
+
+        res = self.web_client.get(f'/staff/records/{updated_record.record_id}/?v=1')
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, 'Record Integrity: Verified')
+        self.assertContains(res, 'Local DB:')
+        self.assertContains(res, 'MediChain:')
+
+    def test_lab_record_verification_deterministic(self):
+        from hospitals.models import Lab, LabRequest, LabAssignment
+        from hospitals.services import service_create_medical_record, service_edit_medical_record, service_get_record_detail
+
+        technician = self.make_technician('99')
+        lab = Lab.objects.create(hospital=self.hospital, lab_type='biochemistry', name='Bio Lab 2')
+        lab_request = LabRequest.objects.create(
+            patient=self.patient,
+            lab=lab,
+            requested_by=self.doctor,
+            chest_pain_type='typical',
+            diagnosis='Initial diagnosis',
+            treatment_plan='Initial plan',
+            notes='Initial notes',
+        )
+        LabAssignment.objects.create(lab=lab, technician=technician)
+
+        record_v1, error = service_create_medical_record(
+            lab_request_id=lab_request.id,
+            technician_id=technician.id,
+            hospital_id=self.hospital.id,
+            data={'age': '40', 'gender': 'Male'},
+        )
+        self.assertIsNone(error)
+
+        record_v2, error = service_edit_medical_record(
+            record_id=record_v1.record_id,
+            technician_id=technician.id,
+            hospital_id=self.hospital.id,
+            data={'age': '41', 'gender': 'Male'},
+            change_reason='update age',
+        )
+        self.assertIsNone(error)
+
+        # verify v1, v2 and latest (no version specified) all compute/compare deterministically
+        r1, lr1, bundle1, err1 = service_get_record_detail(record_v1.record_id, self.hospital.id, version_number=1)
+        self.assertIsNone(err1)
+        self.assertTrue(bundle1['hash']['verified'])
+
+        r2, lr2, bundle2, err2 = service_get_record_detail(record_v1.record_id, self.hospital.id, version_number=2)
+        self.assertIsNone(err2)
+        self.assertTrue(bundle2['hash']['verified'])
+
+        r_latest, lr_latest, bundle_latest, err_latest = service_get_record_detail(record_v1.record_id, self.hospital.id, version_number=None)
+        self.assertIsNone(err_latest)
+        # latest should match v2 and be verified
+        self.assertTrue(bundle_latest['hash']['verified'])
+
+    def test_medical_record_verification_deterministic(self):
+        from hospitals.services import service_finalize_doctor_approval_item, service_update_finalized_medical_record, service_get_finalized_medical_record_detail
+
+        finalized_item = self._make_finalized_record()
+
+        # update finalized medical record (creates new version)
+        _, errors = service_update_finalized_medical_record(
+            record_id=finalized_item.finalized_record_id,
+            hospital_id=self.hospital.id,
+            doctor_id=self.doctor.id,
+            data={
+                'title': finalized_item.title,
+                'primary_diagnosis': 'Changed Diagnosis',
+                'key_instruction': finalized_item.key_instruction,
+                'doctor_note': 'Updated note',
+            },
+            change_reason='test update',
+        )
+        self.assertIsNone(errors)
+
+        # fetch both versions and ensure verified
+        item1, bundle1, err1 = service_get_finalized_medical_record_detail(finalized_item.finalized_record_id, role='doctor', hospital_id=self.hospital.id, staff_id=self.doctor.id, version_number=1)
+        self.assertIsNone(err1)
+        self.assertTrue(bundle1['hash']['verified'])
+
+        item2, bundle2, err2 = service_get_finalized_medical_record_detail(finalized_item.finalized_record_id, role='doctor', hospital_id=self.hospital.id, staff_id=self.doctor.id, version_number=2)
+        self.assertIsNone(err2)
+        self.assertTrue(bundle2['hash']['verified'])
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TECHNICIAN — DASHBOARD, PROFILE, LAB QUEUE
@@ -918,6 +1035,50 @@ class TechnicianTests(BaseTestCase):
         res = self.tech_client.get('/api/v1/staff/technician/records/')
         self.assertEqual(res.status_code, 200)
         self.assertEqual(len(res.data), 0)
+
+    def test_technician_create_record_accepts_browser_payload(self):
+        from hospitals.models import Lab, LabAssignment, LabRequest
+
+        doctor = self.make_doctor()
+        patient = self.make_patient()
+        lab = Lab.objects.create(
+            hospital=self.hospital,
+            lab_type='biochemistry',
+            name='Bio Lab',
+            custom_field_schema=[
+                {
+                    'label': 'Specimen Notes',
+                    'key': 'specimen_notes',
+                    'type': 'text',
+                    'required': False,
+                    'fill_by': 'technician',
+                }
+            ],
+        )
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        lab_request = LabRequest.objects.create(
+            patient=patient,
+            lab=lab,
+            requested_by=doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+
+        res = self.tech_client.post('/api/v1/staff/technician/records/create/', {
+            'lab_request_id': str(lab_request.id),
+            'age': 31,
+            'gender': 'Male',
+            'technician_change_reason': '',
+            'custom_field_values': {
+                'specimen_notes': 'Collected after fasting',
+            },
+        }, format='json')
+
+        self.assertEqual(res.status_code, 201)
+        self.assertTrue(res.data['success'])
+        self.assertIn('record_id', res.data)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

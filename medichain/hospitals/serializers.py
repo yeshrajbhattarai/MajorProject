@@ -266,11 +266,5 @@ class MedicalRecordMetaSerializer(serializers.ModelSerializer):
 class CreateMedicalRecordSerializer(serializers.Serializer):
     age = serializers.IntegerField()
     gender = serializers.CharField()
-    blood_pressure_systolic = serializers.IntegerField()
-    blood_pressure_diastolic = serializers.IntegerField()
-    cholesterol = serializers.IntegerField()
-    blood_glucose = serializers.FloatField()
-    heart_rate = serializers.IntegerField()
-    ecg_result = serializers.CharField()
     technician_change_reason = serializers.CharField(required=False, allow_blank=True)
     custom_field_values = serializers.JSONField(required=False)
