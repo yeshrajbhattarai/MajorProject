@@ -285,3 +285,70 @@ class NurseUpdatePersonalSerializer(serializers.Serializer):
     license_number = serializers.CharField(required=False, allow_blank=True)
     home_address = serializers.CharField(required=False, allow_blank=True)
     bio = serializers.CharField(required=False, allow_blank=True)
+
+
+# ─── Nurse Queue Serializers ─────────────────────────────────────────────────
+class NurseQueueItemSerializer(serializers.ModelSerializer):
+    patient = PatientSerializer(read_only=True)
+    doctor = HospitalUserSerializer(read_only=True)
+    picked_by = HospitalUserSerializer(read_only=True)
+
+    class Meta:
+        model = globals().get('NurseQueueItem') or None
+        # Use explicit fields to avoid model import ordering issues; these align with NurseQueueItem
+        fields = [
+            'id', 'patient', 'doctor', 'title', 'primary_diagnosis', 'key_instruction', 'doctor_note',
+            'handwritten_file', 'blood_pressure', 'pulse_rate', 'temperature_c', 'spo2_percent',
+            'random_blood_sugar', 'nurse_tests_performed', 'nurse_observation', 'treatment_given',
+            'medications_administered', 'follow_up_notes', 'status', 'picked_by', 'created_at', 'updated_at', 'completed_at',
+            'doctor_finalized', 'finalized_record_id', 'doctor_finalized_at',
+        ]
+
+
+class CreateNurseQueueSerializer(serializers.Serializer):
+    patient_id = serializers.CharField()
+    title = serializers.CharField()
+    primary_diagnosis = serializers.CharField()
+    key_instruction = serializers.CharField()
+    doctor_note = serializers.CharField(required=False, allow_blank=True)
+    # handwritten_file will be supplied as multipart file in the API view
+
+
+class NurseCompleteSerializer(serializers.Serializer):
+    blood_pressure = serializers.CharField()
+    pulse_rate = serializers.IntegerField()
+    temperature_c = serializers.DecimalField(max_digits=4, decimal_places=1)
+    spo2_percent = serializers.IntegerField()
+    random_blood_sugar = serializers.CharField(required=False, allow_blank=True)
+    nurse_tests_performed = serializers.CharField()
+    nurse_observation = serializers.CharField()
+    treatment_given = serializers.CharField()
+    medications_administered = serializers.CharField()
+    follow_up_notes = serializers.CharField(required=False, allow_blank=True)
+
+
+# ─── Doctor Approval / Finalize Serializers ──────────────────────────────────
+class DoctorFinalizeSerializer(serializers.Serializer):
+    next_appointment_date = serializers.DateField(required=False, allow_null=True)
+    doctor_final_notes = serializers.CharField()
+
+
+class DoctorUpdateFinalizedSerializer(serializers.Serializer):
+    # Fields that can be updated on a finalized record. All optional except change_reason
+    record_topic = serializers.CharField(required=False, allow_blank=True)
+    primary_diagnosis = serializers.CharField(required=False, allow_blank=True)
+    key_instruction = serializers.CharField(required=False, allow_blank=True)
+    doctor_note = serializers.CharField(required=False, allow_blank=True)
+    blood_pressure = serializers.CharField(required=False, allow_blank=True)
+    pulse_rate = serializers.IntegerField(required=False, allow_null=True)
+    temperature_c = serializers.DecimalField(required=False, max_digits=4, decimal_places=1)
+    spo2_percent = serializers.IntegerField(required=False, allow_null=True)
+    random_blood_sugar = serializers.CharField(required=False, allow_blank=True)
+    nurse_tests_performed = serializers.CharField(required=False, allow_blank=True)
+    nurse_observation = serializers.CharField(required=False, allow_blank=True)
+    treatment_given = serializers.CharField(required=False, allow_blank=True)
+    medications_administered = serializers.CharField(required=False, allow_blank=True)
+    follow_up_notes = serializers.CharField(required=False, allow_blank=True)
+    next_appointment_date = serializers.DateField(required=False, allow_null=True)
+    doctor_final_notes = serializers.CharField(required=False, allow_blank=True)
+    change_reason = serializers.CharField()

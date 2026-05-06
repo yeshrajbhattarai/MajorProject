@@ -30,6 +30,17 @@ from .api_views import (
     DoctorReassessRecordAPI,
     DoctorLabsListAPI,
     DoctorLabDetailAPI,
+    DoctorCreateNurseQueueAPI,
+    NurseQueueListAPI,
+    NurseQueueItemAPI,
+    DoctorApprovalQueueAPI,
+    DoctorApprovalItemAPI,
+    DoctorMedicalRecordsListAPI,
+    DoctorRecordsAPI,
+    AdminDeleteLabAPI,
+    NurseMedicalRecordsAPI,
+    NurseMedicalRecordDetailAPI,
+    DoctorUpdateFinalizedAPI,
     # nurses
     NursesListAPI,
     NurseDetailAPI,
@@ -120,6 +131,9 @@ urlpatterns = [
     path('staff/doctor/records/<uuid:record_id>/reassess/', DoctorReassessRecordAPI.as_view(), name='api_doctor_reassess_record'),
     path('staff/doctor/labs/', DoctorLabsListAPI.as_view(), name='api_doctor_labs_list'),
     path('staff/doctor/labs/<uuid:lab_id>/', DoctorLabDetailAPI.as_view(), name='api_doctor_lab_detail'),
+    path('staff/doctor/patients/<uuid:pk>/create-medical-record/', DoctorCreateNurseQueueAPI.as_view(), name='api_doctor_create_nurse_queue'),
+    path('staff/doctor/records/', DoctorRecordsAPI.as_view(), name='api_doctor_records'),
+    path('staff/doctor/medical-records/', DoctorMedicalRecordsListAPI.as_view(), name='api_doctor_medical_records_list'),
 
     # ── Technician portal ───────────────────────────────────────────────────
     path('staff/technician/dashboard/', TechnicianDashboardAPI.as_view(), name='api_technician_dashboard'),
@@ -134,6 +148,7 @@ urlpatterns = [
     path('staff/labs/<uuid:lab_id>/', LabDetailAPI.as_view(), name='api_lab_detail'),
     path('staff/labs/<uuid:lab_id>/assign-technician/', LabAssignTechnicianAPI.as_view(), name='api_lab_assign_technician'),
     path('staff/labs/<uuid:lab_id>/remove-technician/<uuid:technician_id>/', LabRemoveTechnicianAPI.as_view(), name='api_lab_remove_technician'),
+    path('staff/labs/<uuid:lab_id>/delete/', AdminDeleteLabAPI.as_view(), name='api_admin_delete_lab'),
     
     path('staff/technician/lab-queue/', TechnicianLabQueueAPI.as_view(), name='api_technician_lab_queue'),
     path('staff/technician/lab-requests/<uuid:request_id>/', TechnicianLabRequestDetailAPI.as_view(), name='api_technician_lab_request_detail'),
@@ -143,4 +158,13 @@ urlpatterns = [
     path('staff/technician/records/<uuid:record_id>/edit/', TechnicianEditRecordAPI.as_view(), name='api_technician_edit_record'),
     path('staff/records/<uuid:record_id>/', RecordDetailAPI.as_view(), name='api_record_detail'),
     path('staff/records/<uuid:record_id>/history/', RecordHistoryAPI.as_view(), name='api_record_history'),
+    # Nurse queue and finalized records
+    path('staff/nurse/queue/', NurseQueueListAPI.as_view(), name='api_nurse_queue_list'),
+    path('staff/nurse/queue/<uuid:item_id>/', NurseQueueItemAPI.as_view(), name='api_nurse_queue_item'),
+    path('staff/nurse/records/', NurseMedicalRecordsAPI.as_view(), name='api_nurse_medical_records_list'),
+    path('staff/nurse/records/<uuid:record_id>/', NurseMedicalRecordDetailAPI.as_view(), name='api_nurse_medical_record_detail'),
+    # Doctor approval/finalize
+    path('staff/doctor/approval-queue/', DoctorApprovalQueueAPI.as_view(), name='api_doctor_approval_queue'),
+    path('staff/doctor/approval-queue/<uuid:item_id>/', DoctorApprovalItemAPI.as_view(), name='api_doctor_approval_item'),
+    path('staff/doctor/medical-records/<uuid:record_id>/update/', DoctorUpdateFinalizedAPI.as_view(), name='api_doctor_update_finalized'),
 ]

@@ -24,6 +24,11 @@ from .serializers import (
     CreateMedicalRecordSerializer,
     EditMedicalRecordSerializer,
     NurseUpdatePersonalSerializer,
+    NurseQueueItemSerializer,
+    CreateNurseQueueSerializer,
+    NurseCompleteSerializer,
+    DoctorFinalizeSerializer,
+    DoctorUpdateFinalizedSerializer,
 )
 from .services import (
     service_register_hospital,
@@ -81,6 +86,19 @@ from .services import (
     service_get_record_history,
     service_get_technician_records,
     service_doctor_reassess_record,
+    service_create_nurse_queue_item,
+    service_get_nurse_queue_items,
+    service_get_nurse_queue_item_for_nurse,
+    service_complete_nurse_queue_item,
+    service_get_doctor_approval_queue_items,
+    service_get_doctor_approval_item,
+    service_finalize_doctor_approval_item,
+    service_get_doctor_medical_records,
+    service_get_doctor_records,
+    service_update_finalized_medical_record,
+    service_delete_lab,
+    service_get_nurse_medical_records,
+    service_get_finalized_medical_record_detail,
 )
 from .token_utils import get_tokens_for_payload
 
@@ -1141,6 +1159,225 @@ class DoctorSendToLabAPI(APIView):
 
         return Response({'success': True, 'message': 'Lab request created'},
                         status=status.HTTP_201_CREATED)
+
+
+# ─── Nurse Queue APIs (doctor creates, nurse lists/handles) ───────────────────
+class DoctorCreateNurseQueueAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def post(self, request, pk=None):
+        serializer = CreateNurseQueueSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        d = serializer.validated_data
+        handwritten = request.FILES.get('handwritten_file')
+        item, error = service_create_nurse_queue_item(
+            hospital_id=request.user_payload['hospital_id'],
+            patient_id=d['patient_id'],
+            doctor_id=request.user_payload['staff_id'],
+            title=d['title'],
+            primary_diagnosis=d['primary_diagnosis'],
+            key_instruction=d['key_instruction'],
+            doctor_note=d.get('doctor_note', ''),
+            handwritten_file=handwritten,
+        )
+
+        if error:
+            return Response({'success': False, 'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'success': True, 'item_id': str(item.id)}, status=status.HTTP_201_CREATED)
+
+
+class NurseQueueListAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def get(self, request):
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            # allow comma-separated statuses
+            status_values = [s.strip() for s in status_filter.split(',') if s.strip()]
+        else:
+            status_values = None
+
+        items = service_get_nurse_queue_items(hospital_id=request.user_payload['hospital_id'], status=status_values)
+        return Response(NurseQueueItemSerializer(items, many=True).data, status=status.HTTP_200_OK)
+
+
+class NurseQueueItemAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def get(self, request, item_id):
+        item, error = service_get_nurse_queue_item_for_nurse(item_id=item_id, hospital_id=request.user_payload['hospital_id'])
+        if error:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+        return Response(NurseQueueItemSerializer(item).data, status=status.HTTP_200_OK)
+
+    def post(self, request, item_id):
+        # complete the nurse queue item
+        serializer = NurseCompleteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        d = serializer.validated_data
+        _, complete_error = service_complete_nurse_queue_item(
+            item_id=item_id,
+            hospital_id=request.user_payload['hospital_id'],
+            nurse_id=request.user_payload['staff_id'],
+            blood_pressure=d['blood_pressure'],
+            pulse_rate=d['pulse_rate'],
+            temperature_c=d['temperature_c'],
+            spo2_percent=d['spo2_percent'],
+            random_blood_sugar=d.get('random_blood_sugar', ''),
+            nurse_tests_performed=d['nurse_tests_performed'],
+            nurse_observation=d['nurse_observation'],
+            treatment_given=d['treatment_given'],
+            medications_administered=d['medications_administered'],
+            follow_up_notes=d.get('follow_up_notes', ''),
+        )
+
+        if complete_error:
+            return Response({'success': False, 'error': complete_error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'message': 'Nurse item completed.'}, status=status.HTTP_200_OK)
+
+
+# ─── Doctor approval & finalized records APIs ────────────────────────────────
+class DoctorApprovalQueueAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        items = service_get_doctor_approval_queue_items(request.user_payload['hospital_id'])
+        return Response(NurseQueueItemSerializer(items, many=True).data, status=status.HTTP_200_OK)
+
+
+class DoctorApprovalItemAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request, item_id):
+        item, error = service_get_doctor_approval_item(item_id=item_id, hospital_id=request.user_payload['hospital_id'])
+        if error:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+        return Response(NurseQueueItemSerializer(item).data, status=status.HTTP_200_OK)
+
+    def post(self, request, item_id):
+        serializer = DoctorFinalizeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        d = serializer.validated_data
+        item, error = service_finalize_doctor_approval_item(
+            item_id=item_id,
+            hospital_id=request.user_payload['hospital_id'],
+            doctor_id=request.user_payload['staff_id'],
+            next_appointment_date=d.get('next_appointment_date'),
+            doctor_final_notes=d.get('doctor_final_notes', ''),
+        )
+        if error:
+            return Response({'success': False, 'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'message': 'Case finalized.'}, status=status.HTTP_200_OK)
+
+
+class DoctorMedicalRecordsListAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        records = service_get_doctor_medical_records(request.user_payload['hospital_id'])
+        return Response(NurseQueueItemSerializer(records, many=True).data, status=status.HTTP_200_OK)
+
+
+class DoctorRecordsAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def get(self, request):
+        gov_id_type = request.query_params.get('gov_id_type', '').strip().lower()
+        gov_id_number = request.query_params.get('gov_id_number', '').strip()
+        lab_id = request.query_params.get('lab_id', '').strip()
+        patient_id = request.query_params.get('patient_id', '').strip()
+
+        records, labs, grouped_records = service_get_doctor_records(
+            hospital_id=request.user_payload['hospital_id'],
+            gov_id_type=gov_id_type,
+            gov_id_number=gov_id_number,
+            lab_id=lab_id,
+            patient_id=patient_id,
+            scope='lab',
+        )
+
+        return Response({
+            'records': MedicalRecordMetaSerializer(records, many=True).data if records is not None else [],
+            'labs': [ {'id': str(r['lab'].id), 'name': r['lab'].name} for r in labs ] if labs else [],
+            'grouped': grouped_records,
+        }, status=status.HTTP_200_OK)
+
+
+# ─── Admin: delete lab (archive) ─────────────────────────────────────────────
+class AdminDeleteLabAPI(APIView):
+    permission_classes = [IsHospitalAdmin]
+
+    def post(self, request, lab_id):
+        success, error = service_delete_lab(hospital_id=request.user_payload['hospital_id'], lab_id=lab_id)
+        if not success:
+            return Response({'success': False, 'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'message': 'Lab archived successfully.'}, status=status.HTTP_200_OK)
+
+
+# ─── Nurse finalized records APIs ────────────────────────────────────────────
+class NurseMedicalRecordsAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def get(self, request):
+        gov_id_type = request.query_params.get('gov_id_type', '').strip().lower()
+        gov_id_number = request.query_params.get('gov_id_number', '').replace(' ', '').strip()
+
+        records = service_get_nurse_medical_records(hospital_id=request.user_payload['hospital_id'], nurse_id=request.user_payload['staff_id'])
+        # simple gov id filtering is left to caller; return serialized items
+        return Response(NurseQueueItemSerializer(records, many=True).data, status=status.HTTP_200_OK)
+
+
+class NurseMedicalRecordDetailAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def get(self, request, record_id):
+        version_number = request.query_params.get('v')
+        try:
+            version_number = int(version_number) if version_number else None
+        except ValueError:
+            return Response({'error': 'Invalid version number'}, status=status.HTTP_400_BAD_REQUEST)
+
+        item, detail_bundle, error = service_get_finalized_medical_record_detail(
+            record_id=record_id,
+            role='nurse',
+            hospital_id=request.user_payload['hospital_id'],
+            staff_id=request.user_payload['staff_id'],
+            version_number=version_number,
+        )
+        if error:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'record': NurseQueueItemSerializer(item).data,
+            'detail': detail_bundle,
+        }, status=status.HTTP_200_OK)
+
+
+# ─── Doctor update finalized record ─────────────────────────────────────────
+class DoctorUpdateFinalizedAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def post(self, request, record_id):
+        serializer = DoctorUpdateFinalizedSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        d = serializer.validated_data
+        item, errors = service_update_finalized_medical_record(
+            record_id=record_id,
+            hospital_id=request.user_payload['hospital_id'],
+            doctor_id=request.user_payload['staff_id'],
+            data=d,
+            change_reason=d.get('change_reason'),
+        )
+        if errors:
+            return Response({'success': False, 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'message': 'Medical record updated.'}, status=status.HTTP_200_OK)
 
 
 # GET /api/v1/staff/technician/lab/
