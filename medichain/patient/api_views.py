@@ -15,6 +15,7 @@ from .serializers import (
     PatientPasswordUpdateSerializer,
     PatientProfileUpdateSerializer,
     PatientRegisterSerializer,
+    PatientCompleteProfileSerializer,
 )
 from .services import (
     get_missing_profile_fields,
@@ -27,6 +28,7 @@ from .services import (
     service_patient_register,
     service_patient_update_password,
     service_patient_update_profile,
+    service_patient_complete_profile,
 )
 
 
@@ -219,6 +221,43 @@ class PatientDashboardAPI(APIView):
             ],
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+class PatientCompleteProfileAPI(APIView):
+    permission_classes = [IsPatient]
+
+    def post(self, request):
+        serializer = PatientCompleteProfileSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        patient_id = request.user_payload['patient_id']
+        d = serializer.validated_data
+        
+        patient, errors = service_patient_complete_profile(
+            patient_id=patient_id,
+            phone=d.get('phone', '').strip(),
+            address=d.get('address', '').strip(),
+            gender=d.get('gender', '').strip(),
+        )
+
+        if errors:
+            return Response({'success': False, 'errors': errors},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': True,
+            'message': 'Profile completed successfully.',
+            'patient': {
+                'id': str(patient.id),
+                'full_name': patient.full_name,
+                'email': patient.email,
+                'phone': patient.phone,
+                'address': patient.address,
+                'gender': patient.gender,
+            },
+        }, status=status.HTTP_200_OK)
 
 
 class PatientRecordsAPI(APIView):

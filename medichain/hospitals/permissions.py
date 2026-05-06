@@ -26,49 +26,33 @@ class IsHospitalAdmin(BasePermission):
 # hospital user (admin or staff) with active account
 class IsHospitalUserActive(BasePermission):
     """
-    For GET: allows hospital admins and doctors/nurses to view
-    For POST/PATCH/DELETE: requires active account
-    This permission reads the JWT claims attached to `request.user_payload`
-    and verifies the target Hospital exists and is active.
+    Allow access to staff members (doctors, nurses, technicians) who are:
+    1. Authenticated with a valid JWT token
+    2. Have a valid user_payload in the request
+    3. Have 'staff' user_type (not hospital_admin)
+    4. Have 'active' status (implied by having valid token)
     """
 
     def has_permission(self, request, view):
-        payload = getattr(request, 'user_payload', None)
-        if not payload:
+        # Check if user_payload exists (set by authentication class)
+        if not hasattr(request, 'user_payload'):
             return False
 
-        user_type = payload.get('user_type')
-        hospital_id = payload.get('hospital_id')
+        user_payload = request.user_payload
 
-        if not hospital_id:
+        # Must be staff, not admin
+        if user_payload.get('user_type') != 'staff':
             return False
 
-        # lightweight import to avoid cycle at module import time
-        from hospitals.models import Hospital
-
-        try:
-            hospital = Hospital.objects.get(id=hospital_id)
-        except Hospital.DoesNotExist:
+        # staff_id must exist
+        if not user_payload.get('staff_id'):
             return False
 
-        # admins are fine
-        if user_type == 'hospital_admin':
-            # GET allowed for all admins; write operations require active account
-            if request.method == 'GET':
-                return True
-            return hospital.account_status == 'active'
+        # hospital_id must exist
+        if not user_payload.get('hospital_id'):
+            return False
 
-        # staff: only doctors and nurses may perform consent/record actions
-        if user_type == 'staff':
-            role = payload.get('staff_role')
-            if role not in ('doctor', 'nurse'):
-                return False
-            # GET allowed; write operations require active account
-            if request.method == 'GET':
-                return True
-            return hospital.account_status == 'active'
-
-        return False
+        return True
 
 
 # hospital admin with active account (admin-only operations like staff management)

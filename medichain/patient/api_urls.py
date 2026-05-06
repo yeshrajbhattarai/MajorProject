@@ -2,6 +2,7 @@ from django.urls import path
 
 from .api_views import (
     PatientDashboardAPI,
+    PatientCompleteProfileAPI,
     PatientLoginAPI,
     PatientLogoutAPI,
     PatientRecordDetailAPI,
@@ -18,6 +19,7 @@ urlpatterns = [
     path('logout/', PatientLogoutAPI.as_view(), name='api_patient_logout'),
 
     path('dashboard/', PatientDashboardAPI.as_view(), name='api_patient_dashboard'),
+    path('complete-profile/', PatientCompleteProfileAPI.as_view(), name='api_patient_complete_profile'),
     path('records/', PatientRecordsAPI.as_view(), name='api_patient_records'),
     path('records/<uuid:record_id>/', PatientRecordDetailAPI.as_view(), name='api_patient_record_detail'),
     path('records/<uuid:record_id>/history/', PatientRecordHistoryAPI.as_view(), name='api_patient_record_history'),

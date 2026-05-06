@@ -23,7 +23,151 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from hospitals.models import Hospital, HospitalUser, Patient, Lab, NurseQueueItem, MedicalRecordMeta
+if False:
+    """
 
+    def test_technician_edit_record_success(self):
+        from hospitals.models import Lab, LabAssignment, LabRequest, MedicalRecordMeta
+
+        doctor = self.make_doctor()
+        patient = self.make_patient()
+        lab = Lab.objects.create(
+            hospital=self.hospital,
+            lab_type='biochemistry',
+            name='Bio Lab',
+            custom_field_schema=[
+                {
+                    'label': 'Test Value',
+                    'key': 'test_value',
+                    'type': 'number',
+                    'required': False,
+                    'fill_by': 'technician',
+                }
+            ],
+        )
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        lab_request = LabRequest.objects.create(
+            patient=patient,
+            lab=lab,
+            requested_by=doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+        
+        # Create a record first
+        record = MedicalRecordMeta.objects.create(
+            lab_request=lab_request,
+            recorded_by=self.tech,
+            version=1,
+            custom_field_values={'test_value': 100},
+        )
+        
+        # Edit it
+        res = self.tech_client.patch(f'/api/v1/staff/technician/records/{record.record_id}/edit/', {
+            'age': 32,
+            'gender': 'Female',
+            'custom_field_values': {'test_value': 120},
+            'change_reason': 'Corrected value',
+        }, format='json')
+        
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('record_id', res.data)
+
+    def test_doctor_reassess_record_with_send_to_queue(self):
+        from hospitals.models import Lab, LabAssignment, LabRequest, MedicalRecordMeta
+
+        patient = self.make_patient()
+        doctor = self.make_doctor()
+        lab = Lab.objects.create(
+            hospital=self.hospital,
+            lab_type='biochemistry',
+            name='Bio Lab',
+        )
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        lab_request = LabRequest.objects.create(
+            patient=patient,
+            lab=lab,
+            requested_by=doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+        
+        # Create a record
+        record = MedicalRecordMeta.objects.create(
+            lab_request=lab_request,
+            recorded_by=self.tech,
+            version=1,
+            custom_field_values={},
+        )
+        
+        # Reassess with send_to_queue (default)
+        doc_client = APIClient()
+        doc_client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {doctor_token(doctor.id, self.hospital.id)}'
+        )
+        res = doc_client.post(f'/api/v1/staff/doctor/records/{record.record_id}/reassess/', {
+            'chest_pain_type': 'atypical',
+            'diagnosis': 'New diagnosis',
+            'treatment_plan': 'New treatment',
+            'reason': 'Reviewed patient',
+            'reassess_action': 'send_to_queue',
+        }, format='json')
+        
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('Request moved back to technician queue', res.data['message'])
+
+    def test_doctor_reassess_record_with_update_only(self):
+        from hospitals.models import Lab, LabAssignment, LabRequest, MedicalRecordMeta
+
+        patient = self.make_patient()
+        doctor = self.make_doctor()
+        lab = Lab.objects.create(
+            hospital=self.hospital,
+            lab_type='biochemistry',
+            name='Bio Lab',
+        )
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        lab_request = LabRequest.objects.create(
+            patient=patient,
+            lab=lab,
+            requested_by=doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+        
+        # Create a record
+        record = MedicalRecordMeta.objects.create(
+            lab_request=lab_request,
+            recorded_by=self.tech,
+            version=1,
+            custom_field_values={},
+        )
+        
+        # Reassess with update_only
+        doc_client = APIClient()
+        doc_client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {doctor_token(doctor.id, self.hospital.id)}'
+        )
+        res = doc_client.post(f'/api/v1/staff/doctor/records/{record.record_id}/reassess/', {
+            'chest_pain_type': 'atypical',
+            'diagnosis': 'New diagnosis',
+            'treatment_plan': 'New treatment',
+            'reason': 'Reviewed patient',
+            'reassess_action': 'update_only',
+        }, format='json')
+        
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('Request status was not changed', res.data['message'])
+    """
 
 # ─── Token factory helpers ────────────────────────────────────────────────────
 
@@ -63,6 +207,13 @@ def technician_token(staff_id, hospital_id):
     })
 
 
+def nurse_token(staff_id, hospital_id):
+    return make_jwt({
+        'user_type':  'staff',
+        'staff_role': 'nurse',
+        'staff_id':   str(staff_id),
+        'hospital_id': str(hospital_id),
+    })
 # ─── Base ─────────────────────────────────────────────────────────────────────
 
 class BaseTestCase(TransactionTestCase):
@@ -420,6 +571,7 @@ class AdminDoctorTests(BaseTestCase):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class AdminNurseTests(BaseTestCase):
+
 
     def test_add_nurse_success(self):
         with patch('hospitals.services.send_nurse_credentials'):
@@ -951,6 +1103,74 @@ class DoctorMedicalRecordTests(BaseTestCase):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# DOCTOR — REASSESS RECORD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class DoctorReassessRecordTests(BaseTestCase):
+    databases = '__all__'
+
+    def setUp(self):
+        super().setUp()
+        self.doctor = self.make_doctor()
+        self.tech = self.make_technician()
+        self.patient = self.make_patient()
+        self.doc_client = APIClient()
+        self.doc_client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {doctor_token(self.doctor.id, self.hospital.id)}'
+        )
+
+    def _make_record(self):
+        from hospitals.models import Lab, LabAssignment, LabRequest
+        from hospitals.services import service_create_medical_record
+
+        lab = Lab.objects.create(hospital=self.hospital, lab_type='biochemistry', name='Bio Lab')
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        lab_request = LabRequest.objects.create(
+            patient=self.patient,
+            lab=lab,
+            requested_by=self.doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+        record, error = service_create_medical_record(
+            lab_request_id=lab_request.id,
+            technician_id=self.tech.id,
+            hospital_id=self.hospital.id,
+            data={'age': '31', 'gender': 'Male'},
+        )
+        self.assertIsNone(error)
+        return record
+
+    def test_doctor_reassess_record_with_send_to_queue(self):
+        record = self._make_record()
+        res = self.doc_client.post(f'/api/v1/staff/doctor/records/{record.record_id}/reassess/', {
+            'chest_pain_type': 'atypical',
+            'diagnosis': 'New diagnosis',
+            'treatment_plan': 'New treatment',
+            'reason': 'Reviewed patient',
+            'reassess_action': 'send_to_queue',
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('technician queue', res.data['message'])
+
+    def test_doctor_reassess_record_with_update_only(self):
+        record = self._make_record()
+        res = self.doc_client.post(f'/api/v1/staff/doctor/records/{record.record_id}/reassess/', {
+            'chest_pain_type': 'atypical',
+            'diagnosis': 'New diagnosis',
+            'treatment_plan': 'New treatment',
+            'reason': 'Reviewed patient',
+            'reassess_action': 'update_only',
+        }, format='json')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('status was not changed', res.data['message'])
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # TECHNICIAN — DASHBOARD, PROFILE, LAB QUEUE
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1079,6 +1299,87 @@ class TechnicianTests(BaseTestCase):
         self.assertEqual(res.status_code, 201)
         self.assertTrue(res.data['success'])
         self.assertIn('record_id', res.data)
+
+    def test_technician_edit_record_success(self):
+        from hospitals.models import Lab, LabAssignment, LabRequest
+        from hospitals.services import service_create_medical_record
+
+        doctor = self.make_doctor()
+        patient = self.make_patient()
+        lab = Lab.objects.create(
+            hospital=self.hospital,
+            lab_type='biochemistry',
+            name='Bio Lab',
+        )
+        LabAssignment.objects.create(lab=lab, technician=self.tech)
+        lab_request = LabRequest.objects.create(
+            patient=patient,
+            lab=lab,
+            requested_by=doctor,
+            status=LabRequest.STATUS_PENDING,
+            chest_pain_type='typical',
+            diagnosis='Diagnosis',
+            treatment_plan='Treatment',
+        )
+
+        record, error = service_create_medical_record(
+            lab_request_id=lab_request.id,
+            technician_id=self.tech.id,
+            hospital_id=self.hospital.id,
+            data={'age': '31', 'gender': 'Male'},
+        )
+        self.assertIsNone(error)
+
+        res = self.tech_client.patch(f'/api/v1/staff/technician/records/{record.record_id}/edit/', {
+            'age': 32,
+            'gender': 'Female',
+            'custom_field_values': {},
+            'change_reason': 'Corrected value',
+        }, format='json')
+
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('record_id', res.data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NURSE — PROFILE UPDATES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class NurseUpdatePersonalTests(BaseTestCase):
+    databases = '__all__'
+
+    def setUp(self):
+        super().setUp()
+        self.nurse = self.make_nurse()
+        self.nurse_client = APIClient()
+        self.nurse_client.credentials(
+            HTTP_AUTHORIZATION=f'Bearer {nurse_token(self.nurse.id, self.hospital.id)}'
+        )
+
+    def test_nurse_update_personal_success(self):
+        res = self.nurse_client.patch('/api/v1/staff/nurse/profile/update-personal/', {
+            'date_of_birth': '1990-05-15',
+            'gender': 'Female',
+            'years_experience': 5,
+            'license_number': 'LIC123456',
+            'home_address': '123 Nurse St',
+            'bio': 'Experienced nurse',
+        }, format='json')
+
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
+        self.assertIn('nurse', res.data)
+
+    def test_nurse_update_password_success(self):
+        res = self.nurse_client.patch('/api/v1/staff/nurse/profile/update-password/', {
+            'current_password': 'pass1234',
+            'new_password': 'nursepass99',
+            'confirm_new_password': 'nursepass99',
+        }, format='json')
+
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.data['success'])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

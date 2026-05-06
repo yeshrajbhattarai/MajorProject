@@ -31,6 +31,12 @@ class PatientLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class PatientCompleteProfileSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True)
+    gender = serializers.ChoiceField(choices=['Male', 'Female', 'Other'], required=False, allow_blank=True)
+
+
 class PatientProfileUpdateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)

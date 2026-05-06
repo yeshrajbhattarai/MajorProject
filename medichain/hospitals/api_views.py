@@ -22,6 +22,8 @@ from .serializers import (
     LabRequestRevisionSerializer,
     MedicalRecordMetaSerializer,
     CreateMedicalRecordSerializer,
+    EditMedicalRecordSerializer,
+    NurseUpdatePersonalSerializer,
 )
 from .services import (
     service_register_hospital,
@@ -62,6 +64,8 @@ from .services import (
     service_update_technician_password,
     service_get_technician_patients,
     service_get_technician_patient_detail,
+    service_update_nurse_personal,
+    service_update_nurse_password,
     service_create_lab,
     service_get_labs,
     service_get_lab_detail,
@@ -657,6 +661,53 @@ class DoctorUpdatePasswordAPI(APIView):
                         status=status.HTTP_200_OK)
 
 
+# ─── Nurse Profile APIs ────────────────────────────────────────────────────────
+
+# PATCH /api/v1/staff/nurse/profile/update-personal/ — update personal details
+class NurseUpdatePersonalAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def patch(self, request):
+        serializer = NurseUpdatePersonalSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        d = serializer.validated_data
+        nurse, error = service_update_nurse_personal(
+            staff_id         = request.user_payload['staff_id'],
+            date_of_birth    = d.get('date_of_birth'),
+            gender           = d.get('gender') or None,
+            years_experience = d.get('years_experience'),
+            license_number   = d.get('license_number', '').strip(),
+            home_address     = d.get('home_address', '').strip(),
+            bio              = d.get('bio', '').strip(),
+        )
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'success': True,
+            'message': 'Personal details updated successfully.',
+            'nurse': HospitalUserSerializer(nurse).data,
+        }, status=status.HTTP_200_OK)
+
+
+# PATCH /api/v1/staff/nurse/profile/update-password/ — change nurse password
+class NurseUpdatePasswordAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def patch(self, request):
+        success, error = service_update_nurse_password(
+            staff_id         = request.user_payload['staff_id'],
+            current_password = request.data.get('current_password', ''),
+            new_password     = request.data.get('new_password', ''),
+            confirm_password = request.data.get('confirm_new_password', ''),
+        )
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'success': True, 'message': 'Password updated successfully.'},
+                        status=status.HTTP_200_OK)
+
+
 # GET /api/v1/staff/doctor/patients/ — doctor-scoped patient list
 class DoctorPatientsListAPI(APIView):
     permission_classes = [IsDoctor]
@@ -1173,27 +1224,90 @@ class TechnicianRecordsListAPI(APIView):
                         status=status.HTTP_200_OK)
 
 
+# PATCH /api/v1/staff/technician/records/<record_id>/edit/
+class TechnicianEditRecordAPI(APIView):
+    permission_classes = [IsTechnician]
+
+    def patch(self, request, record_id):
+        serializer = EditMedicalRecordSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        d = serializer.validated_data
+        data = {
+            'age': d.get('age'),
+            'gender': d.get('gender', ''),
+            'custom_field_values': d.get('custom_field_values', {}),
+        }
+        
+        record, errors = service_edit_medical_record(
+            record_id=record_id,
+            technician_id=request.user_payload['staff_id'],
+            hospital_id=request.user_payload['hospital_id'],
+            data=data,
+            change_reason=d.get('change_reason', ''),
+        )
+
+        if errors:
+            return Response({'success': False, 'errors': errors},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            'success': True,
+            'record_id': str(record.record_id),
+            'message': 'Record updated successfully',
+        }, status=status.HTTP_200_OK)
+
+
 # GET /api/v1/staff/records/<record_id>/
 class RecordDetailAPI(APIView):
     permission_classes = [IsHospitalUserActive]
     def get(self, request, record_id):
+        """
+        Fetch medical record detail with version history and audit trail.
+        Technicians can only view records from their own hospital.
+        """
+        # Get hospital_id from JWT payload
+        hospital_id = getattr(request, 'user_payload', {}) and request.user_payload.get('hospital_id')
+        if not hospital_id:
+            return Response(
+                {'error': 'Hospital ID not found in token'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # Get version number if specified
         version_number = request.query_params.get('v')
         if version_number:
             try:
                 version_number = int(version_number)
             except ValueError:
-                return Response({'error': 'Invalid version number'},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Invalid version number'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+        # Fetch record with hospital scoping
         record, lab_request, detail_bundle, error = service_get_record_detail(
             record_id=record_id,
-            hospital_id=request.user_payload.get('hospital_id'),
+            hospital_id=hospital_id,  # This ensures hospital scoping
             version_number=version_number,
         )
 
+        # If service returns error, return it
         if error:
-            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+            # Return 403 for permission issues, 404 for not found
+            if 'permission' in error.lower() or 'not allowed' in error.lower():
+                return Response(
+                    {'error': error},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            return Response(
+                {'error': error},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
+        # Return record detail with all metadata
         return Response({
             'record_id': str(record.record_id),
             'version': record.version,
@@ -1225,6 +1339,9 @@ class DoctorReassessRecordAPI(APIView):
                             status=status.HTTP_400_BAD_REQUEST)
 
         d = serializer.validated_data
+        reassess_action = d.get('reassess_action', 'send_to_queue')
+        send_to_queue = reassess_action != 'update_only'
+        
         _, errors = service_doctor_reassess_record(
             record_id=record_id,
             doctor_id=request.user_payload['staff_id'],
@@ -1234,13 +1351,15 @@ class DoctorReassessRecordAPI(APIView):
             treatment_plan=d['treatment_plan'],
             notes=d.get('notes', ''),
             reason=d['reason'],
+            send_to_queue=send_to_queue,
         )
 
         if errors:
             return Response({'success': False, 'errors': errors},
                             status=status.HTTP_400_BAD_REQUEST)
 
+        message = 'Record reassessment submitted. Request moved back to technician queue.' if send_to_queue else 'Doctor update saved. Request status was not changed.'
         return Response({
             'success': True,
-            'message': 'Record reassessment submitted. Request moved back to technician queue.',
+            'message': message,
         }, status=status.HTTP_200_OK)

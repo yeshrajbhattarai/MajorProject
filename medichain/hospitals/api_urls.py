@@ -48,6 +48,9 @@ from .api_views import (
     TechnicianUpdatePasswordAPI,
     TechnicianPatientsListAPI,
     TechnicianPatientDetailAPI,
+    TechnicianEditRecordAPI,
+    NurseUpdatePersonalAPI,
+    NurseUpdatePasswordAPI,
     
     # Labs & Medical Records
     LabListAPI,
@@ -90,6 +93,8 @@ urlpatterns = [
     # ── Nurses ────────────────────────────────────────────────────────────────
     path('staff/nurses/',           NursesListAPI.as_view(),   name='api_nurses_list'),
     path('staff/nurses/<uuid:pk>/', NurseDetailAPI.as_view(),  name='api_nurse_detail'),
+    path('staff/nurse/profile/update-personal/', NurseUpdatePersonalAPI.as_view(), name='api_nurse_update_personal'),
+    path('staff/nurse/profile/update-password/', NurseUpdatePasswordAPI.as_view(), name='api_nurse_update_password'),
 
     # ── Technicians ───────────────────────────────────────────────────────────────
     path('staff/technicians/',            TechniciansListAPI.as_view(),   name='api_technicians_list'),
@@ -135,6 +140,7 @@ urlpatterns = [
     
     path('staff/technician/records/create/', TechnicianCreateRecordAPI.as_view(), name='api_technician_create_record'),
     path('staff/technician/records/', TechnicianRecordsListAPI.as_view(), name='api_technician_records_list'),
+    path('staff/technician/records/<uuid:record_id>/edit/', TechnicianEditRecordAPI.as_view(), name='api_technician_edit_record'),
     path('staff/records/<uuid:record_id>/', RecordDetailAPI.as_view(), name='api_record_detail'),
     path('staff/records/<uuid:record_id>/history/', RecordHistoryAPI.as_view(), name='api_record_history'),
 ]

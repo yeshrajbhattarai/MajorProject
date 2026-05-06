@@ -213,6 +213,7 @@ class DoctorReassessSerializer(serializers.Serializer):
     treatment_plan = serializers.CharField()
     notes = serializers.CharField(required=False, allow_blank=True)
     reason = serializers.CharField()
+    reassess_action = serializers.ChoiceField(choices=['send_to_queue', 'update_only'], required=False, default='send_to_queue')
     custom_field_values = serializers.JSONField(required=False)
 
 
@@ -267,4 +268,20 @@ class CreateMedicalRecordSerializer(serializers.Serializer):
     age = serializers.IntegerField(required=False)
     gender = serializers.CharField(required=False)
     technician_change_reason = serializers.CharField(required=False, allow_blank=True)
-    custom_field_values = serializers.JSONField(required=True)
+    custom_field_values = serializers.JSONField(required=False)
+
+
+class EditMedicalRecordSerializer(serializers.Serializer):
+    age = serializers.IntegerField(required=False, allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True)
+    custom_field_values = serializers.JSONField(required=False)
+    change_reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class NurseUpdatePersonalSerializer(serializers.Serializer):
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    gender = serializers.CharField(required=False, allow_blank=True)
+    years_experience = serializers.IntegerField(required=False, allow_null=True)
+    license_number = serializers.CharField(required=False, allow_blank=True)
+    home_address = serializers.CharField(required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True)
