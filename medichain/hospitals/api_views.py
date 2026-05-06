@@ -101,6 +101,8 @@ from .services import (
     service_get_finalized_medical_record_detail,
 )
 from .token_utils import get_tokens_for_payload
+from django.utils import timezone
+from .models import NurseQueueItem
 
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -1274,6 +1276,74 @@ class DoctorApprovalItemAPI(APIView):
         if error:
             return Response({'success': False, 'error': error}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'success': True, 'message': 'Case finalized.'}, status=status.HTTP_200_OK)
+
+# Additional doctor action endpoints: approve (alternate path), reject, request changes
+class DoctorApproveItemAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def post(self, request, item_id):
+        hospital_id = request.user_payload.get('hospital_id')
+        doctor_id = request.user_payload.get('staff_id')
+        next_appointment = request.data.get('next_appointment_date')
+        final_notes = request.data.get('final_notes', '')
+
+        item, error = service_finalize_doctor_approval_item(
+            item_id=item_id,
+            hospital_id=hospital_id,
+            doctor_id=doctor_id,
+            next_appointment_date=next_appointment,
+            doctor_final_notes=final_notes,
+        )
+
+        if error:
+            return Response({'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'success': True, 'message': 'Record approved and finalized', 'record_id': str(item.finalized_record_id or item.id)}, status=status.HTTP_200_OK)
+
+
+class DoctorRejectItemAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def post(self, request, item_id):
+        hospital_id = request.user_payload.get('hospital_id')
+        reason = request.data.get('reason', 'No reason provided')
+        if not reason or not reason.strip():
+            return Response({'error': 'Rejection reason is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            item = NurseQueueItem.objects.get(id=item_id, hospital_id=hospital_id)
+        except NurseQueueItem.DoesNotExist:
+            return Response({'error': 'Record not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        item.status = NurseQueueItem.STATUS_PENDING
+        item.doctor_rejection_reason = reason
+        item.rejected_at = timezone.now()
+        item.rejected_by_id = request.user_payload.get('staff_id')
+        item.save()
+
+        return Response({'success': True, 'message': 'Record rejected and returned to technician'}, status=status.HTTP_200_OK)
+
+
+class DoctorRequestChangesAPI(APIView):
+    permission_classes = [IsDoctor]
+
+    def post(self, request, item_id):
+        hospital_id = request.user_payload.get('hospital_id')
+        requested_changes = request.data.get('requested_changes', '')
+        if not requested_changes or not requested_changes.strip():
+            return Response({'error': 'Please specify what changes are needed'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            item = NurseQueueItem.objects.get(id=item_id, hospital_id=hospital_id)
+        except NurseQueueItem.DoesNotExist:
+            return Response({'error': 'Record not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        item.doctor_requested_changes = requested_changes
+        item.change_request_at = timezone.now()
+        item.change_requested_by_id = request.user_payload.get('staff_id')
+        item.save()
+
+        return Response({'success': True, 'message': 'Change request sent to technician'}, status=status.HTTP_200_OK)
 
 
 class DoctorMedicalRecordsListAPI(APIView):

@@ -341,6 +341,13 @@ class NurseQueueItem(models.Model):
     finalized_record_history = models.JSONField(default=list, blank=True)
     doctor_finalized_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='doctor_finalized_queue_items')
     doctor_finalized_at = models.DateTimeField(null=True, blank=True)
+    # Fields to support doctor rejection and change-requests
+    doctor_rejection_reason = models.TextField(null=True, blank=True)
+    rejected_at = models.DateTimeField(null=True, blank=True)
+    rejected_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='nurse_queue_items_rejected')
+    doctor_requested_changes = models.TextField(null=True, blank=True)
+    change_request_at = models.DateTimeField(null=True, blank=True)
+    change_requested_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='nurse_queue_items_change_requested')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     picked_by = models.ForeignKey(HospitalUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='nurse_queue_items_picked')
     created_at = models.DateTimeField(auto_now_add=True)
