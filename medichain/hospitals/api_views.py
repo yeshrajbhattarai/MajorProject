@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .permissions import IsHospitalAdmin, IsHospitalAdminActive, IsHospitalUserActive, IsDoctor, IsNurse, IsTechnician
+from .permissions import IsHospitalAdmin, IsHospitalAdminActive, IsHospitalUserActive, IsDoctor, IsNurse, IsTechnician, IsStaff
 from .serializers import (
     HospitalSerializer,
     HospitalRegisterSerializer,
@@ -1403,6 +1403,39 @@ class NurseMedicalRecordDetailAPI(APIView):
         return Response({
             'record': NurseQueueItemSerializer(item).data,
             'detail': detail_bundle,
+            'integrity': detail_bundle.get('hash', {}),
+        }, status=status.HTTP_200_OK)
+
+
+class FinalizedMedicalRecordIntegrityAPI(APIView):
+    permission_classes = [IsStaff]
+
+    def get(self, request, record_id):
+        role = request.user_payload.get('staff_role')
+        if role not in {'doctor', 'nurse'}:
+            return Response({'error': 'You are not allowed to view this medical record.'}, status=status.HTTP_403_FORBIDDEN)
+
+        version_number = request.query_params.get('v')
+        try:
+            version_number = int(version_number) if version_number else None
+        except ValueError:
+            return Response({'error': 'Invalid version number'}, status=status.HTTP_400_BAD_REQUEST)
+
+        item, detail_bundle, error = service_get_finalized_medical_record_detail(
+            record_id=record_id,
+            role=role,
+            hospital_id=request.user_payload['hospital_id'],
+            staff_id=request.user_payload['staff_id'],
+            version_number=version_number,
+        )
+        if error:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'success': True,
+            'record_id': str(item.finalized_record_id or item.id),
+            'record_type': 'medical',
+            'integrity': detail_bundle.get('hash', {}),
         }, status=status.HTTP_200_OK)
 
 
@@ -1598,6 +1631,42 @@ class RecordDetailAPI(APIView):
             'lab_request': LabRequestSerializer(lab_request).data if lab_request else None,
             'audit': detail_bundle['audit'] if detail_bundle else None,
             'timeline': detail_bundle['timeline'] if detail_bundle else None,
+            'hash': detail_bundle['hash'] if detail_bundle else None,
+            'integrity': detail_bundle['hash'] if detail_bundle else None,
+        }, status=status.HTTP_200_OK)
+
+
+class RecordIntegrityAPI(APIView):
+    permission_classes = [IsHospitalUserActive]
+
+    def get(self, request, record_id):
+        hospital_id = getattr(request, 'user_payload', {}) and request.user_payload.get('hospital_id')
+        if not hospital_id:
+            return Response({'error': 'Hospital ID not found in token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        version_number = request.query_params.get('v')
+        if version_number:
+            try:
+                version_number = int(version_number)
+            except ValueError:
+                return Response({'error': 'Invalid version number'}, status=status.HTTP_400_BAD_REQUEST)
+
+        record, lab_request, detail_bundle, error = service_get_record_detail(
+            record_id=record_id,
+            hospital_id=hospital_id,
+            version_number=version_number,
+        )
+
+        if error:
+            if 'permission' in error.lower() or 'not allowed' in error.lower():
+                return Response({'error': error}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            'success': True,
+            'record_id': str(record.record_id),
+            'record_type': 'lab',
+            'integrity': detail_bundle['hash'] if detail_bundle else None,
         }, status=status.HTTP_200_OK)
 
 

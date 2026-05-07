@@ -395,6 +395,7 @@ class PatientRecordDetailAPI(APIView):
                 'timeline': detail_bundle['timeline'],
                 'custom_field_values': detail_bundle.get('custom_field_values', {}),
                 'lab_custom_field_schema': detail_bundle.get('lab_custom_field_schema', []),
+                'integrity': detail_bundle.get('hash', {}),
             },
             status=status.HTTP_200_OK,
         )
