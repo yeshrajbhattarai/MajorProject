@@ -14,6 +14,8 @@ urlpatterns = [
     path('api/logs/', include('auditlog.urls')),
 
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
+    
+    path('api/ml/', include('ckdprediction.urls')),
+    
     path('admin/', admin.site.urls),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

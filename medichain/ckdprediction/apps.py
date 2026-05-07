@@ -2,4 +2,5 @@ from django.apps import AppConfig
 
 
 class CkdpredictionConfig(AppConfig):
-    name = "ckdprediction"
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'ckdprediction'

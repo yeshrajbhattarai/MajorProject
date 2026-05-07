@@ -1,34 +1,19 @@
-# Core Django
-Django==4.2.11
-django-environ==0.11.2
-
-# REST API
-djangorestframework==3.14.0
-djangorestframework-simplejwt==5.3.2
-
-# Database
-mysql-connector-python==8.2.0
-PyMySQL==1.1.0
-
-# Security & Encryption
-cryptography==42.0.2
-bcrypt==4.1.1
-
-# JWT & Auth
-PyJWT==2.8.1
-
-# Utilities
-python-decouple==3.8
-requests==2.31.0
-
-# Development
-python-dotenv==1.0.0
-
-# Optional: For production
-gunicorn==21.2.0
-whitenoise==6.6.0
-
-# Optional: For testing
-pytest==7.4.3
-pytest-django==4.7.0
-factory-boy==3.3.0
+asgiref==3.11.1
+cffi==2.0.0
+cryptography==46.0.6
+Django==6.0.2
+django-cors-headers==4.9.0
+djangorestframework==3.16.1
+djangorestframework_simplejwt==5.5.1
+joblib==1.5.3
+mysqlclient==2.2.8
+numpy==2.4.4
+pillow==12.1.1
+psycopg2==2.9.11
+pycparser==3.0
+PyJWT==2.12.1
+scikit-learn==1.6.1
+scipy==1.17.1
+sqlparse==0.5.5
+threadpoolctl==3.6.0
+tzdata==2025.3
