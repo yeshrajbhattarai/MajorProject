@@ -11,7 +11,8 @@ from .models import (
     MedicalRecordMeta,
 )
 
-
+# ! this worked in my case
+from .models import NurseQueueItem
 INDIA_MOBILE_REGEX = r'^[6-9]\d{9}$'
 
 
@@ -294,7 +295,7 @@ class NurseQueueItemSerializer(serializers.ModelSerializer):
     picked_by = HospitalUserSerializer(read_only=True)
 
     class Meta:
-        model = globals().get('NurseQueueItem') or None
+        model = NurseQueueItem
         # Use explicit fields to avoid model import ordering issues; these align with NurseQueueItem
         fields = [
             'id', 'patient', 'doctor', 'title', 'primary_diagnosis', 'key_instruction', 'doctor_note',
