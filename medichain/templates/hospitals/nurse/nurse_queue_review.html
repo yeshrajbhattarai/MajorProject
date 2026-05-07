@@ -167,6 +167,33 @@
         </div>
       </section>
 
+      {% if item.doctor_rejection_reason %}
+        <section class="panel" style="border-color: var(--a5-border); background: linear-gradient(135deg, var(--a5-bg-subtle) 0%, var(--surface) 100%);">
+          <div class="panel-head" style="border-bottom-color: var(--a5-border);">
+            <div class="panel-title" style="color: var(--warning);">⚠ Doctor Rejection</div>
+            <div class="panel-sub">This record was rejected by the doctor. Please review the reason and correct the issues.</div>
+          </div>
+          <div class="panel-body">
+            <div class="field" style="border-color: var(--a5-border); background: var(--a5-bg); padding: 12px 14px;">
+              <div class="field-label" style="color: var(--warning);">Rejection Reason</div>
+              <div class="field-value" style="color: var(--text-primary); margin-top: 8px; font-size: 14px; line-height: 1.5;">{{ item.doctor_rejection_reason }}</div>
+            </div>
+            {% if item.rejected_by %}
+              <div class="field">
+                <div class="field-label">Rejected By</div>
+                <div class="field-value">{{ item.rejected_by.full_name }} ({{ item.rejected_by.employee_id }})</div>
+              </div>
+            {% endif %}
+            {% if item.rejected_at %}
+              <div class="field">
+                <div class="field-label">Rejection Date & Time</div>
+                <div class="field-value">{{ item.rejected_at|date:'d M Y, h:i A' }}</div>
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+
       <section class="panel">
         <div class="panel-head">
           <div class="panel-title">Nurse Completion</div>

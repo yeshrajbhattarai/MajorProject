@@ -134,8 +134,27 @@
             </div>
 
             <div class="btn-row">
-              <button type="submit" class="btn-primary">Finalize Case</button>
+              <button type="submit" class="btn-primary" name="action" value="finalize">Finalize Case</button>
               <a href="{% url 'doctor_approval_queue' %}" class="btn-link">Back to Approval Queue</a>
+            </div>
+          </form>
+        </div>
+      </section>
+      
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Reject Record</div>
+          <div class="panel-sub">Reject and send back to the nurse queue with a reason.</div>
+        </div>
+        <div class="panel-body">
+          <form method="POST" class="final-form">
+            {% csrf_token %}
+            <div>
+              <label class="required">Rejection Reason</label>
+              <textarea name="reject_reason" required></textarea>
+            </div>
+            <div class="btn-row">
+              <button type="submit" class="btn-link" name="action" value="reject">Reject & Return</button>
             </div>
           </form>
         </div>

@@ -1019,10 +1019,31 @@ def doctor_approval_review(request, item_id):
         return redirect('doctor_approval_queue')
 
     if request.method == 'POST':
+        # If already finalized, no further actions allowed
         if item.doctor_finalized:
             messages.info(request, 'This case is already finalized.')
             return redirect('doctor_approval_queue')
 
+        # Reject action returns the item to the nurse queue for correction.
+        if request.POST.get('action') == 'reject':
+            reason = request.POST.get('reject_reason', '').strip()
+            if not reason:
+                messages.error(request, 'Please provide a rejection reason.')
+                return redirect('doctor_approval_review', item_id=item_id)
+
+            item.status = item.STATUS_PENDING
+            item.doctor_rejection_reason = reason
+            from django.utils import timezone
+            item.rejected_at = timezone.now()
+            item.rejected_by_id = request.session.get('staff_id')
+            item.save()
+
+            messages.success(request, 'Record rejected and returned to the nurse queue.')
+            return redirect('doctor_approval_queue')
+
+        # Handle finalization from the review page.
+
+        # Default -> finalize
         next_appointment_date = request.POST.get('next_appointment_date', '').strip()
         doctor_final_notes = request.POST.get('doctor_final_notes', '').strip()
 
@@ -1315,12 +1336,23 @@ def nurse_dashboard(request):
 
 @nurse_required
 def nurse_queue(request):
-    queue_items = service_get_nurse_queue_items(
+    all_items = service_get_nurse_queue_items(
         hospital_id=request.session['hospital_id'],
         status=['pending', 'in_progress'],
     )
+    
+    # Apply filter
+    filter_type = request.GET.get('filter', 'all').lower()
+    if filter_type == 'new':
+        queue_items = [item for item in all_items if not item.doctor_rejection_reason]
+    elif filter_type == 'rejected':
+        queue_items = [item for item in all_items if item.doctor_rejection_reason]
+    else:
+        queue_items = all_items
+    
     return render(request, 'hospitals/nurse/nurse_queue.html', {
         'queue_items': queue_items,
+        'filter_type': filter_type,
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
     })

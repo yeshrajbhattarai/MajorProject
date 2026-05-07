@@ -1321,29 +1321,7 @@ class DoctorRejectItemAPI(APIView):
         item.rejected_by_id = request.user_payload.get('staff_id')
         item.save()
 
-        return Response({'success': True, 'message': 'Record rejected and returned to technician'}, status=status.HTTP_200_OK)
-
-
-class DoctorRequestChangesAPI(APIView):
-    permission_classes = [IsDoctor]
-
-    def post(self, request, item_id):
-        hospital_id = request.user_payload.get('hospital_id')
-        requested_changes = request.data.get('requested_changes', '')
-        if not requested_changes or not requested_changes.strip():
-            return Response({'error': 'Please specify what changes are needed'}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            item = NurseQueueItem.objects.get(id=item_id, hospital_id=hospital_id)
-        except NurseQueueItem.DoesNotExist:
-            return Response({'error': 'Record not found'}, status=status.HTTP_404_NOT_FOUND)
-
-        item.doctor_requested_changes = requested_changes
-        item.change_request_at = timezone.now()
-        item.change_requested_by_id = request.user_payload.get('staff_id')
-        item.save()
-
-        return Response({'success': True, 'message': 'Change request sent to technician'}, status=status.HTTP_200_OK)
+        return Response({'success': True, 'message': 'Record rejected and returned to nurse queue'}, status=status.HTTP_200_OK)
 
 
 class DoctorMedicalRecordsListAPI(APIView):

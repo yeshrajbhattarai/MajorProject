@@ -37,7 +37,6 @@ from .api_views import (
     DoctorApprovalItemAPI,
     DoctorApproveItemAPI,
     DoctorRejectItemAPI,
-    DoctorRequestChangesAPI,
     DoctorMedicalRecordsListAPI,
     DoctorRecordsAPI,
     AdminDeleteLabAPI,
@@ -171,6 +170,5 @@ urlpatterns = [
     path('staff/doctor/approval-queue/<uuid:item_id>/', DoctorApprovalItemAPI.as_view(), name='api_doctor_approval_item'),
     path('staff/doctor/approval-queue/<uuid:item_id>/approve/', DoctorApproveItemAPI.as_view(), name='api_doctor_approve_item'),
     path('staff/doctor/approval-queue/<uuid:item_id>/reject/', DoctorRejectItemAPI.as_view(), name='api_doctor_reject_item'),
-    path('staff/doctor/approval-queue/<uuid:item_id>/request-changes/', DoctorRequestChangesAPI.as_view(), name='api_doctor_request_changes'),
     path('staff/doctor/medical-records/<uuid:record_id>/update/', DoctorUpdateFinalizedAPI.as_view(), name='api_doctor_update_finalized'),
 ]

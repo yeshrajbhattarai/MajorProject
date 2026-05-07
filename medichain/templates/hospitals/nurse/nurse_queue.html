@@ -114,6 +114,50 @@
       font-family: 'Syne', sans-serif;
       color: var(--text-primary);
     }
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-3);
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 14px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .filter-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .filter-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .rejection-row { background: var(--a5-bg-subtle) !important; }
+    .rejection-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      background: var(--a5-bg);
+      color: var(--warning);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -158,6 +202,12 @@
           </div>
         </div>
 
+        <div class="filter-bar">
+          <a href="?filter=all" class="filter-btn {% if filter_type == 'all' or not filter_type %}active{% endif %}">All Records</a>
+          <a href="?filter=new" class="filter-btn {% if filter_type == 'new' %}active{% endif %}">New</a>
+          <a href="?filter=rejected" class="filter-btn {% if filter_type == 'rejected' %}active{% endif %}">Rejected</a>
+        </div>
+
         {% if queue_items %}
           <div class="queue-table-wrap">
             <table class="queue-table">
@@ -173,7 +223,7 @@
               </thead>
               <tbody>
                 {% for item in queue_items %}
-                  <tr>
+                  <tr{% if item.doctor_rejection_reason %} class="rejection-row"{% endif %}>
                     <td>
                       <span class="queue-name">{{ item.patient.full_name }}</span>
                       <span class="queue-subtext">{{ item.patient.phone|default:'No phone' }}</span>
@@ -191,7 +241,10 @@
                       <span class="queue-subtext">{{ item.created_at|date:'d M Y, h:i A' }}</span>
                     </td>
                     <td>
-                      <span class="queue-status {{ item.status }}">{{ item.get_status_display }}</span>
+                      <div style="display: flex; flex-direction: column; gap: 6px; align-items: flex-start;">
+                        <span class="queue-status {{ item.status }}">{{ item.get_status_display }}</span>
+                        {% if item.doctor_rejection_reason %}<span class="rejection-badge">⚠ Rejected</span>{% endif %}
+                      </div>
                     </td>
                     <td>
                       <a href="{% url 'nurse_queue_review' item.id %}" class="queue-action">Review</a>
@@ -207,8 +260,16 @@
               <circle cx="12" cy="12" r="10"/>
               <path d="M8 12h8M12 8v8"/>
             </svg>
-            <h3>No queue items yet</h3>
-            <p>Assigned records will show up here once a doctor forwards them to nursing.</p>
+            <h3>No items found</h3>
+            <p>
+              {% if filter_type == 'new' %}
+                No new records at the moment. All pending items have been reviewed or rejected.
+              {% elif filter_type == 'rejected' %}
+                No rejected records yet. All reviews have been approved.
+              {% else %}
+                Assigned records will show up here once a doctor forwards them to nursing.
+              {% endif %}
+            </p>
           </div>
         {% endif %}
       </section>
