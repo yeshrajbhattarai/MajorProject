@@ -274,19 +274,55 @@ class PatientRecordsAPI(APIView):
 
         dashboard_data = service_get_patient_dashboard_data(patient_id)
         _, lab_requests = service_get_patient_lab_requests(patient_id)
-        grouped_records = group_lab_requests_by_hospital(lab_requests)
+        
+        # Get finalized medical records separately
+        finalized_medical_records = MedicalRecordMeta.objects.filter(
+            patient_id=patient_id,
+            record_type=MedicalRecordMeta.RECORD_TYPE_MEDICAL
+        ).select_related('hospital').values(
+            'record_id', 'hospital__hospital_name', 'version', 'created_at', 'updated_at'
+        )
+        
+        # Prepare lab records data
+        lab_records_data = [
+            {
+                'id': str(lr.id),
+                'record_id': str(lr.record_meta.first().record_id) if lr.record_meta.exists() else None,
+                'status': lr.status,
+                'status_display': lr.get_status_display(),
+                'lab_name': lr.lab.lab_name if lr.lab else 'N/A',
+                'hospital_name': lr.lab.hospital.hospital_name if lr.lab and lr.lab.hospital else 'N/A',
+                'requested_by': lr.requested_by.full_name if lr.requested_by else 'N/A',
+                'created_at': lr.created_at,
+            }
+            for lr in lab_requests
+        ]
+        
+        # Prepare finalized medical records data
+        medical_records_data = [
+            {
+                'record_id': str(record['record_id']),
+                'hospital_name': record['hospital__hospital_name'],
+                'version': record['version'],
+                'created_at': record['created_at'],
+                'updated_at': record['updated_at'],
+            }
+            for record in finalized_medical_records
+        ]
 
         return Response(
             {
                 'success': True,
                 'profile_complete': dashboard_data.get('profile_complete', False),
                 'stats': {
-                    'total_requests': dashboard_data.get('lab_count', 0),
-                    'pending_requests': dashboard_data.get('pending_labs', 0),
-                    'completed_requests': dashboard_data.get('completed_labs', 0),
+                    'total_lab_requests': dashboard_data.get('lab_count', 0),
+                    'pending_lab_requests': dashboard_data.get('pending_labs', 0),
+                    'completed_lab_requests': dashboard_data.get('completed_labs', 0),
+                    'total_medical_records': len(finalized_medical_records),
                     'hospitals_count': dashboard_data.get('hospitals_count', 0),
                 },
-                'records_by_hospital': grouped_records,
+                'lab_records': lab_records_data,
+                'medical_records': medical_records_data,
             },
             status=status.HTTP_200_OK,
         )
