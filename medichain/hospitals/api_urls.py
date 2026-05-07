@@ -76,6 +76,8 @@ from .api_views import (
     TechnicianRecordsListAPI,
     RecordDetailAPI,
     RecordHistoryAPI,
+        RecordIntegrityAPI,
+        FinalizedMedicalRecordIntegrityAPI,
 )
 
 
@@ -159,6 +161,7 @@ urlpatterns = [
     path('staff/technician/records/', TechnicianRecordsListAPI.as_view(), name='api_technician_records_list'),
     path('staff/technician/records/<uuid:record_id>/edit/', TechnicianEditRecordAPI.as_view(), name='api_technician_edit_record'),
     path('staff/records/<uuid:record_id>/', RecordDetailAPI.as_view(), name='api_record_detail'),
+        path('staff/records/<uuid:record_id>/integrity/', RecordIntegrityAPI.as_view(), name='api_record_integrity'),
     path('staff/records/<uuid:record_id>/history/', RecordHistoryAPI.as_view(), name='api_record_history'),
     # Nurse queue and finalized records
     path('staff/nurse/queue/', NurseQueueListAPI.as_view(), name='api_nurse_queue_list'),
@@ -171,4 +174,5 @@ urlpatterns = [
     path('staff/doctor/approval-queue/<uuid:item_id>/approve/', DoctorApproveItemAPI.as_view(), name='api_doctor_approve_item'),
     path('staff/doctor/approval-queue/<uuid:item_id>/reject/', DoctorRejectItemAPI.as_view(), name='api_doctor_reject_item'),
     path('staff/doctor/medical-records/<uuid:record_id>/update/', DoctorUpdateFinalizedAPI.as_view(), name='api_doctor_update_finalized'),
+        path('staff/doctor/medical-records/<uuid:record_id>/integrity/', FinalizedMedicalRecordIntegrityAPI.as_view(), name='api_finalized_medical_record_integrity'),
 ]
