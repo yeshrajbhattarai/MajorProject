@@ -314,20 +314,15 @@ def received_requests(request):
 @api_view(['GET', 'DELETE'])
 @permission_classes([AllowAny])
 def consent_detail(request, consent_id):
-    """
-    GET  — return full detail of a single consent (no auth needed for read).
-    DELETE — withdraw the request; only the requesting hospital may delete,
-             and only while status is PENDING.
-    """
+    hospital, error = get_hospital_from_payload(request)
+    if error:
+        return error
+
     if request.method == 'GET':
         consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
         return Response(ConsentRequestSerializer(consent).data)
 
     # DELETE path
-    hospital, error = get_hospital_from_payload(request)
-    if error:
-        return error
-
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
     if hospital.hospital_name != consent.requesting_hospital:
@@ -357,11 +352,11 @@ def consent_detail(request, consent_id):
 @api_view(['PATCH'])
 @permission_classes([AllowAny])
 def patient_decision(request, consent_id):
-    """
-    Patient approves or rejects a PENDING consent request.
+    """Patient approves or rejects a PENDING consent request."""
+    hospital, error = get_hospital_from_payload(request)
+    if error:
+        return error
 
-    TODO: Add patient JWT authentication — this endpoint currently has no auth.
-    """
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
     if consent.request_status != 'PENDING':
@@ -377,7 +372,7 @@ def patient_decision(request, consent_id):
             if request.data.get('patient_choice') == 'APPROVED'
             else 'PATIENT_REJECTED'
         )
-        log_action(action, f"Patient of consent {consent_id}", consent.consent_id)
+        log_action(action, hospital.hospital_name, consent.consent_id)
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 

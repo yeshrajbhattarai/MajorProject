@@ -30,12 +30,7 @@ class ConsentCreateSerializer(serializers.ModelSerializer):
             'record_id'
         ]
         
-    def validate_requested_to_hospital(self, value):
-        if not Hospital.objects.filter(hospital_name=value).exists():
-            raise serializers.ValidationError(
-                "This hospital is not registered in MediChain"
-            )
-        return value
+    
     
     def validate(self, data):
         if data['requesting_hospital'] == data['requested_to_hospital']:
