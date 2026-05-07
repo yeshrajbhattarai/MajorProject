@@ -29,9 +29,14 @@ class ConsentCreateSerializer(serializers.ModelSerializer):
             'requested_to_hospital',
             'record_id'
         ]
-        
-    
-    
+
+    def validate_requested_to_hospital(self, value):
+        if not Hospital.objects.filter(hospital_name=value).exists():
+            raise serializers.ValidationError(
+                "This hospital is not registered in MediChain"
+            )
+        return value
+
     def validate(self, data):
         if data['requesting_hospital'] == data['requested_to_hospital']:
             raise serializers.ValidationError(
@@ -66,3 +71,19 @@ class HospitalDecisionSerializer(serializers.ModelSerializer):
                 "Invalid choice. Use APPROVED or REJECTED"
             )
         return value
+    
+class PatientConsentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConsentRequest
+        fields = [
+            'consent_id',
+            'patient_id',
+            'requesting_hospital',
+            'requested_to_hospital',
+            'record_id',
+            'patient_choice',
+            'hospital_choice',
+            'request_status',
+            'created_at',
+            'updated_at',
+        ]

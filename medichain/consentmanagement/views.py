@@ -12,6 +12,7 @@ from .serializers import (
     ConsentCreateSerializer,
     PatientDecisionSerializer,
     HospitalDecisionSerializer,
+    PatientConsentSerializer,
 )
 from hospitals.models import Hospital, Patient, MedicalRecordMeta
 from auditlog.utils import log_action
@@ -353,9 +354,18 @@ def consent_detail(request, consent_id):
 @permission_classes([AllowAny])
 def patient_decision(request, consent_id):
     """Patient approves or rejects a PENDING consent request."""
-    hospital, error = get_hospital_from_payload(request)
-    if error:
-        return error
+    payload = getattr(request, 'user_payload', None)
+    if not payload:
+        return Response(
+            {"error": "Authentication required"},
+            status=401
+        )
+
+    if payload.get('user_type') != 'patient':
+        return Response(
+            {"error": "Only patients can perform this action"},
+            status=403
+        )
 
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
 
@@ -372,7 +382,11 @@ def patient_decision(request, consent_id):
             if request.data.get('patient_choice') == 'APPROVED'
             else 'PATIENT_REJECTED'
         )
-        log_action(action, hospital.hospital_name, consent.consent_id)
+        log_action(
+            action,
+            f"patient:{payload.get('patient_id')}",
+            consent.consent_id
+        )
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
@@ -683,3 +697,40 @@ def verify_hash(request, consent_id):
         "overall_verified":  overall_verified,
         "summary":           summary,
     }, status=200)
+    
+    
+    
+# PAtient consent
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def patient_consents(request):
+    """
+    Returns all consent requests belonging to the logged-in patient.
+    """
+
+    payload = getattr(request, 'user_payload', None)
+
+    if not payload:
+        return Response(
+            {"error": "Authentication required"},
+            status=401
+        )
+
+    if payload.get('user_type') != 'patient':
+        return Response(
+            {"error": "Only patients can access this endpoint"},
+            status=403
+        )
+
+    patient_id = payload.get('patient_id')
+
+    consents = ConsentRequest.objects.filter(
+        patient_id=patient_id
+    ).order_by('-created_at')
+
+    serializer = PatientConsentSerializer(
+        consents,
+        many=True
+    )
+
+    return Response(serializer.data, status=200)

@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'hospital_local',
     'consentmanagement',
     'auditlog',
+    'ckdprediction',
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',

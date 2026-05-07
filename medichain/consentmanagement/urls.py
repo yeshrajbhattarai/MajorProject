@@ -12,6 +12,7 @@ from .views import (
     hospital_directory,
     patient_search,
     verify_hash,
+    patient_consents,
 )
 
 urlpatterns = [
@@ -26,6 +27,8 @@ urlpatterns = [
     path('<uuid:consent_id>/fetch-record/',      fetch_record,      name='fetch_record'),
     path('hospitals/', hospital_directory, name='hospital_directory'),
     path('patients/search/', patient_search, name='patient_search'),
+    
+    path('patient/consents/', patient_consents, name='patient_consents'),
 ]
 
 if settings.DEBUG:
