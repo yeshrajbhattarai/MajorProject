@@ -69,6 +69,7 @@ from .services import (
     service_update_technician_password,
     service_get_technician_patients,
     service_get_technician_patient_detail,
+    service_get_nurse_profile,
     service_update_nurse_personal,
     service_update_nurse_password,
     service_create_lab,
@@ -682,6 +683,16 @@ class DoctorUpdatePasswordAPI(APIView):
 
 
 # ─── Nurse Profile APIs ────────────────────────────────────────────────────────
+
+# GET /api/v1/staff/nurse/profile/ — get nurse's own profile
+class NurseProfileAPI(APIView):
+    permission_classes = [IsNurse]
+
+    def get(self, request):
+        nurse, error = service_get_nurse_profile(request.user_payload['staff_id'])
+        if error:
+            return Response({'error': error}, status=status.HTTP_404_NOT_FOUND)
+        return Response(HospitalUserSerializer(nurse).data, status=status.HTTP_200_OK)
 
 # PATCH /api/v1/staff/nurse/profile/update-personal/ — update personal details
 class NurseUpdatePersonalAPI(APIView):

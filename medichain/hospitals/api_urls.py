@@ -46,6 +46,7 @@ from .api_views import (
     # nurses
     NursesListAPI,
     NurseDetailAPI,
+    NurseProfileAPI,
     # Technician
     TechniciansListAPI,
     TechnicianDetailAPI,
@@ -108,6 +109,7 @@ urlpatterns = [
     # ── Nurses ────────────────────────────────────────────────────────────────
     path('staff/nurses/',           NursesListAPI.as_view(),   name='api_nurses_list'),
     path('staff/nurses/<uuid:pk>/', NurseDetailAPI.as_view(),  name='api_nurse_detail'),
+    path('staff/nurse/profile/', NurseProfileAPI.as_view(), name='api_nurse_profile'),
     path('staff/nurse/profile/update-personal/', NurseUpdatePersonalAPI.as_view(), name='api_nurse_update_personal'),
     path('staff/nurse/profile/update-password/', NurseUpdatePasswordAPI.as_view(), name='api_nurse_update_password'),
 
