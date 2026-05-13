@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from .models import AuditLog
 from hospitals.models import Hospital
@@ -7,7 +7,7 @@ from hospitals.models import Hospital
 
 # Returns filtered audit logs — only accessible by authenticated hospitals.
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def view_logs(request):
     payload = getattr(request, 'user_payload', None)
     if not payload:
