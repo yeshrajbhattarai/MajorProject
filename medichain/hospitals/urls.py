@@ -100,3 +100,12 @@ urlpatterns = [
 
 ]
 
+# Frontend integration pages for external consentmanagement endpoints (frontend-only)
+urlpatterns += [
+    path('consent/ui/request/', views.consent_request_ui, name='consent_request_ui'),
+    path('consent/ui/list/', views.consent_list_ui, name='consent_list_ui'),
+    path('consent/ui/detail/<uuid:consent_id>/', views.consent_detail_ui, name='consent_detail_ui'),
+    path('consent/ui/record-access-test/', views.consent_record_access_test_ui, name='consent_record_access_test_ui'),
+    path('consent/ui/records/<uuid:consent_id>/<uuid:record_id>/<str:record_kind>/', views.consent_record_detail_ui, name='consent_record_detail_ui'),
+]
+

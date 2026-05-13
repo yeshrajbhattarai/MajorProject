@@ -63,6 +63,15 @@
       Medical Records
     </a>
 
+    <a href="{% url 'consent_list_ui' %}" class="nav-item {% if active_page == 'consents' %}active{% endif %}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 8V7a2 2 0 0 0-2-2h-3"/>
+        <path d="M3 12v6a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-6"/>
+        <path d="M8 12V8a4 4 0 0 1 8 0v4"/>
+      </svg>
+      Consents
+    </a>
+
     <a href="{% url 'doctor_approval_queue' %}" class="nav-item {% if active_page == 'approval_queue' %}active{% endif %}">
       <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 11l3 3L22 4"/>

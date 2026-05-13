@@ -1,0 +1,403 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Consent Request</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  {% if consent_api_token %}
+  <script>
+    window.CONSENT_API_TOKEN = "{{ consent_api_token|escapejs }}";
+  </script>
+  {% endif %}
+  <style>
+    .message { margin-top: 14px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; display: none; }
+    .message.ok { display: block; background: #ecfdf5; color: #065f46; border: 1px solid #bbf7d0; }
+    .message.err { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .result-card { margin-top: 14px; border: 1px solid #dbe4ef; border-radius: 14px; padding: 14px; background: #f8fafc; display: none; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .result-k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; font-weight: 700; }
+    .result-v { margin-top: 4px; color: #0f172a; font-weight: 700; word-break: break-word; }
+    .tech-box { margin-top: 12px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; background: #fafafa; }
+    .tech-box summary { cursor: pointer; font-weight: 700; color: #334155; }
+    .tech-box pre { margin-top: 10px; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 10px; min-height: 110px; white-space: pre-wrap; overflow: auto; font-size: 12px; }
+    @media (max-width: 720px) {
+      .result-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+{% if staff_role == 'doctor' %}
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'nurse' %}
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'technician' %}
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='consents' %}
+{% else %}
+  {% include 'hospitals/partials/sidebar.html' with active_page='consents' hospital_name=hospital_display_name %}
+{% endif %}
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title">
+        <h1>Consent Request</h1>
+        <span class="breadcrumb">Create a new sharing request</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbarTime"></div>
+      <a href="{% url 'consent_list_ui' %}" style="padding:10px 14px;border-radius:8px;background:#111827;color:#fff;text-decoration:none;">Dashboard</a>
+      <a href="{% url 'consent_record_access_test_ui' %}" style="padding:10px 14px;border-radius:8px;background:#e5e7eb;color:#111827;text-decoration:none;">Fetch / Verify</a>
+    </div>
+  </header>
+
+  <div class="dashboard-content" style="padding:24px;">
+    <div style="margin-bottom:18px;display:flex;justify-content:space-between;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:#2563eb;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">Consent request</div>
+        <h2 style="margin:0;font-family:'Syne',sans-serif;font-size:clamp(26px,3.8vw,38px);line-height:1.1;color:#111827;">Create and send a consent request</h2>
+        <p style="margin:8px 0 0;color:#6b7280;max-width:720px;line-height:1.7;">Search by phone to auto-fill the patient UUID, pick the receiving hospital, and submit. The record UUID is optional and hidden unless you need it.</p>
+      </div>
+      <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:12px 14px;color:#374151;font-size:13px;line-height:1.6;max-width:320px;">
+        <strong style="color:#111827;display:block;margin-bottom:4px;">What you need</strong>
+        Patient phone number, destination hospital, optional record UUID.
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:start;">
+      <section style="background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:22px;box-shadow:0 12px 30px rgba(15,23,42,.06);">
+        <h3 style="margin:0 0 6px;font-size:20px;">Patient lookup</h3>
+        <p style="margin:0 0 16px;color:#6b7280;line-height:1.6;">Type the phone number once. The matching patient UUID will be filled automatically.</p>
+
+        <label for="phoneSearch" style="display:block;margin-bottom:8px;font-weight:600;color:#111827;">Phone number</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start;">
+          <input id="phoneSearch" inputmode="numeric" placeholder="9876543210" maxlength="10" style="flex:1;min-width:180px;padding:12px 14px;border:1px solid #d1d5db;border-radius:12px;font-size:15px;" />
+          <button id="btnSearchPatient" type="button" style="padding:12px 16px;border:0;border-radius:12px;background:#2563eb;color:#fff;font-weight:700;min-width:110px;">Search</button>
+        </div>
+        <div id="patientHint" style="margin-top:10px;color:#6b7280;font-size:13px;">Enter a 10-digit phone number to search patients.</div>
+
+        <div id="patientResults" style="display:grid;gap:12px;margin-top:16px;"></div>
+
+        <div style="margin-top:16px;border-top:1px solid #eef2f6;padding-top:16px;">
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#111827;">Selected patient UUID</label>
+          <input id="patientId" readonly placeholder="Search a patient to auto-fill this field" style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:12px;background:#f9fafb;color:#111827;font-size:14px;" />
+          <div id="selectedPatientInfo" style="margin-top:10px;font-size:13px;color:#6b7280;">No patient selected yet.</div>
+          <button id="btnClearPatient" type="button" style="margin-top:12px;padding:10px 14px;border:1px solid #d1d5db;border-radius:12px;background:#fff;color:#111827;font-weight:600;">Clear selection</button>
+        </div>
+      </section>
+
+      <section style="background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:22px;box-shadow:0 12px 30px rgba(15,23,42,.06);">
+        <h3 style="margin:0 0 6px;font-size:20px;">Create request</h3>
+        <p style="margin:0 0 16px;color:#6b7280;line-height:1.6;">The logged-in hospital is used automatically. Choose the destination hospital and submit.</p>
+
+        <form id="consentForm">
+          <label for="targetHospital" style="display:block;margin-bottom:8px;font-weight:600;color:#111827;">Destination hospital</label>
+          <select id="targetHospital" style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:12px;background:#fff;font-size:15px;margin-bottom:12px;">
+            <option value="">Loading hospitals…</option>
+          </select>
+          <div id="hospitalHint" style="font-size:13px;color:#6b7280;margin-bottom:14px;">Choose the hospital from the list.</div>
+
+          <details style="margin-bottom:16px;border:1px solid #eef2f6;border-radius:14px;padding:14px;background:#fafafa;">
+            <summary style="cursor:pointer;font-weight:700;color:#111827;">Add a specific record ID</summary>
+            <p style="margin:10px 0 12px;color:#6b7280;line-height:1.6;">Leave this empty if you want to request all available records for the patient.</p>
+            <input id="recordId" placeholder="Optional record UUID" style="width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:12px;font-size:14px;" />
+          </details>
+
+          <button id="btnSubmitConsent" type="submit" style="width:100%;padding:13px 16px;border:0;border-radius:12px;background:linear-gradient(135deg,#059669 0%,#10b981 100%);color:#fff;font-weight:800;font-size:15px;box-shadow:0 12px 24px rgba(16,185,129,.22);">Create consent request</button>
+        </form>
+
+        <div id="createMessage" class="message"></div>
+        <div id="createResult" class="result-card">
+          <div class="result-grid">
+            <div>
+              <div class="result-k">Consent ID</div>
+              <div class="result-v" id="resultConsentId">-</div>
+            </div>
+            <div>
+              <div class="result-k">Status</div>
+              <div class="result-v" id="resultStatus">-</div>
+            </div>
+            <div>
+              <div class="result-k">Patient ID</div>
+              <div class="result-v" id="resultPatient">-</div>
+            </div>
+            <div>
+              <div class="result-k">Destination Hospital</div>
+              <div class="result-v" id="resultHospital">-</div>
+            </div>
+          </div>
+        </div>
+        <details class="tech-box">
+          <summary>Technical details (optional)</summary>
+          <pre id="createOutput">Ready</pre>
+        </details>
+      </section>
+    </div>
+
+    <section style="margin-top:18px;background:#fff;border:1px solid #e5e7eb;border-radius:20px;padding:18px 22px;box-shadow:0 12px 30px rgba(15,23,42,.06);">
+      <h3 style="margin:0 0 8px;font-size:18px;">Consent flow</h3>
+      <p style="margin:0;color:#6b7280;line-height:1.7;">Search the patient, select the destination hospital, and submit. Both the patient and the owning hospital must approve before records can be fetched.</p>
+    </section>
+  </div>
+</main>
+
+<script>
+const headers = () => {
+  const base = {'Content-Type': 'application/json'};
+  if (window.CONSENT_API_TOKEN) {
+    base.Authorization = 'Bearer ' + window.CONSENT_API_TOKEN;
+  }
+  return base;
+};
+
+const output = (value) => {
+  document.getElementById('createOutput').textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+};
+const showCreateMessage = (text, kind) => {
+  const msg = document.getElementById('createMessage');
+  msg.className = `message ${kind}`;
+  msg.textContent = text;
+};
+const showCreateResult = (body, statusCode) => {
+  const card = document.getElementById('createResult');
+  const isOk = statusCode >= 200 && statusCode < 300;
+  if (!isOk || !body || typeof body !== 'object') {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  document.getElementById('resultConsentId').textContent = body.consent_id || '-';
+  document.getElementById('resultStatus').textContent = body.request_status || 'PENDING';
+  document.getElementById('resultPatient').textContent = body.patient_id || patientIdInput.value.trim() || '-';
+  document.getElementById('resultHospital').textContent = body.requested_to_hospital || hospitalSelect.value || '-';
+};
+
+const patientHint = document.getElementById('patientHint');
+const patientResults = document.getElementById('patientResults');
+const patientIdInput = document.getElementById('patientId');
+const selectedPatientInfo = document.getElementById('selectedPatientInfo');
+const hospitalSelect = document.getElementById('targetHospital');
+const hospitalHint = document.getElementById('hospitalHint');
+const submitButton = document.getElementById('btnSubmitConsent');
+
+let selectedPatient = null;
+
+function setSelectedPatient(patient) {
+  selectedPatient = patient;
+  patientIdInput.value = patient ? patient.patient_id : '';
+  selectedPatientInfo.textContent = patient
+    ? `${patient.full_name} • ${patient.phone} • ID auto-filled from search`
+    : 'No patient selected yet.';
+  submitButton.disabled = !patient || !hospitalSelect.value;
+  submitButton.style.opacity = submitButton.disabled ? '0.55' : '1';
+  submitButton.style.cursor = submitButton.disabled ? 'not-allowed' : 'pointer';
+}
+
+function renderPatientResults(results) {
+  patientResults.innerHTML = '';
+  if (!results.length) {
+    patientResults.innerHTML = '<div style="padding:14px;border:1px dashed #d1d5db;border-radius:14px;color:#6b7280;background:#fafafa;">No patients found for that phone number.</div>';
+    return;
+  }
+
+  results.forEach((patient, index) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.style.cssText = 'text-align:left;border:1px solid #e5e7eb;background:#fff;border-radius:16px;padding:14px;display:grid;gap:8px;box-shadow:0 1px 2px rgba(15,23,42,.04);cursor:pointer;';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+        <div>
+          <div style="font-weight:800;color:#111827;">${patient.full_name || 'Unnamed patient'}</div>
+          <div style="font-size:13px;color:#6b7280;margin-top:4px;">${patient.phone || 'No phone'} • Registered at ${patient.registered_at || 'Unknown'}</div>
+        </div>
+        <div style="background:${index === 0 ? '#ecfdf5' : '#eff6ff'};color:${index === 0 ? '#065f46' : '#1d4ed8'};border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800;">${index === 0 ? 'Top match' : 'Select'}</div>
+      </div>
+      <div style="font-size:12px;color:#6b7280;word-break:break-all;">UUID: ${patient.patient_id}</div>
+    `;
+    card.addEventListener('click', () => {
+      setSelectedPatient(patient);
+      Array.from(patientResults.querySelectorAll('button')).forEach(el => el.style.borderColor = '#e5e7eb');
+      card.style.borderColor = '#2563eb';
+      output('Patient selected. Choose a hospital and send the consent request.');
+    });
+    patientResults.appendChild(card);
+  });
+
+  if (results.length === 1) {
+    setSelectedPatient(results[0]);
+    patientResults.firstElementChild.style.borderColor = '#2563eb';
+    output('Patient found and UUID auto-filled. Choose a hospital to continue.');
+  } else {
+    output(`Found ${results.length} patients. Click one to auto-fill the UUID.`);
+  }
+}
+
+async function loadHospitals() {
+  hospitalSelect.innerHTML = '<option value="">Loading hospitals…</option>';
+  const res = await fetch('/api/consent/hospitals/', {headers: headers()});
+  const data = await res.json().catch(() => []);
+  hospitalSelect.innerHTML = '<option value="">Select a hospital</option>';
+
+  if (!res.ok || !Array.isArray(data) || !data.length) {
+    hospitalHint.textContent = 'No hospitals were returned. Try again later.';
+    submitButton.disabled = true;
+    submitButton.style.opacity = '0.55';
+    submitButton.style.cursor = 'not-allowed';
+    return;
+  }
+
+  data.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.hospital_name;
+    option.textContent = item.hospital_name + (item.city ? ` • ${item.city}` : '');
+    hospitalSelect.appendChild(option);
+  });
+  hospitalHint.textContent = 'Select the hospital that will receive the record request.';
+  submitButton.disabled = !selectedPatient;
+  submitButton.style.opacity = submitButton.disabled ? '0.55' : '1';
+  submitButton.style.cursor = submitButton.disabled ? 'not-allowed' : 'pointer';
+}
+
+async function searchPatient() {
+  const phone = document.getElementById('phoneSearch').value.trim();
+  patientResults.innerHTML = '';
+  if (!phone) {
+    patientHint.textContent = 'Enter a phone number first.';
+    return;
+  }
+  if (!/^\d{10}$/.test(phone)) {
+    patientHint.textContent = 'Phone number must be exactly 10 digits.';
+    return;
+  }
+
+  patientHint.textContent = 'Searching patients…';
+  const res = await fetch(`/api/consent/patients/search/?phone=${encodeURIComponent(phone)}`, {headers: headers()});
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    patientHint.textContent = 'Search failed.';
+    output(data || {status: res.status});
+    setSelectedPatient(null);
+    return;
+  }
+
+  patientHint.textContent = 'Search complete.';
+  renderPatientResults(Array.isArray(data) ? data : []);
+  if (Array.isArray(data) && data.length) {
+    selectedPatientInfo.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  } else {
+    setSelectedPatient(null);
+  }
+}
+
+document.getElementById('btnSearchPatient').addEventListener('click', searchPatient);
+document.getElementById('phoneSearch').addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    searchPatient();
+  }
+});
+
+document.getElementById('btnClearPatient').addEventListener('click', () => {
+  setSelectedPatient(null);
+  patientResults.innerHTML = '';
+  document.getElementById('phoneSearch').value = '';
+  patientHint.textContent = 'Enter a 10-digit phone number to search patients.';
+  output('Patient selection cleared.');
+});
+
+hospitalSelect.addEventListener('change', () => {
+  submitButton.disabled = !selectedPatient || !hospitalSelect.value;
+  submitButton.style.opacity = submitButton.disabled ? '0.55' : '1';
+  submitButton.style.cursor = submitButton.disabled ? 'not-allowed' : 'pointer';
+});
+
+document.getElementById('consentForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+
+  if (!selectedPatient || !patientIdInput.value.trim()) {
+    output('Search and select a patient first.');
+    return;
+  }
+
+  if (!hospitalSelect.value) {
+    output('Choose a destination hospital.');
+    return;
+  }
+
+  const payload = {
+    patient_id: patientIdInput.value.trim(),
+    requested_to_hospital: hospitalSelect.value,
+  };
+
+  const recordId = document.getElementById('recordId').value.trim();
+  if (recordId) {
+    payload.record_id = recordId;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = 'Creating…';
+  const res = await fetch('/api/consent/request/', {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => null);
+  showCreateMessage(
+    res.ok ? 'Consent request created successfully.' : 'Could not create consent request. Please review and try again.',
+    res.ok ? 'ok' : 'err'
+  );
+  showCreateResult(data, res.status);
+  output({status: res.status, body: data});
+  submitButton.textContent = 'Create consent request';
+  submitButton.disabled = !selectedPatient || !hospitalSelect.value;
+  submitButton.style.opacity = submitButton.disabled ? '0.55' : '1';
+  submitButton.style.cursor = submitButton.disabled ? 'not-allowed' : 'pointer';
+});
+
+loadHospitals();
+
+setSelectedPatient(null);
+
+/* ─── Live clock in topbar ─── */
+function updateTime() {
+  const now  = new Date();
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: true,
+                 weekday: 'short', month: 'short', day: 'numeric' };
+  document.getElementById('topbarTime').textContent =
+    now.toLocaleDateString('en-IN', opts);
+}
+updateTime();
+setInterval(updateTime, 60000);
+
+/* ─── Sidebar toggle (mobile) ─── */
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('sidebar-open');
+});
+
+/* ─── Active nav item ─── */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    // Let logout and real links navigate normally
+    if (this.classList.contains('nav-logout')) return;
+    if (this.getAttribute('href') && this.getAttribute('href') !== '#') return;
+
+    // Only block # placeholder links
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

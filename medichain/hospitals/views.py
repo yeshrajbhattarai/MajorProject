@@ -6,7 +6,8 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
 from .models import Hospital, Lab, HospitalUser, PatientAssignment, MedicalRecordMeta
-from .decorators import hospital_admin_required , doctor_required , nurse_required, technician_required
+from .decorators import hospital_admin_required , doctor_required , nurse_required, technician_required, doctor_or_hospital_admin_required
+from .token_utils import get_tokens_for_payload
 from .services import (
     service_register_hospital,
     service_verify_otp,
@@ -1950,4 +1951,117 @@ def doctor_patient_medical_records(request, pk):
         'consent_requests': consent_requests,
         'staff_name': request.session.get('staff_name'),
         'staff_hospital': request.session.get('staff_hospital'),
+    })
+
+
+# Frontend-only views to integrate external consentmanagement endpoints
+def _consent_ui_token(request):
+    if request.session.get('staff_id'):
+        payload = {
+            'user_type': 'staff',
+            'hospital_id': request.session.get('hospital_id'),
+            'hospital_name': request.session.get('staff_hospital') or request.session.get('hospital_name'),
+            'account_status': request.session.get('account_status'),
+            'staff_id': request.session.get('staff_id'),
+            'staff_role': request.session.get('staff_role'),
+        }
+        return get_tokens_for_payload(payload).get('access')
+
+    if request.session.get('hospital_id'):
+        payload = {
+            'user_type': 'hospital_admin',
+            'hospital_id': request.session.get('hospital_id'),
+            'hospital_name': request.session.get('hospital_name'),
+            'account_status': request.session.get('account_status'),
+            'staff_id': None,
+            'staff_role': None,
+        }
+        return get_tokens_for_payload(payload).get('access')
+
+    return None
+
+
+@doctor_or_hospital_admin_required
+def consent_request_ui(request):
+    return render(request, 'hospitals/consent/request.html', {
+        'consent_api_token': _consent_ui_token(request),
+        'consent_ui_role': request.session.get('staff_role') or 'hospital_admin',
+        'staff_role': request.session.get('staff_role'),
+        'hospital_display_name': request.session.get('staff_hospital') or request.session.get('hospital_name'),
+    })
+
+
+@doctor_or_hospital_admin_required
+def consent_list_ui(request):
+    return render(request, 'hospitals/consent/list.html', {
+        'consent_api_token': _consent_ui_token(request),
+        'consent_ui_role': request.session.get('staff_role') or 'hospital_admin',
+        'staff_role': request.session.get('staff_role'),
+        'hospital_display_name': request.session.get('staff_hospital') or request.session.get('hospital_name'),
+    })
+
+
+@doctor_or_hospital_admin_required
+def consent_detail_ui(request, consent_id=None):
+    return render(request, 'hospitals/consent/detail.html', {
+        'consent_id': consent_id,
+        'consent_api_token': _consent_ui_token(request),
+        'consent_ui_role': request.session.get('staff_role') or 'hospital_admin',
+        'staff_role': request.session.get('staff_role'),
+        'hospital_display_name': request.session.get('staff_hospital') or request.session.get('hospital_name'),
+    })
+
+
+@doctor_or_hospital_admin_required
+def consent_record_access_test_ui(request):
+    return render(request, 'hospitals/consent/record_access_test.html', {
+        'consent_api_token': _consent_ui_token(request),
+        'consent_ui_role': request.session.get('staff_role') or 'hospital_admin',
+        'staff_role': request.session.get('staff_role'),
+        'hospital_display_name': request.session.get('staff_hospital') or request.session.get('hospital_name'),
+    })
+
+
+@doctor_or_hospital_admin_required
+def consent_record_detail_ui(request, consent_id, record_id, record_kind):
+    from consentmanagement.models import ConsentRequest
+    from consentmanagement.views import _build_record_bundle
+
+    consent = ConsentRequest.objects.filter(consent_id=consent_id).first()
+    if not consent:
+        messages.error(request, 'Consent not found.')
+        return redirect('consent_list_ui')
+
+    bundle, bundle_error = _build_record_bundle(consent)
+    if bundle_error:
+        messages.error(request, bundle_error)
+        return redirect('consent_record_access_test_ui')
+
+    # Find the record in the bundle
+    record_entry = None
+    if bundle and bundle.get('records'):
+        for entry in bundle['records']:
+            if str(entry.get('record_id')) == str(record_id):
+                record_entry = entry
+                break
+
+    if not record_entry:
+        messages.error(request, 'Record not found in consent bundle.')
+        return redirect('consent_record_access_test_ui')
+
+    viewer_role = request.session.get('staff_role') or 'doctor'
+    staff_name = request.session.get('staff_name') or request.session.get('staff_hospital') or request.session.get('hospital_name') or 'M'
+
+    if str(record_kind).lower() == 'medical':
+        return render(request, 'hospitals/consent/consent_medical_record_detail.html', {
+            'record': record_entry,
+            'viewer_role': viewer_role if viewer_role in {'doctor', 'nurse'} else 'doctor',
+            'staff_name': staff_name,
+        })
+
+    # Lab record — use simplified lab template
+    return render(request, 'hospitals/consent/consent_lab_record_detail.html', {
+        'record_payload': record_entry.get('record_payload', record_entry),
+        'viewer_role': viewer_role if viewer_role in {'doctor', 'nurse'} else 'doctor',
+        'staff_name': staff_name,
     })

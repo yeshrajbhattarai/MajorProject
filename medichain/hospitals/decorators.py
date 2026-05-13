@@ -63,3 +63,34 @@ def technician_required(view_func):
             return redirect('/')
         return view_func(request, *args, **kwargs)
     return wrapper
+
+
+def doctor_or_hospital_admin_required(view_func):
+    """Allow access to doctors (staff) or hospital-level admins (no staff_id in session).
+    Doctors must have `staff_role == 'doctor'`. Hospital admins are validated by hospital id.
+    """
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        # If a staff member is logged in, require doctor role
+        if request.session.get('staff_id'):
+            if request.session.get('staff_role') != 'doctor':
+                return redirect('/')
+            return view_func(request, *args, **kwargs)
+
+        # Otherwise require hospital admin context (hospital_id present)
+        if 'hospital_id' not in request.session:
+            return redirect('/')
+        try:
+            hospital = Hospital.objects.get(id=request.session['hospital_id'])
+        except Hospital.DoesNotExist:
+            return redirect('/')
+
+        if hospital.account_status != 'active':
+            messages.warning(request, 'Complete your hospital profile to activate your account and perform actions.')
+            request.profile_incomplete = True
+        else:
+            request.profile_incomplete = False
+
+        return view_func(request, *args, **kwargs)
+
+    return wrapper

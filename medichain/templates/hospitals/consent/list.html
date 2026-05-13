@@ -1,0 +1,350 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Consents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  {% if consent_api_token %}
+  <script>
+    window.CONSENT_API_TOKEN = "{{ consent_api_token|escapejs }}";
+  </script>
+  {% endif %}
+  <style>
+    .consent-shell { display: grid; gap: 16px; }
+    .consent-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+    .kpi-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); font-weight: 700; }
+    .kpi-value { margin-top: 8px; font-size: 28px; font-weight: 800; color: var(--text-primary); font-family: 'Syne', sans-serif; }
+    .consent-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+    }
+    .consent-toolbar {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+    .tab-row { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); padding: 3px; border-radius: 10px; gap: 4px; }
+    .tab-btn {
+      border: 0;
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .tab-btn.active { background: var(--accent-2); color: #fff; }
+    .search-box {
+      min-width: 260px;
+      flex: 1;
+      max-width: 460px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      color: var(--text-primary);
+      background: var(--surface-2);
+    }
+    .list-wrap { padding: 14px; display: grid; gap: 10px; min-height: 250px; }
+    .consent-card {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      background: var(--surface);
+    }
+    .route { font-weight: 800; color: var(--text-primary); }
+    .meta { color: var(--text-secondary); font-size: 13px; margin-top: 5px; word-break: break-all; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .status-pending { background: var(--a5-bg-subtle); color: var(--warning); border: 1px solid var(--a5-border); }
+    .status-approved { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+    .status-rejected { background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
+    .decision-line { font-size: 12px; color: var(--text-secondary); margin-top: 8px; text-align: right; }
+    .card-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+    .card-actions-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+    .open-btn {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 7px 11px;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--accent-2);
+      font-size: 13px;
+      background: var(--surface-2);
+      color: var(--text-primary);
+    }
+    .fetch-btn {
+      border: 1px solid var(--success-border);
+      border-radius: 9px;
+      padding: 7px 11px;
+      font-weight: 700;
+      text-decoration: none;
+      color: var(--success);
+      font-size: 13px;
+      background: var(--success-bg);
+    }
+    .empty-state {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      color: var(--text-secondary);
+      background: var(--surface-2);
+    }
+    @media (max-width: 760px) {
+      .consent-card { grid-template-columns: 1fr; }
+      .decision-line { text-align: left; }
+      .card-actions { justify-content: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+{% if staff_role == 'doctor' %}
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'nurse' %}
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'technician' %}
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='consents' %}
+{% else %}
+  {% include 'hospitals/partials/sidebar.html' with active_page='consents' hospital_name=hospital_display_name %}
+{% endif %}
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title">
+        <h1>Consent Management</h1>
+        <span class="breadcrumb">Manage inter-hospital record sharing requests</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbarTime"></div>
+      <a href="{% url 'consent_record_access_test_ui' %}" style="background:#ecfdf5;color:#065f46;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:700;">Fetch Approved</a>
+      <a href="{% url 'consent_request_ui' %}" style="background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600;">+ New Request</a>
+    </div>
+  </header>
+
+  <div class="dashboard-content" style="padding:24px;">
+    <div class="consent-shell">
+      <div class="consent-kpis">
+        <div class="kpi-card">
+          <div class="kpi-label">Pending</div>
+          <div class="kpi-value" id="kpiPending">0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Approved</div>
+          <div class="kpi-value" id="kpiApproved">0</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Rejected</div>
+          <div class="kpi-value" id="kpiRejected">0</div>
+        </div>
+      </div>
+
+      <section class="consent-panel" style="padding:16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#2563eb;letter-spacing:.08em;text-transform:uppercase;">Doctor workspace</div>
+          <h2 style="margin:6px 0 0;font-family:'Syne',sans-serif;font-size:clamp(24px,3vw,34px);color:var(--text-primary);">Review requests, then open or fetch approved records</h2>
+          <p style="margin:8px 0 0;color:var(--text-secondary);max-width:720px;line-height:1.65;">Use the cards below to open a request, or fetch approved records directly without re-entering the consent ID.</p>
+        </div>
+        <a href="{% url 'consent_record_access_test_ui' %}" class="fetch-btn">Open Fetch View</a>
+      </section>
+
+      <section class="consent-panel">
+        <div class="consent-toolbar">
+          <div class="tab-row">
+            <button id="tabSent" class="tab-btn active" type="button">Sent</button>
+            <button id="tabReceived" class="tab-btn" type="button">Received</button>
+          </div>
+          <input id="searchInput" class="search-box" placeholder="Search by patient ID, consent ID, or hospital" />
+        </div>
+        <div id="listWrap" class="list-wrap"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+const headers = () => ({ ...(window.CONSENT_API_TOKEN ? {Authorization: 'Bearer ' + window.CONSENT_API_TOKEN} : {}) });
+
+let currentType = 'sent';
+let currentItems = [];
+
+function statusClass(status) {
+  if (status === 'APPROVED') return 'status-approved';
+  if (status === 'REJECTED') return 'status-rejected';
+  return 'status-pending';
+}
+
+function renderKpis(items) {
+  const pending = items.filter(i => i.request_status === 'PENDING').length;
+  const approved = items.filter(i => i.request_status === 'APPROVED').length;
+  const rejected = items.filter(i => i.request_status === 'REJECTED').length;
+  document.getElementById('kpiPending').textContent = pending;
+  document.getElementById('kpiApproved').textContent = approved;
+  document.getElementById('kpiRejected').textContent = rejected;
+}
+
+function renderCard(item) {
+  const badgeClass = statusClass(item.request_status);
+  const fetchLink = `/consent/ui/record-access-test/?consent_id=${encodeURIComponent(item.consent_id)}`;
+  return `
+    <article class="consent-card">
+      <div>
+        <div class="route">${item.requesting_hospital} -> ${item.requested_to_hospital}</div>
+        <div class="meta">Patient: ${item.patient_id}</div>
+        <div class="meta">Consent: ${item.consent_id}</div>
+        <div class="meta">Record: ${item.record_id || 'All available records'}</div>
+      </div>
+      <div>
+        <div class="status-pill ${badgeClass}">${item.request_status}</div>
+        <div class="decision-line">Patient: ${item.patient_choice} | Hospital: ${item.hospital_choice}</div>
+        <div class="card-actions">
+          <div class="card-actions-group">
+            <a href="/consent/ui/detail/${item.consent_id}/" class="open-btn">Open</a>
+            ${item.request_status === 'APPROVED' ? `<a href="${fetchLink}" class="fetch-btn">Fetch Records</a>` : ''}
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+async function load(path) {
+  try {
+    const res = await fetch(path, {headers: headers()});
+    if (!res.ok) return [];
+    return await res.json();
+  } catch(e) { return []; }
+}
+
+function applySearch(items) {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(item => {
+    return [
+      item.patient_id,
+      item.consent_id,
+      item.requesting_hospital,
+      item.requested_to_hospital,
+      item.request_status,
+    ].some(v => (v || '').toLowerCase().includes(q));
+  });
+}
+
+function renderList() {
+  const listWrap = document.getElementById('listWrap');
+  const filtered = applySearch(currentItems);
+  if (!filtered.length) {
+    const title = currentType === 'sent' ? 'No sent consent requests' : 'No received consent requests';
+    listWrap.innerHTML = `
+      <div class="empty-state">
+        <div style="font-weight:700;color:var(--text-primary);margin-bottom:8px;">${title}</div>
+        <div style="margin-bottom:12px;">Try a different search, or create a new request.</div>
+        <a href="{% url 'consent_request_ui' %}" class="open-btn">Create Request</a>
+      </div>
+    `;
+    return;
+  }
+  listWrap.innerHTML = filtered.map(renderCard).join('');
+}
+
+async function showList(type) {
+  currentType = type;
+  const path = type === 'sent' ? '/api/consent/sent/' : '/api/consent/received/';
+  currentItems = await load(path);
+  renderKpis(currentItems);
+  renderList();
+}
+
+function activateTab(type) {
+  const sent = document.getElementById('tabSent');
+  const received = document.getElementById('tabReceived');
+  if (type === 'sent') {
+    sent.classList.add('active');
+    received.classList.remove('active');
+  } else {
+    received.classList.add('active');
+    sent.classList.remove('active');
+  }
+}
+
+document.getElementById('tabSent').addEventListener('click', () => {
+  activateTab('sent');
+  showList('sent');
+});
+document.getElementById('tabReceived').addEventListener('click', () => {
+  activateTab('received');
+  showList('received');
+});
+document.getElementById('searchInput').addEventListener('input', renderList);
+
+showList('sent');
+
+/* ─── Live clock in topbar ─── */
+function updateTime() {
+  const now  = new Date();
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: true,
+                 weekday: 'short', month: 'short', day: 'numeric' };
+  document.getElementById('topbarTime').textContent =
+    now.toLocaleDateString('en-IN', opts);
+}
+updateTime();
+setInterval(updateTime, 60000);
+
+/* ─── Sidebar toggle (mobile) ─── */
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('sidebar-open');
+});
+
+/* ─── Active nav item ─── */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    // Let logout and real links navigate normally
+    if (this.classList.contains('nav-logout')) return;
+    if (this.getAttribute('href') && this.getAttribute('href') !== '#') return;
+
+    // Only block # placeholder links
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Shared Lab Record</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+  <style>
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .detail-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .detail-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .detail-title { font-family: 'Syne', sans-serif; font-size: 16px; color: var(--text-primary); }
+    .detail-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .detail-body { padding: 16px; }
+    .kv { display: grid; grid-template-columns: 150px 1fr; gap: 8px; margin-bottom: 9px; }
+    .kv:last-child { margin-bottom: 0; }
+    .kv-label { color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .kv-value { color: var(--text-primary); font-size: 13px; }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      transition: all 180ms ease;
+    }
+    .back-link:hover {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(59, 130, 246, 0.5);
+      color: #93c5fd;
+    }
+    .consent-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 20px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    @media (max-width: 980px) {
+      .detail-grid { grid-template-columns: 1fr; }
+      .kv { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+  {% if viewer_role == 'doctor' %}
+    {% include 'hospitals/partials/doctor_sidebar.html' with active_page='consents' %}
+  {% else %}
+    {% include 'hospitals/partials/nurse_sidebar.html' with active_page='consents' %}
+  {% endif %}
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebarToggle"><span></span><span></span><span></span></button>
+        <div class="page-title">
+          <h1>Shared Lab Record</h1>
+          <span class="breadcrumb">Latest Snapshot · Via Consent <span class="consent-badge">✓ Verified</span></span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-time" id="topbarTime"></div>
+        <div class="topbar-avatar" style="background:var(--accent-3);box-shadow:0 0 12px var(--a3-glow);">{{ staff_name|slice:':1'|upper }}</div>
+      </div>
+    </header>
+
+    <div class="staff-content" style="display:flex;flex-direction:column;gap:16px;">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+
+      <a class="back-link" href="{% url 'consent_record_access_test_ui' %}">← Back to Records</a>
+
+      <div class="detail-grid">
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Doctor Inputs</div>
+            <div class="detail-sub">Original clinical context from requester.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Diagnosis</div><div class="kv-value">{{ record_payload.doctor_inputs.diagnosis|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Treatment Plan</div><div class="kv-value">{{ record_payload.doctor_inputs.treatment_plan|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Notes</div><div class="kv-value">{{ record_payload.doctor_inputs.notes|default:'-' }}</div></div>
+          </div>
+        </section>
+
+        <section class="detail-card">
+          <div class="detail-head">
+            <div class="detail-title">Latest Measurements</div>
+            <div class="detail-sub">Technician-submitted values relevant to this lab.</div>
+          </div>
+          <div class="detail-body">
+            <div class="kv"><div class="kv-label">Age</div><div class="kv-value">{{ record_payload.measurements.age|default:'-' }}</div></div>
+            <div class="kv"><div class="kv-label">Gender</div><div class="kv-value">{{ record_payload.measurements.gender|default:'-' }}</div></div>
+            {% if record_payload.custom_field_values %}
+              {% for key, value in record_payload.custom_field_values.items %}
+              <div class="kv"><div class="kv-label">{{ key|title }}</div><div class="kv-value">{{ value|default:'-' }}</div></div>
+              {% endfor %}
+            {% endif %}
+            <div class="kv"><div class="kv-label">Version</div><div class="kv-value">v{{ record_payload.version }} (Latest)</div></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="detail-card">
+        <div class="detail-head">
+          <div class="detail-title">Record Info</div>
+          <div class="detail-sub">Record metadata and source.</div>
+        </div>
+        <div class="detail-body">
+          <div class="kv"><div class="kv-label">Record ID</div><div class="kv-value">{{ record_payload.record_id|default:'-' }}</div></div>
+          <div class="kv"><div class="kv-label">From Hospital</div><div class="kv-value">{{ record_payload.hospital_name|default:'-' }}</div></div>
+          <div class="kv"><div class="kv-label">Version</div><div class="kv-value">{{ record_payload.version|default:'-' }}</div></div>
+          <div class="kv"><div class="kv-label">Created</div><div class="kv-value">{{ record_payload.created_at|default:'-' }}</div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    function updateTime() {
+      const now = new Date();
+      const options = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      document.getElementById('topbarTime').textContent = now.toLocaleDateString('en-US', options);
+    }
+    updateTime();
+    setInterval(updateTime, 60000);
+
+    document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar) {
+        sidebar.classList.toggle('collapsed');
+      }
+    });
+  </script>
+</body>
+</html>

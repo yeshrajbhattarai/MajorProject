@@ -1,0 +1,290 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Consent Detail</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  {% if consent_api_token %}
+  <script>
+    window.CONSENT_API_TOKEN = "{{ consent_api_token|escapejs }}";
+  </script>
+  {% endif %}
+  <style>
+    .detail-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 420px); gap: 16px; align-items: start; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05); }
+    .panel-head { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+    .panel-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .panel-sub { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+    .panel-body { padding: 16px; }
+    .field-label { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); font-weight: 700; margin-bottom: 6px; }
+    .input-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .input { flex: 1; min-width: 220px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; color: var(--text-primary); }
+    .btn {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-dark { background: #111827; color: #fff; }
+    .btn-green { background: #059669; color: #fff; }
+    .btn-red { background: #dc2626; color: #fff; }
+    .kv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kv { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--surface-2); }
+    .kv-k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); font-weight: 700; }
+    .kv-v { margin-top: 5px; font-weight: 700; color: var(--text-primary); word-break: break-word; }
+    .response-box {
+      margin-top: 10px;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      min-height: 140px;
+      white-space: pre-wrap;
+      overflow: auto;
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+    .action-note { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); color: var(--text-primary); font-size: 13px; font-weight: 600; }
+    .tech-box { margin-top: 12px; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--bg-3); }
+    .tech-box summary { cursor: pointer; font-weight: 700; color: var(--text-primary); }
+    .message { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; display: none; }
+    .message.ok { display: block; background: #ecfdf5; color: #065f46; border: 1px solid #bbf7d0; }
+    .message.err { display: block; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    @media (max-width: 960px) {
+      .detail-grid { grid-template-columns: 1fr; }
+      .kv-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+{% if staff_role == 'doctor' %}
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'nurse' %}
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'technician' %}
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='consents' %}
+{% else %}
+  {% include 'hospitals/partials/sidebar.html' with active_page='consents' hospital_name=hospital_display_name %}
+{% endif %}
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title">
+        <h1>Consent Detail</h1>
+        <span class="breadcrumb">Approve or reject a request</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbarTime"></div>
+      <a href="{% url 'consent_list_ui' %}" style="padding:10px 14px;border-radius:8px;background:#e5e7eb;color:#111827;text-decoration:none;">Back</a>
+      <a href="{% url 'consent_request_ui' %}" style="padding:10px 14px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;">New Request</a>
+    </div>
+  </header>
+
+  <div class="dashboard-content" style="padding:24px;">
+    <div class="detail-grid">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Consent Summary</div>
+          <div class="panel-sub">Load a consent request and review complete state before action.</div>
+        </div>
+        <div class="panel-body">
+          <div class="field-label">Consent UUID</div>
+          <div class="input-row">
+            <input id="consentId" class="input" value="{{ consent_id|default:'' }}" placeholder="Paste consent UUID" />
+            <button id="btnLoad" class="btn btn-dark" type="button">Load</button>
+          </div>
+
+          <div id="message" class="message"></div>
+
+          <div class="kv-grid" style="margin-top:14px;">
+            <div class="kv"><div class="kv-k">Request Status</div><div class="kv-v" id="statusMain">-</div></div>
+            <div class="kv"><div class="kv-k">Patient Choice</div><div class="kv-v" id="statusPatient">-</div></div>
+            <div class="kv"><div class="kv-k">Hospital Choice</div><div class="kv-v" id="statusHospital">-</div></div>
+            <div class="kv"><div class="kv-k">Patient ID</div><div class="kv-v" id="patientIdVal">-</div></div>
+            <div class="kv"><div class="kv-k">Requesting Hospital</div><div class="kv-v" id="requestingHospitalVal">-</div></div>
+            <div class="kv"><div class="kv-k">Owning Hospital</div><div class="kv-v" id="requestedHospitalVal">-</div></div>
+          </div>
+
+          <div id="actionNote" class="action-note">Load a consent to review and take decision.</div>
+          <details class="tech-box">
+            <summary>Technical details (optional)</summary>
+            <pre id="output" class="response-box">Use Load</pre>
+          </details>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Decision Actions</div>
+          <div class="panel-sub">Update patient or owning-hospital decision directly from this view.</div>
+        </div>
+        <div class="panel-body" style="display:grid;gap:14px;">
+          <form id="patientDecisionForm" style="border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff;">
+            <div style="font-weight:700;color:var(--text-primary);margin-bottom:8px;">Patient decision</div>
+            <select id="patientChoice" class="input" style="margin-bottom:10px;">
+              <option value="APPROVED">APPROVED</option>
+              <option value="REJECTED">REJECTED</option>
+            </select>
+            <button type="submit" class="btn btn-green">Submit patient decision</button>
+          </form>
+
+          <form id="hospitalDecisionForm" style="border:1px solid var(--border);border-radius:12px;padding:12px;background:#fff;">
+            <div style="font-weight:700;color:var(--text-primary);margin-bottom:8px;">Hospital decision</div>
+            <select id="hospitalChoice" class="input" style="margin-bottom:10px;">
+              <option value="APPROVED">APPROVED</option>
+              <option value="REJECTED">REJECTED</option>
+            </select>
+            <button type="submit" class="btn btn-red">Submit hospital decision</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+const headers = () => {
+  const h = {'Content-Type': 'application/json'};
+  if (window.CONSENT_API_TOKEN) h['Authorization'] = 'Bearer ' + window.CONSENT_API_TOKEN;
+  return h;
+};
+const out = (v) => document.getElementById('output').textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2);
+const setActionNote = (text) => {
+  document.getElementById('actionNote').textContent = text;
+};
+const showMessage = (text, kind) => {
+  const el = document.getElementById('message');
+  el.className = `message ${kind}`;
+  el.textContent = text;
+};
+const fillSummary = (body) => {
+  document.getElementById('statusMain').textContent = body?.request_status || '-';
+  document.getElementById('statusPatient').textContent = body?.patient_choice || '-';
+  document.getElementById('statusHospital').textContent = body?.hospital_choice || '-';
+  document.getElementById('patientIdVal').textContent = body?.patient_id || '-';
+  document.getElementById('requestingHospitalVal').textContent = body?.requesting_hospital || '-';
+  document.getElementById('requestedHospitalVal').textContent = body?.requested_to_hospital || '-';
+};
+
+const rememberConsentId = (id) => {
+  if (id) localStorage.setItem('medichain:lastConsentId', id);
+};
+
+const seedConsentId = () => {
+  const input = document.getElementById('consentId');
+  const stored = localStorage.getItem('medichain:lastConsentId');
+  if (!input.value.trim() && stored) input.value = stored;
+};
+
+async function loadDetail() {
+  const id = document.getElementById('consentId').value.trim();
+  if (!id) {
+    showMessage('Consent ID is required.', 'err');
+    setActionNote('Provide a consent ID before loading details.');
+    return out('missing id');
+  }
+  rememberConsentId(id);
+  const res = await fetch('/api/consent/' + id + '/', {headers: headers()});
+  const body = await res.json().catch(() => null);
+  fillSummary(body);
+  showMessage(res.ok ? 'Consent loaded successfully.' : 'Failed to load consent details.', res.ok ? 'ok' : 'err');
+  setActionNote(res.ok ? 'Consent loaded. You can now submit patient or hospital decision.' : 'Unable to load consent details. Check consent ID and try again.');
+  out({status: res.status, body});
+}
+
+document.getElementById('btnLoad').addEventListener('click', loadDetail);
+document.getElementById('consentId').addEventListener('change', () => rememberConsentId(document.getElementById('consentId').value.trim()));
+
+document.getElementById('patientDecisionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('consentId').value.trim();
+  if (!id) {
+    showMessage('Consent ID is required before submitting decision.', 'err');
+    setActionNote('Load or enter a consent ID before submitting decisions.');
+    return out('missing id');
+  }
+  rememberConsentId(id);
+  const res = await fetch('/api/consent/' + id + '/patient-decision/', {
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify({patient_choice: document.getElementById('patientChoice').value}),
+  });
+  const body = await res.json().catch(() => null);
+  fillSummary(body);
+  showMessage(res.ok ? 'Patient decision submitted.' : 'Failed to submit patient decision.', res.ok ? 'ok' : 'err');
+  setActionNote(res.ok ? 'Patient decision updated successfully.' : 'Patient decision update failed.');
+  out({action: 'patient-decision', status: res.status, body});
+});
+
+document.getElementById('hospitalDecisionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('consentId').value.trim();
+  if (!id) {
+    showMessage('Consent ID is required before submitting decision.', 'err');
+    setActionNote('Load or enter a consent ID before submitting decisions.');
+    return out('missing id');
+  }
+  rememberConsentId(id);
+  const res = await fetch('/api/consent/' + id + '/hospital-decision/', {
+    method: 'PATCH',
+    headers: headers(),
+    body: JSON.stringify({hospital_choice: document.getElementById('hospitalChoice').value}),
+  });
+  const body = await res.json().catch(() => null);
+  fillSummary(body);
+  showMessage(res.ok ? 'Hospital decision submitted.' : 'Failed to submit hospital decision.', res.ok ? 'ok' : 'err');
+  setActionNote(res.ok ? 'Hospital decision updated successfully.' : 'Hospital decision update failed.');
+  out({action: 'hospital-decision', status: res.status, body});
+});
+
+/* ─── Live clock in topbar ─── */
+function updateTime() {
+  const now  = new Date();
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: true,
+                 weekday: 'short', month: 'short', day: 'numeric' };
+  document.getElementById('topbarTime').textContent =
+    now.toLocaleDateString('en-IN', opts);
+}
+updateTime();
+setInterval(updateTime, 60000);
+
+/* ─── Sidebar toggle (mobile) ─── */
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('sidebar-open');
+});
+
+/* ─── Active nav item ─── */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    // Let logout and real links navigate normally
+    if (this.classList.contains('nav-logout')) return;
+    if (this.getAttribute('href') && this.getAttribute('href') !== '#') return;
+
+    // Only block # placeholder links
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+seedConsentId();
+if (document.getElementById('consentId').value.trim()) {
+  loadDetail();
+}
+</script>
+</body>
+</html>

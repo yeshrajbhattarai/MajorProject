@@ -1,0 +1,97 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Consent Detail</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_staff.css' %}">
+</head>
+<body>
+
+{% include 'patient/partials/sidebar.html' with active_page='consents' %}
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title">
+        <h1>Consent Detail</h1>
+        <span class="breadcrumb">Review and respond to a record sharing request</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbarTime"></div>
+      <a href="{% url 'patient_portal_consents' %}" style="padding:10px 14px;border-radius:8px;background:#e5e7eb;color:#111827;text-decoration:none;">Back</a>
+    </div>
+  </header>
+
+  <div class="staff-content" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start;">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}" style="grid-column:1/-1;">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Consent Overview</div>
+        <div class="panel-sub">Consent ID: {{ consent.consent_id }}</div>
+      </div>
+      <div style="padding:18px;display:grid;gap:10px;">
+        <div><strong>Requesting Hospital:</strong> {{ consent.requesting_hospital }}</div>
+        <div><strong>Owning Hospital:</strong> {{ consent.requested_to_hospital }}</div>
+        <div><strong>Record ID:</strong> {{ consent.record_id|default:'All available records' }}</div>
+        <div><strong>Patient Decision:</strong> {{ consent.patient_choice }}</div>
+        <div><strong>Hospital Decision:</strong> {{ consent.hospital_choice }}</div>
+        <div><strong>Status:</strong> {{ consent.request_status }}</div>
+        <div><strong>Created:</strong> {{ consent.created_at|date:'d M Y, h:i A' }}</div>
+        <div><strong>Updated:</strong> {{ consent.updated_at|date:'d M Y, h:i A' }}</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Your Decision</div>
+        <div class="panel-sub">Approve or reject only if the consent is still pending.</div>
+      </div>
+      <div style="padding:18px;">
+        {% if consent.request_status == 'PENDING' %}
+          <form method="post" style="display:flex;gap:10px;flex-wrap:wrap;">
+            {% csrf_token %}
+            <button type="submit" name="action" value="APPROVED" style="padding:12px 16px;border:0;border-radius:12px;background:linear-gradient(135deg,#059669 0%,#10b981 100%);color:#fff;font-weight:700;">Approve</button>
+            <button type="submit" name="action" value="REJECTED" style="padding:12px 16px;border:0;border-radius:12px;background:linear-gradient(135deg,#b91c1c 0%,#ef4444 100%);color:#fff;font-weight:700;">Reject</button>
+          </form>
+        {% else %}
+          <div class="status-note">This consent has already been finalised and cannot be changed.</div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+  function updateTime() {
+    const now = new Date();
+    const opts = { hour: '2-digit', minute: '2-digit', hour12: true, weekday: 'short', month: 'short', day: 'numeric' };
+    const timeEl = document.getElementById('topbarTime');
+    if (timeEl) timeEl.textContent = now.toLocaleDateString('en-IN', opts);
+  }
+  updateTime();
+  setInterval(updateTime, 60000);
+
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+</script>
+
+{% include 'hospitals/partials/theme_toggle.html' %}
+</body>
+</html>

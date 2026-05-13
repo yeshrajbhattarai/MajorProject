@@ -1,0 +1,28 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}MediChain{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div id="app">
+    {% block content %}{% endblock %}
+  </div>
+  <script src="{% static 'js/main.js' %}"></script>
+  <script>
+    // Inject consent API token for frontend consent UI pages when available
+    (function(){
+      try{
+        {% if consent_api_token %}
+          window.CONSENT_API_TOKEN = "{{ consent_api_token|escapejs }}";
+        {% endif %}
+      }catch(e){/* ignore when context var missing */}
+    })();
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

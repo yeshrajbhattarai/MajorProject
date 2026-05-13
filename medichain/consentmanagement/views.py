@@ -15,6 +15,15 @@ from .serializers import (
     PatientConsentSerializer,
 )
 from hospitals.models import Hospital, Patient, MedicalRecordMeta
+from hospitals.services import _payload_hash
+from hospitals.db_router import clear_hospital_db, set_hospital_db
+from hospitals.hospital_db import ensure_db_exists
+from hospitals.lab_table_manager import (
+    ensure_lab_tables,
+    extract_custom_values_from_row,
+    fetch_latest_record,
+    fetch_record_history,
+)
 from auditlog.utils import log_action
 
 
@@ -73,23 +82,78 @@ def get_hospital_from_payload(request):
 
 def _compute_transfer_hash(record_payload: dict) -> str:
     """
-    Produces a stable SHA-256 fingerprint of the transferred record payload.
-
-    Rules:
-      - Keys are sorted alphabetically so insertion order never matters.
-      - The JSON is serialised without extra whitespace (compact separators).
-      - Non-serialisable values (Decimal, date, uuid …) fall back to str().
-
-    The same function is called both when *sending* and when *verifying*, so
-    any byte-level difference in the received data will cause a mismatch.
+    Produce a stable SHA-256 fingerprint of the transferred payload using
+    the same canonicalisation rules used at write-time. This ensures the
+    bundle-level hash and per-record hash computations are consistent across
+    sender, MediChain and receiver.
     """
-    canonical = json.dumps(
-        record_payload,
-        sort_keys=True,
-        separators=(',', ':'),
-        default=str,
-    )
-    return hashlib.sha256(canonical.encode('utf-8')).hexdigest()
+    # Delegate to the hospital write-time canonicaliser so both write and
+    # verify paths use identical JSON canonicalisation.
+    return _payload_hash(record_payload)
+
+
+def _serialize_record_payload(meta: MedicalRecordMeta) -> dict:
+    """Return the owning hospital's stored record snapshot for UI display."""
+    lab_request = meta.lab_request
+    if not lab_request or not lab_request.lab:
+        return {
+            "record_id": str(meta.record_id),
+            "version": meta.version,
+            "record_type": meta.record_type,
+            "created_at": meta.created_at.isoformat() if meta.created_at else None,
+            "updated_at": meta.updated_at.isoformat() if meta.updated_at else None,
+            "hospital_name": meta.hospital.hospital_name if meta.hospital else None,
+            "patient_id": str(meta.patient_id),
+            "recorded_by_id": str(meta.recorded_by_id),
+            "lab": None,
+            "doctor_inputs": {},
+            "measurements": {},
+            "custom_field_values": meta.custom_field_values or {},
+        }
+
+    hospital_id = str(meta.hospital_id)
+    db_alias = ensure_db_exists(hospital_id)
+    set_hospital_db(hospital_id)
+    try:
+        ensure_lab_tables(db_alias, lab_request.lab)
+
+        stored_row = fetch_latest_record(db_alias, lab_request.lab, meta.record_id)
+        if not stored_row:
+            history_rows = list(fetch_record_history(db_alias, lab_request.lab, meta.record_id))
+            stored_row = history_rows[-1] if history_rows else None
+
+        custom_field_values = {}
+        if stored_row:
+            custom_field_values = extract_custom_values_from_row(stored_row, lab_request.lab) or {}
+
+        return {
+            "record_id": str(meta.record_id),
+            "version": getattr(stored_row, 'version', meta.version),
+            "record_type": meta.record_type,
+            "created_at": getattr(stored_row, 'created_at', meta.created_at).isoformat() if getattr(stored_row, 'created_at', None) else (meta.created_at.isoformat() if meta.created_at else None),
+            "updated_at": getattr(stored_row, 'updated_at', meta.updated_at).isoformat() if getattr(stored_row, 'updated_at', None) else (meta.updated_at.isoformat() if meta.updated_at else None),
+            "hospital_name": meta.hospital.hospital_name if meta.hospital else None,
+            "patient_id": str(getattr(stored_row, 'patient_id', meta.patient_id)),
+            "recorded_by_id": str(getattr(stored_row, 'recorded_by_id', meta.recorded_by_id)),
+            "row_id": getattr(stored_row, 'row_id', None),
+            "lab": {
+                "lab_type": lab_request.lab.lab_type,
+                "lab_name": lab_request.lab.name,
+            },
+            "doctor_inputs": {
+                "diagnosis": getattr(stored_row, 'diagnosis', lab_request.diagnosis),
+                "treatment_plan": getattr(stored_row, 'treatment_plan', lab_request.treatment_plan),
+                "notes": getattr(stored_row, 'notes', lab_request.notes),
+                "chest_pain_type": getattr(stored_row, 'chest_pain_type', lab_request.chest_pain_type),
+            },
+            "measurements": {
+                "age": getattr(stored_row, 'age', None),
+                "gender": getattr(stored_row, 'gender', None),
+            },
+            "custom_field_values": custom_field_values or (meta.custom_field_values or {}),
+        }
+    finally:
+        clear_hospital_db()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -152,6 +216,19 @@ def _build_record_bundle(consent: ConsentRequest):
                 "lab_name": lab_request.lab.name,
             }
 
+        record_payload = _serialize_record_payload(meta)
+
+        # For medical records, fetch the NurseQueueItem to get attachment files
+        attachments = {}
+        if meta.record_type == 'medical':
+            from hospitals.models import NurseQueueItem
+            nurse_item = NurseQueueItem.objects.filter(finalized_record_id=meta.record_id).first()
+            if nurse_item:
+                if nurse_item.handwritten_file:
+                    attachments['handwritten_file_url'] = nurse_item.handwritten_file.url
+                if nurse_item.doctor_medical_record_file:
+                    attachments['doctor_medical_record_file_url'] = nurse_item.doctor_medical_record_file.url
+
         entry = {
             "record_id":           str(meta.record_id),
             "version":             meta.version,
@@ -166,9 +243,12 @@ def _build_record_bundle(consent: ConsentRequest):
             "chest_pain_type":     lab_request.chest_pain_type if lab_request else None,
             # Custom / extra fields stored in the meta row itself.
             "custom_field_values": meta.custom_field_values or {},
+            # Doctor attachment URLs (for medical records)
+            "attachments":         attachments,
             # The hash that was computed and stored when the record was originally
             # written by the owning hospital's technician / doctor.
             "stored_hash":         meta.sha256_hash,
+            "record_payload":      record_payload,
         }
         records.append(entry)
 
@@ -267,6 +347,55 @@ def create_consent(request):
 
     data = request.data.copy()
     data['requesting_hospital'] = hospital.hospital_name
+
+    # Reuse the same row when an earlier request for this pair was rejected.
+    patient_id = str(data.get('patient_id', '')).strip()
+    requested_to_hospital = str(data.get('requested_to_hospital', '')).strip()
+    existing = None
+    if patient_id and requested_to_hospital:
+        existing = ConsentRequest.objects.filter(
+            patient_id=patient_id,
+            requesting_hospital=hospital.hospital_name,
+            requested_to_hospital=requested_to_hospital,
+        ).first()
+
+    if existing:
+        if existing.request_status == 'REJECTED':
+            record_id = str(data.get('record_id', '')).strip() or None
+            existing.record_id = record_id
+            existing.patient_choice = 'PENDING'
+            existing.hospital_choice = 'PENDING'
+            existing.request_status = 'PENDING'
+            existing.save()
+            log_action(
+                'CONSENT_CREATED',
+                hospital.hospital_name,
+                existing.consent_id,
+                extra_info='Re-request created from previously rejected consent',
+            )
+            return Response(ConsentRequestSerializer(existing).data, status=200)
+
+        if existing.request_status == 'PENDING':
+            return Response(
+                {
+                    'error': (
+                        'A consent request is already pending for this '
+                        'patient and hospital pair.'
+                    )
+                },
+                status=400,
+            )
+
+        return Response(
+            {
+                'error': (
+                    'A consent for this patient and hospital pair is already '
+                    'approved. Create a new pair or revoke the existing flow '
+                    'before requesting again.'
+                )
+            },
+            status=400,
+        )
 
     serializer = ConsentCreateSerializer(data=data)
     if serializer.is_valid():
@@ -603,15 +732,18 @@ def verify_hash(request, consent_id):
     submitted_record_ids = [
         r.get('record_id') for r in submitted_records if r.get('record_id')
     ]
-    stored_meta_map = {
-        str(meta.record_id): meta
-        for meta in MedicalRecordMeta.objects.filter(
-            record_id__in=submitted_record_ids
-        ).order_by('record_id', '-version')
-        # We only need the latest version's hash per record_id; the dict
-        # comprehension above naturally keeps the first (latest) hit because
-        # we ordered by -version.
-    }
+    # Scope the lookup to the owning hospital so we compare against the
+    # same MedicalRecordMeta rows that were used when building the bundle.
+    stored_meta_map = {}
+    for meta in MedicalRecordMeta.objects.filter(
+        record_id__in=submitted_record_ids,
+        hospital__hospital_name=consent.requested_to_hospital,
+    ).order_by('record_id', '-version'):
+        key = str(meta.record_id)
+        if key not in stored_meta_map:
+            stored_meta_map[key] = meta
+    # We ordered by record_id, -version and kept the first occurrence per
+    # record_id so the dict contains the latest version for each record.
 
     record_integrity_results = []
     all_records_verified = True
@@ -621,30 +753,27 @@ def verify_hash(request, consent_id):
 
         # Recompute hash of the submitted record data (excluding stored_hash).
         rec_data_for_hashing = {k: v for k, v in rec.items() if k != 'stored_hash'}
-        recomputed_record_hash = _compute_transfer_hash(rec_data_for_hashing)
+        # Compute the transfer hash (diagnostic) but DO NOT assume the
+        # owning hospital's write-time `sha256_hash` was computed over the
+        # same payload shape we are transferring in the bundle. The
+        # write-time hash is authoritative and lives in MedicalRecordMeta.
+        recomputed_transfer_hash = _compute_transfer_hash(rec_data_for_hashing)
 
-        # The stored_hash sent by fetch_record is the owning hospital's
-        # write-time hash of the payload (computed by _payload_hash in services.py).
-        # We compare the recomputed transfer hash against it as a cross-check.
         submitted_stored_hash = rec.get('stored_hash', '')
-
-        # Also look up what MedicalRecordMeta says the hash should be.
         meta = stored_meta_map.get(record_id)
         db_stored_hash = meta.sha256_hash if meta else None
 
-        # Primary verification: does the recomputed transfer hash match the
-        # submitted stored_hash?  This tells us whether the data content
-        # matches what was signed at write time.
-        transfer_match = bool(submitted_stored_hash) and (
-            recomputed_record_hash == submitted_stored_hash
-        )
-
-        # Secondary verification: does the DB-stored hash match what was sent?
+        # Primary verification: does the owning hospital's DB-stored hash
+        # match the stored_hash included in the transfer bundle? If these
+        # differ the sender and MediChain disagree about the canonical
+        # record content (or a wrong record/version was sent).
         db_match = bool(db_stored_hash) and (db_stored_hash == submitted_stored_hash)
 
-        record_verified = transfer_match  # primary signal
+        record_verified = db_match
         if not record_verified:
             all_records_verified = False
+
+        transfer_match = bool(submitted_stored_hash) and (recomputed_transfer_hash == submitted_stored_hash)
 
         record_integrity_results.append({
             "record_id":            record_id,
@@ -652,12 +781,12 @@ def verify_hash(request, consent_id):
             "version":              rec.get('version'),
             "submitted_stored_hash": submitted_stored_hash,
             "db_stored_hash":       db_stored_hash,
-            "recomputed_hash":      recomputed_record_hash,
+            "recomputed_hash":      recomputed_transfer_hash,
             "transfer_match":       transfer_match,
             "db_match":             db_match,
-            # tampered = data does NOT match the owning hospital's stored hash
-            "tampered":             not transfer_match,
-            "status": "✓ Verified" if transfer_match else "✗ TAMPERED or CORRUPTED",
+            # tampered = submitted stored_hash does not match owning hospital DB
+            "tampered":             not db_match,
+            "status": "✓ Verified" if db_match else "✗ TAMPERED or CORRUPTED",
         })
 
     overall_verified = bundle_match and all_records_verified

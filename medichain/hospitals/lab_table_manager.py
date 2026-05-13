@@ -106,6 +106,34 @@ def _create_table_sql(table_name, columns):
     return f'CREATE TABLE IF NOT EXISTS `{table_name}` (\n        {column_sql}\n    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
 
 
+def _existing_columns(db_alias, table_name):
+    with connections[db_alias].cursor() as cursor:
+        cursor.execute(f'SHOW COLUMNS FROM `{table_name}`')
+        return {row[0] for row in cursor.fetchall()}
+
+
+def _sync_missing_columns(db_alias, table_name, desired_columns):
+    try:
+        current_columns = _existing_columns(db_alias, table_name)
+    except Exception:
+        return
+
+    missing_columns = [
+        (name, definition)
+        for name, definition in desired_columns.items()
+        if name not in current_columns
+    ]
+
+    if not missing_columns:
+        return
+
+    alter_sql = ',\n        '.join([f'ADD COLUMN `{name}` {definition}' for name, definition in missing_columns])
+    sql = f'ALTER TABLE `{table_name}`\n        {alter_sql}'
+
+    with connections[db_alias].cursor() as cursor:
+        cursor.execute(sql)
+
+
 def ensure_lab_tables(db_alias, lab):
     record_table = lab_record_table_name(lab.id)
     version_table = lab_version_table_name(lab.id)
@@ -115,6 +143,9 @@ def ensure_lab_tables(db_alias, lab):
     with connections[db_alias].cursor() as cursor:
         cursor.execute(record_sql)
         cursor.execute(version_sql)
+
+    _sync_missing_columns(db_alias, record_table, build_lab_columns(lab))
+    _sync_missing_columns(db_alias, version_table, build_lab_version_columns(lab))
 
     return record_table, version_table
 
@@ -192,20 +223,46 @@ def _update_rows(db_alias, table_name, set_clause, params):
 
 def fetch_latest_record(db_alias, lab, record_id):
     table_name = lab_record_table_name(lab.id)
-    return _fetch_one(
-        db_alias,
-        f"SELECT * FROM `{table_name}` WHERE record_id = %s AND is_latest = 1 ORDER BY version DESC LIMIT 1",
-        [str(record_id)],
-    )
+    try:
+        return _fetch_one(
+            db_alias,
+            f"SELECT * FROM `{table_name}` WHERE record_id = %s AND is_latest = 1 ORDER BY version DESC LIMIT 1",
+            [str(record_id)],
+        )
+    except Exception:
+        return None
 
 
 def fetch_record_version(db_alias, lab, record_id, version_number):
     table_name = lab_version_table_name(lab.id)
-    return _fetch_one(
-        db_alias,
-        f"SELECT * FROM `{table_name}` WHERE record_id = %s AND version_number = %s LIMIT 1",
-        [str(record_id), int(version_number)],
-    )
+    try:
+        record = _fetch_one(
+            db_alias,
+            f"SELECT * FROM `{table_name}` WHERE record_id = %s AND version_number = %s LIMIT 1",
+            [str(record_id), int(version_number)],
+        )
+        if record:
+            return record
+    except Exception:
+        pass
+
+    try:
+        current_table = lab_record_table_name(lab.id)
+        record = _fetch_one(
+            db_alias,
+            f"SELECT * FROM `{current_table}` WHERE record_id = %s AND version = %s LIMIT 1",
+            [str(record_id), int(version_number)],
+        )
+        if record:
+            return record
+    except Exception:
+        pass
+
+    if int(version_number) == 1:
+        latest = fetch_latest_record(db_alias, lab, record_id)
+        if latest:
+            return latest
+    return None
 
 
 def fetch_patient_latest_records(db_alias, lab_ids, patient_id):
@@ -216,16 +273,37 @@ def fetch_patient_latest_records(db_alias, lab_ids, patient_id):
     for lab_id in lab_ids:
         table_clauses.append(f"SELECT * FROM `{lab_record_table_name(lab_id)}` WHERE patient_id = %s AND is_latest = 1")
     sql = ' UNION ALL '.join(table_clauses) + ' ORDER BY updated_at DESC'
-    return _fetch_all(db_alias, sql, params * len(lab_ids))
+    try:
+        return _fetch_all(db_alias, sql, params * len(lab_ids))
+    except Exception:
+        return []
 
 
 def fetch_record_history(db_alias, lab, record_id):
     table_name = lab_version_table_name(lab.id)
-    return _fetch_all(
-        db_alias,
-        f"SELECT * FROM `{table_name}` WHERE record_id = %s ORDER BY version_number ASC",
-        [str(record_id)],
-    )
+    try:
+        history = _fetch_all(
+            db_alias,
+            f"SELECT * FROM `{table_name}` WHERE record_id = %s ORDER BY version_number ASC",
+            [str(record_id)],
+        )
+        if history:
+            return history
+    except Exception:
+        pass
+
+    try:
+        current_table = lab_record_table_name(lab.id)
+        current = _fetch_one(
+            db_alias,
+            f"SELECT * FROM `{current_table}` WHERE record_id = %s ORDER BY version DESC LIMIT 1",
+            [str(record_id)],
+        )
+        if current:
+            return [current]
+    except Exception:
+        pass
+    return []
 
 
 def insert_record(db_alias, lab, row):

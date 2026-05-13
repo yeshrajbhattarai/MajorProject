@@ -1,8 +1,9 @@
 import json
 from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 
+from consentmanagement.models import ConsentRequest
 from hospitals.encryption import decrypt
 from hospitals.models import MedicalRecordMeta, Patient
 from hospitals.services import (
@@ -349,6 +350,57 @@ def patient_record_history(request, record_id):
         'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
         'history': history,
         'record_id': record_id,
+    })
+
+
+@patient_required
+def patient_consents(request):
+    patient_id = request.session.get('patient_id')
+    patient = Patient.objects.filter(id=patient_id).first()
+
+    if not patient:
+        request.session.flush()
+        return redirect('patient_login')
+
+    consents = ConsentRequest.objects.filter(patient_id=str(patient.id)).order_by('-created_at')
+
+    return render(request, 'patient/consents.html', {
+        'patient': patient,
+        'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
+        'consents': consents,
+    })
+
+
+@patient_required
+def patient_consent_detail(request, consent_id):
+    patient_id = request.session.get('patient_id')
+    patient = Patient.objects.filter(id=patient_id).first()
+
+    if not patient:
+        request.session.flush()
+        return redirect('patient_login')
+
+    consent = get_object_or_404(ConsentRequest, consent_id=consent_id, patient_id=str(patient.id))
+
+    if request.method == 'POST':
+        action = request.POST.get('action', '').strip().upper()
+        if consent.request_status != 'PENDING':
+            messages.error(request, 'This consent has already been finalised.')
+            return redirect('patient_portal_consent_detail', consent_id=consent_id)
+
+        if action not in {'APPROVED', 'REJECTED'}:
+            messages.error(request, 'Invalid consent decision.')
+            return redirect('patient_portal_consent_detail', consent_id=consent_id)
+
+        consent.patient_choice = action
+        consent.save()
+        messages.success(request, f'Consent {action.lower()} successfully.')
+        return redirect('patient_portal_consent_detail', consent_id=consent_id)
+
+    return render(request, 'patient/consent_detail.html', {
+        'patient': patient,
+        'patient_hospital_name': patient.registered_by.hospital_name if patient.registered_by else 'Self Registered',
+        'consent': consent,
     })
 
 

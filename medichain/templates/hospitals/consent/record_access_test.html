@@ -1,0 +1,400 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Fetch & Verify</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  {% if consent_api_token %}
+  <script>
+    window.CONSENT_API_TOKEN = "{{ consent_api_token|escapejs }}";
+  </script>
+  {% endif %}
+  <style>
+    .fetch-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px; box-shadow: 0 1px 2px rgba(0,0,0,.04); color: var(--text-primary); }
+    .message { margin-top: 12px; padding: 10px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; display: none; }
+    .message.ok { display: block; background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
+    .message.err { display: block; background: var(--error-bg); color: var(--error); border: 1px solid var(--error-border); }
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .kv { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: var(--surface-2); }
+    .kv-k { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); font-weight: 700; }
+    .kv-v { margin-top: 4px; color: var(--text-primary); font-weight: 700; word-break: break-word; }
+    .hash { font-family: 'DM Mono', monospace; font-size: 12px; word-break: break-all; }
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-secondary);
+    }
+    .filter-chip.active { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
+    .records-shell { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
+    .records-section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .records-section-head { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .records-section-title { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text-primary); }
+    .records-section-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+    .record-list { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px 18px; }
+    .record-item { border: 1px solid var(--border); border-radius: 14px; background: var(--bg-2); overflow: hidden; }
+    .record-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; }
+    .record-row-main { min-width: 0; }
+    .record-name { color: var(--text-primary); font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .record-info { color: var(--text-muted); font-size: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .record-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .record-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .record-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 800; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border); }
+    .record-badge.medical { background: #ecfeff; color: #0f766e; border-color: #99f6e4; }
+    .record-badge.lab { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+    .record-details { display: none; border-top: 1px solid var(--border); background: rgba(255,255,255,0.55); padding: 14px; }
+    .record-details.open { display: block; }
+    .record-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .detail-block { border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--surface); }
+    .detail-block-title { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-secondary); font-weight: 800; margin-bottom: 10px; }
+    .record-kv { display: grid; grid-template-columns: 150px 1fr; gap: 8px; margin-bottom: 8px; }
+    .record-kv:last-child { margin-bottom: 0; }
+    .record-k { color: var(--text-secondary); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+    .record-v { color: var(--text-primary); font-size: 13px; overflow-wrap: anywhere; }
+    .record-payload { grid-column: 1 / -1; }
+    .verify-box { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 12px; background: var(--surface-2); }
+    .verify-pill { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; }
+    .verify-valid { background: #ecfdf5; color: #065f46; }
+    .verify-invalid { background: #fef2f2; color: #991b1b; }
+    .tech-box { margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--bg-3); }
+    .tech-box summary { cursor: pointer; font-weight: 700; color: var(--text-primary); }
+    .tech-box pre { margin-top: 10px; background: #0f172a; color: #e2e8f0; border-radius: 10px; padding: 10px; min-height: 140px; white-space: pre-wrap; overflow: auto; font-size: 12px; }
+    .empty { margin-top: 10px; border: 1px dashed var(--border); border-radius: 10px; padding: 12px; color: var(--text-secondary); background: var(--surface-2); }
+    @media (max-width: 980px) {
+      .fetch-grid { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+{% if staff_role == 'doctor' %}
+  {% include 'hospitals/partials/doctor_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'nurse' %}
+  {% include 'hospitals/partials/nurse_sidebar.html' with active_page='consents' %}
+{% elif staff_role == 'technician' %}
+  {% include 'hospitals/partials/technician_sidebar.html' with active_page='consents' %}
+{% else %}
+  {% include 'hospitals/partials/sidebar.html' with active_page='consents' hospital_name=hospital_display_name %}
+{% endif %}
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title">
+        <h1>Fetch & Verify</h1>
+        <span class="breadcrumb">Download approved records and check integrity</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbarTime"></div>
+      <a href="{% url 'consent_list_ui' %}" style="padding:10px 14px;border-radius:8px;background:#e5e7eb;color:#111827;text-decoration:none;">Back</a>
+      <a href="{% url 'consent_request_ui' %}" style="padding:10px 14px;border-radius:8px;background:#2563eb;color:#fff;text-decoration:none;">Create Request</a>
+    </div>
+  </header>
+
+  <div class="dashboard-content" style="padding:24px;">
+    <div class="fetch-grid">
+      <section class="panel">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:var(--text-primary);">Consent UUID</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="consentId" value="{{ consent_id|default:'' }}" placeholder="Paste consent UUID" style="flex:1;min-width:240px;padding:10px 12px;border:1px solid #d1d5db;border-radius:10px;" />
+          <button id="btnFetch" style="padding:10px 14px;border:0;border-radius:10px;background:var(--success);color:#fff;">Fetch Records</button>
+        </div>
+
+        <div id="mainMessage" class="message"></div>
+
+        <div class="summary-grid">
+          <div class="kv"><div class="kv-k">Patient</div><div class="kv-v" id="summaryPatient">-</div></div>
+          <div class="kv"><div class="kv-k">Owner Hospital</div><div class="kv-v" id="summaryOwner">-</div></div>
+          <div class="kv"><div class="kv-k">Patient ID</div><div class="kv-v" id="summaryPatientId">-</div></div>
+          <div class="kv"><div class="kv-k">Total Records</div><div class="kv-v" id="summaryTotal">0</div></div>
+          <div class="kv" style="grid-column: 1 / -1;"><div class="kv-k">Bundle Hash</div><div class="kv-v hash" id="summaryBundle">-</div></div>
+        </div>
+
+        <div id="recordsEmpty" class="empty">No records fetched yet.</div>
+        <div id="recordGroups" class="records-shell" style="display:none;"></div>
+      </section>
+
+    </div>
+  </div>
+</main>
+
+<script>
+const headers = () => {
+  const h = {'Content-Type': 'application/json'};
+  if (window.CONSENT_API_TOKEN) h['Authorization'] = 'Bearer ' + window.CONSENT_API_TOKEN;
+  return h;
+};
+let latestBundle = null;
+let openRecordId = null;
+
+const escapeHtml = (value) => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+const setMainMessage = (text, kind) => {
+  const el = document.getElementById('mainMessage');
+  el.className = `message ${kind}`;
+  el.textContent = text;
+};
+
+const setVerifyState = (valid, text) => {
+  const badge = document.getElementById('verifyStatus');
+  const message = document.getElementById('verifyText');
+  if (!badge || !message) return;
+  if (valid === null) {
+    badge.className = 'verify-pill';
+    badge.textContent = 'Not verified';
+  } else {
+    badge.className = `verify-pill ${valid ? 'verify-valid' : 'verify-invalid'}`;
+    badge.textContent = valid ? 'Verified' : 'Verification failed';
+  }
+  message.textContent = text;
+};
+
+const seedConsentId = () => {
+  const params = new URLSearchParams(window.location.search);
+  const input = document.getElementById('consentId');
+  const stored = localStorage.getItem('medichain:lastConsentId');
+  const paramId = params.get('consent_id');
+  input.value = paramId || input.value.trim() || stored || '';
+};
+
+const rememberConsentId = (id) => {
+  if (id) {
+    localStorage.setItem('medichain:lastConsentId', id);
+  }
+};
+
+const fillSummary = (body) => {
+  document.getElementById('summaryPatient').textContent = body?.patient_name || '-';
+  document.getElementById('summaryOwner').textContent = body?.owner_hospital || '-';
+  document.getElementById('summaryPatientId').textContent = body?.patient_id || '-';
+  document.getElementById('summaryTotal').textContent = body?.total_records ?? 0;
+  document.getElementById('summaryBundle').textContent = body?.bundle_hash || '-';
+};
+
+const prettyValue = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  return String(value);
+};
+
+let currentFilter = 'all';
+
+function filterRecords(records) {
+  return records.filter((record) => {
+    if (currentFilter === 'all') return true;
+    return String(record.record_type || '').toLowerCase() === currentFilter;
+  });
+}
+
+function renderFilterChips() {
+  document.querySelectorAll('[data-filter-chip]').forEach((chip) => {
+    chip.classList.toggle('active', chip.getAttribute('data-filter-chip') === currentFilter);
+  });
+}
+
+const renderRecords = (records) => {
+  const container = document.getElementById('recordGroups');
+  const empty = document.getElementById('recordsEmpty');
+  const filteredRecords = filterRecords(Array.isArray(records) ? records : []);
+
+  if (!filteredRecords.length) {
+    container.innerHTML = '';
+    container.style.display = 'none';
+    empty.textContent = latestBundle ? 'No records match the selected filter.' : 'No records fetched yet.';
+    empty.style.display = 'block';
+    renderFilterChips();
+    return;
+  }
+
+  empty.style.display = 'none';
+  container.style.display = 'flex';
+  container.innerHTML = `
+    <section class="records-section">
+      <div class="records-section-head">
+        <div>
+          <div class="records-section-title">Fetched Records</div>
+          <div class="records-section-sub">Medical records and lab reports from the owning hospital. Use Open to view the dedicated detail page.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="filter-chip ${currentFilter === 'all' ? 'active' : ''}" data-filter-chip="all">All</span>
+          <span class="filter-chip ${currentFilter === 'medical' ? 'active' : ''}" data-filter-chip="medical">Medical</span>
+          <span class="filter-chip ${currentFilter === 'lab' ? 'active' : ''}" data-filter-chip="lab">Lab</span>
+          <span class="status-badge status-badge-active">${filteredRecords.length} shown</span>
+        </div>
+      </div>
+      <div class="record-list">
+        ${filteredRecords.map((record) => {
+          const payload = record.record_payload || {};
+          const doctorInputs = payload.doctor_inputs || {};
+          const measurements = payload.measurements || {};
+          const customFields = payload.custom_field_values || {};
+          const updated = payload.updated_at || record.updated_at || '-';
+          const kind = String(record.record_type || 'medical').toLowerCase();
+          const detailUrl = `/consent/ui/records/${encodeURIComponent(latestBundle?.consent_id || document.getElementById('consentId').value.trim())}/${encodeURIComponent(record.record_id)}/${encodeURIComponent(kind)}/`;
+          const summaryText = kind === 'lab'
+            ? `${payload.lab?.lab_name || 'Lab report'} · ${payload.lab?.lab_type || 'lab'}`
+            : doctorInputs.diagnosis || 'Medical record';
+
+          return `
+            <article class="record-item" data-record-id="${escapeHtml(record.record_id || '')}">
+              <div class="record-row">
+                <div class="record-row-main">
+                  <div class="record-name">${escapeHtml((record.record_type || 'record').replace(/_/g, ' '))} · v${escapeHtml(record.version || '-')}</div>
+                  <div class="record-info">
+                    <span>Hospital: ${escapeHtml(payload.hospital_name || record.owner_hospital || '-')}</span>
+                    <span>Updated: ${escapeHtml(updated)}</span>
+                    <span>${escapeHtml(summaryText)}</span>
+                  </div>
+                  <div class="record-badges">
+                    <span class="record-badge ${kind === 'lab' ? 'lab' : 'medical'}">${escapeHtml(kind)}</span>
+                    <span class="record-badge">${escapeHtml(record.record_id || '')}</span>
+                  </div>
+                </div>
+                <div class="record-actions">
+                  <a class="tbl-btn tbl-btn-view" href="${detailUrl}">Open</a>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+    </section>
+  `;
+  renderFilterChips();
+};
+
+async function fetchRecord() {
+  const id = document.getElementById('consentId').value.trim();
+  if (!id) {
+    setMainMessage('Consent ID is required.', 'err');
+    return;
+  }
+  rememberConsentId(id);
+  const res = await fetch('/api/consent/' + id + '/fetch-record/', {method: 'GET', headers: headers()});
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    latestBundle = null;
+    fillSummary(null);
+    renderRecords([]);
+    setMainMessage('Could not fetch records. Ensure consent is approved by both patient and owner hospital.', 'err');
+    setVerifyState(null, 'Fetch records first, then run Verify Hash.');
+    return;
+  }
+  latestBundle = body;
+  fillSummary(body);
+  renderRecords(body.records);
+  setMainMessage('Approved records fetched successfully.', 'ok');
+  setVerifyState(null, 'Records loaded. You can now verify bundle integrity.');
+}
+
+async function verifyHash() {
+  const id = document.getElementById('consentId').value.trim();
+  if (!id) {
+    setMainMessage('Consent ID is required.', 'err');
+    return;
+  }
+  rememberConsentId(id);
+
+  let fetchBody = latestBundle;
+  if (!fetchBody || !Array.isArray(fetchBody.records)) {
+    const fetchRes = await fetch('/api/consent/' + id + '/fetch-record/', {headers: headers()});
+    fetchBody = await fetchRes.json().catch(() => null);
+    if (!fetchRes.ok) {
+      setMainMessage('Unable to fetch records for verification.', 'err');
+      setVerifyState(false, 'Verification could not run because records were not fetched.');
+      return;
+    }
+    latestBundle = fetchBody;
+    fillSummary(fetchBody);
+    renderRecords(fetchBody.records);
+  }
+
+  const res = await fetch('/api/consent/' + id + '/verify-hash/', {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({records: fetchBody.records, bundle_hash: fetchBody.bundle_hash}),
+  });
+  const body = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    setMainMessage('Hash verification failed to run.', 'err');
+    setVerifyState(false, 'Verification request failed.');
+    return;
+  }
+
+  const valid = Boolean(body?.overall_verified ?? body?.verified ?? body?.is_valid ?? body?.match ?? false);
+  setMainMessage(valid ? 'Record bundle verified successfully.' : 'Verification completed but hash does not match.', valid ? 'ok' : 'err');
+  setVerifyState(valid, valid ? 'Integrity confirmed. Records are trustworthy.' : 'Integrity mismatch detected. Do not use these records until resolved.');
+}
+
+document.getElementById('btnFetch').addEventListener('click', fetchRecord);
+document.getElementById('consentId').addEventListener('change', () => rememberConsentId(document.getElementById('consentId').value.trim()));
+
+document.addEventListener('click', (event) => {
+  const chip = event.target.closest('[data-filter-chip]');
+  if (!chip) return;
+  currentFilter = chip.getAttribute('data-filter-chip') || 'all';
+  renderRecords(latestBundle?.records || []);
+});
+
+seedConsentId();
+if (document.getElementById('consentId').value.trim()) {
+  fetchRecord();
+}
+
+/* ─── Live clock in topbar ─── */
+function updateTime() {
+  const now  = new Date();
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: true,
+                 weekday: 'short', month: 'short', day: 'numeric' };
+  document.getElementById('topbarTime').textContent =
+    now.toLocaleDateString('en-IN', opts);
+}
+updateTime();
+setInterval(updateTime, 60000);
+
+/* ─── Sidebar toggle (mobile) ─── */
+document.getElementById('sidebarToggle').addEventListener('click', () => {
+  document.getElementById('sidebar').classList.toggle('sidebar-open');
+});
+
+/* ─── Active nav item ─── */
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    // Let logout and real links navigate normally
+    if (this.classList.contains('nav-logout')) return;
+    if (this.getAttribute('href') && this.getAttribute('href') !== '#') return;
+
+    // Only block # placeholder links
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
