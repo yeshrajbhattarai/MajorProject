@@ -1609,6 +1609,7 @@ def _medical_record_payload_from_request(item, data):
     primary_diagnosis = (data.get('primary_diagnosis') or item.primary_diagnosis or '').strip()
     key_instruction = (data.get('key_instruction') or item.key_instruction or '').strip()
     temperature_value = _parse_medical_record_decimal(data.get('temperature_c'), item.temperature_c)
+    weight_value = _parse_medical_record_decimal(data.get('weight'), item.weight)
     next_appointment_value = _parse_medical_record_date(data.get('next_appointment_date'), item.next_appointment_date)
 
     return {
@@ -1619,6 +1620,7 @@ def _medical_record_payload_from_request(item, data):
         'blood_pressure': (data.get('blood_pressure') if data.get('blood_pressure') is not None else item.blood_pressure) or None,
         'pulse_rate': _parse_medical_record_int(data.get('pulse_rate'), item.pulse_rate),
         'temperature_c': str(temperature_value) if temperature_value is not None else None,
+        'weight': str(weight_value) if weight_value is not None else None,
         'spo2_percent': _parse_medical_record_int(data.get('spo2_percent'), item.spo2_percent),
         'random_blood_sugar': (data.get('random_blood_sugar') if data.get('random_blood_sugar') is not None else item.random_blood_sugar) or None,
         'nurse_tests_performed': (data.get('nurse_tests_performed') if data.get('nurse_tests_performed') is not None else item.nurse_tests_performed) or None,
@@ -1667,6 +1669,7 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'temperature_c': str(item.temperature_c) if item.temperature_c is not None else None,
         'spo2_percent': item.spo2_percent,
         'random_blood_sugar': item.random_blood_sugar,
+        'weight': str(item.weight) if item.weight is not None else None,
         'nurse_tests_performed': item.nurse_tests_performed,
         'nurse_observation': item.nurse_observation,
         'treatment_given': item.treatment_given,
@@ -1684,6 +1687,7 @@ def service_finalize_doctor_approval_item(item_id, hospital_id, doctor_id,
         'blood_pressure': item.blood_pressure,
         'pulse_rate': item.pulse_rate,
         'temperature_c': item.temperature_c,
+        'weight': item.weight,
         'spo2_percent': item.spo2_percent,
         'random_blood_sugar': item.random_blood_sugar,
         'nurse_tests_performed': item.nurse_tests_performed,
@@ -1772,6 +1776,7 @@ def service_update_finalized_medical_record(record_id, hospital_id, doctor_id, d
     item.doctor_note = new_payload.get('doctor_note')
     item.blood_pressure = new_payload.get('blood_pressure')
     item.pulse_rate = new_payload.get('pulse_rate')
+    item.weight = new_payload.get('weight')
     item.temperature_c = new_payload.get('temperature_c')
     item.spo2_percent = new_payload.get('spo2_percent')
     item.random_blood_sugar = new_payload.get('random_blood_sugar')
@@ -1796,6 +1801,7 @@ def service_update_finalized_medical_record(record_id, hospital_id, doctor_id, d
         'doctor_note',
         'blood_pressure',
         'pulse_rate',
+        'weight',
         'temperature_c',
         'spo2_percent',
         'random_blood_sugar',

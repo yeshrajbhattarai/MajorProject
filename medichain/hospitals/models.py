@@ -324,6 +324,7 @@ class NurseQueueItem(models.Model):
     temperature_c = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
     spo2_percent = models.PositiveSmallIntegerField(null=True, blank=True)
     random_blood_sugar = models.CharField(max_length=32, null=True, blank=True)
+    weight = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Patient weight in kg (optional)")
     nurse_tests_performed = models.TextField(null=True, blank=True)
     nurse_observation = models.TextField(null=True, blank=True)
     treatment_given = models.TextField(null=True, blank=True)

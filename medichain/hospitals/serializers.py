@@ -300,6 +300,7 @@ class NurseQueueItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'patient', 'doctor', 'title', 'primary_diagnosis', 'key_instruction', 'doctor_note',
             'handwritten_file', 'blood_pressure', 'pulse_rate', 'temperature_c', 'spo2_percent',
+            'weight',
             'random_blood_sugar', 'nurse_tests_performed', 'nurse_observation', 'treatment_given',
             'medications_administered', 'follow_up_notes', 'status', 'picked_by', 'created_at', 'updated_at', 'completed_at',
             'doctor_finalized', 'finalized_record_id', 'doctor_finalized_at',
@@ -312,6 +313,7 @@ class CreateNurseQueueSerializer(serializers.Serializer):
     primary_diagnosis = serializers.CharField()
     key_instruction = serializers.CharField()
     doctor_note = serializers.CharField(required=False, allow_blank=True)
+    weight = serializers.DecimalField(required=False, allow_null=True, max_digits=5, decimal_places=2)
     # handwritten_file will be supplied as multipart file in the API view
 
 
@@ -320,6 +322,7 @@ class NurseCompleteSerializer(serializers.Serializer):
     pulse_rate = serializers.IntegerField()
     temperature_c = serializers.DecimalField(max_digits=4, decimal_places=1)
     spo2_percent = serializers.IntegerField()
+    weight = serializers.DecimalField(required=False, allow_null=True, max_digits=5, decimal_places=2)
     random_blood_sugar = serializers.CharField(required=False, allow_blank=True)
     nurse_tests_performed = serializers.CharField()
     nurse_observation = serializers.CharField()
@@ -345,6 +348,7 @@ class DoctorUpdateFinalizedSerializer(serializers.Serializer):
     temperature_c = serializers.DecimalField(required=False, max_digits=4, decimal_places=1)
     spo2_percent = serializers.IntegerField(required=False, allow_null=True)
     random_blood_sugar = serializers.CharField(required=False, allow_blank=True)
+    weight = serializers.DecimalField(required=False, max_digits=5, decimal_places=2)
     nurse_tests_performed = serializers.CharField(required=False, allow_blank=True)
     nurse_observation = serializers.CharField(required=False, allow_blank=True)
     treatment_given = serializers.CharField(required=False, allow_blank=True)

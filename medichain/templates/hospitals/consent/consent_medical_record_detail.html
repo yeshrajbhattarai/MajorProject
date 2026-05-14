@@ -275,6 +275,7 @@
             {% if record.custom_field_values.pulse_rate %}<div class="kv"><div class="kv-label">Pulse Rate</div><div class="kv-value">{{ record.custom_field_values.pulse_rate }} bpm</div></div>{% endif %}
             {% if record.custom_field_values.temperature_c %}<div class="kv"><div class="kv-label">Temperature</div><div class="kv-value">{{ record.custom_field_values.temperature_c }} C</div></div>{% endif %}
             {% if record.custom_field_values.spo2_percent %}<div class="kv"><div class="kv-label">SpO2</div><div class="kv-value">{{ record.custom_field_values.spo2_percent }}%</div></div>{% endif %}
+            {% if record.custom_field_values.weight %}<div class="kv"><div class="kv-label">Weight</div><div class="kv-value">{{ record.custom_field_values.weight }} kg</div></div>{% endif %}
             {% if record.custom_field_values.random_blood_sugar %}<div class="kv"><div class="kv-label">Random Blood Sugar</div><div class="kv-value">{{ record.custom_field_values.random_blood_sugar }}</div></div>{% endif %}
             {% if record.custom_field_values.next_appointment_date %}<div class="kv"><div class="kv-label">Next Appointment</div><div class="kv-value">{{ record.custom_field_values.next_appointment_date|default:'Not scheduled' }}</div></div>{% endif %}
             {% if record.custom_field_values.follow_up_notes %}<div class="kv"><div class="kv-label">Follow Up Notes</div><div class="kv-value">{{ record.custom_field_values.follow_up_notes }}</div></div>{% endif %}

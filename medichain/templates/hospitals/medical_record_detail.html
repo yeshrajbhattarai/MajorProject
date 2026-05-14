@@ -443,6 +443,10 @@
               <input class="sf-input" type="number" name="pulse_rate" value="{{ record_item.pulse_rate|default:'' }}">
             </div>
             <div class="sf-group">
+              <label class="sf-label">Weight (kg)</label>
+              <input class="sf-input" type="number" step="0.01" name="weight" value="{{ record_item.weight|default:'' }}">
+            </div>
+            <div class="sf-group">
               <label class="sf-label">Temperature (C)</label>
               <input class="sf-input" type="text" name="temperature_c" value="{{ record_item.temperature_c|default:'' }}">
             </div>
@@ -589,6 +593,7 @@
             {% if record_item.pulse_rate %}<div class="kv"><div class="kv-label">Pulse Rate</div><div class="kv-value">{{ record_item.pulse_rate }} bpm</div></div>{% endif %}
             {% if record_item.temperature_c %}<div class="kv"><div class="kv-label">Temperature</div><div class="kv-value">{{ record_item.temperature_c }} C</div></div>{% endif %}
             {% if record_item.spo2_percent %}<div class="kv"><div class="kv-label">SpO2</div><div class="kv-value">{{ record_item.spo2_percent }}%</div></div>{% endif %}
+            {% if record_item.weight %}<div class="kv"><div class="kv-label">Weight</div><div class="kv-value">{{ record_item.weight }} kg</div></div>{% endif %}
             {% if record_item.random_blood_sugar %}<div class="kv"><div class="kv-label">Random Blood Sugar</div><div class="kv-value">{{ record_item.random_blood_sugar }}</div></div>{% endif %}
             <div class="kv"><div class="kv-label">Next Appointment</div><div class="kv-value">{{ record_item.next_appointment_date|date:'d M Y'|default:'Not scheduled' }}</div></div>
             {% if record_item.follow_up_notes %}<div class="kv"><div class="kv-label">Follow Up Notes</div><div class="kv-value">{{ record_item.follow_up_notes }}</div></div>{% endif %}
