@@ -190,7 +190,7 @@ def hospital_logout(request):
 # render admin dashboard with live counts
 @hospital_admin_required
 def hospital_dashboard(request):
-    hospital, total_doctors, total_nurses, total_patients, total_technicians = service_get_dashboard_data(
+    hospital, total_doctors, total_nurses, total_patients, total_technicians, total_lab_records, total_medical_records = service_get_dashboard_data(
         request.session['hospital_id']
     )
     return render(request, 'hospitals/admin/h_dashboard.html', {
@@ -201,8 +201,8 @@ def hospital_dashboard(request):
         'hospital_address':    hospital.address,
         'account_status':      hospital.account_status,
         'total_patients':      total_patients,
-        'total_records':       0,      # will be real count after records model is built
-        'total_reports':       0,      # will be real count after reports model is built
+        'total_lab_records':   total_lab_records,
+        'total_medical_records': total_medical_records,
         'total_doctors':       total_doctors,
         'total_nurses':        total_nurses,
         'total_technicians':   total_technicians,

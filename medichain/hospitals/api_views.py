@@ -258,17 +258,17 @@ class HospitalDashboardAPI(APIView):
     permission_classes = [IsHospitalAdmin]
 
     def get(self, request):
-        hospital, total_doctors, total_nurses, total_patients, total_technicians = service_get_dashboard_data(
+        hospital, total_doctors, total_nurses, total_patients, total_technicians, total_lab_records, total_medical_records = service_get_dashboard_data(
             request.user_payload['hospital_id']
         )
         return Response({
-            'hospital':           HospitalSerializer(hospital).data,
-            'total_doctors':      total_doctors,
-            'total_nurses':       total_nurses,
-            'total_technicians':  total_technicians,
-            'total_patients':     total_patients,
-            'total_records':      0,    # will be real count after records model is built
-            'total_reports':      0,    # will be real count after reports model is built
+            'hospital':              HospitalSerializer(hospital).data,
+            'total_doctors':         total_doctors,
+            'total_nurses':          total_nurses,
+            'total_technicians':     total_technicians,
+            'total_patients':        total_patients,
+            'total_lab_records':     total_lab_records,
+            'total_medical_records': total_medical_records,
         }, status=status.HTTP_200_OK)
 
 
@@ -277,7 +277,7 @@ class HospitalProfileAPI(APIView):
     permission_classes = [IsHospitalAdmin]
 
     def get(self, request):
-        hospital, _, _, _, _ = service_get_dashboard_data(request.user_payload['hospital_id'])
+        hospital, _, _, _, _, _, _ = service_get_dashboard_data(request.user_payload['hospital_id'])
         return Response(HospitalSerializer(hospital).data, status=status.HTTP_200_OK)
 
 

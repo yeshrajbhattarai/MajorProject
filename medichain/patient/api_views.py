@@ -6,8 +6,13 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from hospitals.encryption import decrypt
 from hospitals.models import MedicalRecordMeta, Patient
+from hospitals.serializers import NurseQueueItemSerializer
 from hospitals.token_utils import get_tokens_for_payload
-from hospitals.services import service_get_record_detail, service_get_record_history
+from hospitals.services import (
+    service_get_finalized_medical_record_detail,
+    service_get_record_detail,
+    service_get_record_history,
+)
 
 from .permissions import IsPatient
 from .serializers import (
@@ -62,6 +67,19 @@ def _profile_gate_response(patient):
         },
         status=status.HTTP_403_FORBIDDEN,
     )
+
+
+def _parse_version_number(request):
+    version_number = request.query_params.get('v')
+    if not version_number:
+        return None, None
+    try:
+        return int(version_number), None
+    except (TypeError, ValueError):
+        return None, Response(
+            {'success': False, 'error': 'Invalid record version requested.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
 
 class PatientRegisterAPI(APIView):
@@ -344,14 +362,37 @@ class PatientRecordDetailAPI(APIView):
         if not meta:
             return Response({'success': False, 'error': 'Record not found for your account.'}, status=status.HTTP_404_NOT_FOUND)
 
-        version_number = request.query_params.get('v')
-        if version_number:
-            try:
-                version_number = int(version_number)
-            except (TypeError, ValueError):
-                return Response({'success': False, 'error': 'Invalid record version requested.'}, status=status.HTTP_400_BAD_REQUEST)
-        else:
-            version_number = None
+        version_number, version_error = _parse_version_number(request)
+        if version_error:
+            return version_error
+
+        if meta.record_type == MedicalRecordMeta.RECORD_TYPE_MEDICAL or not meta.lab_request:
+            item, detail_bundle, error = service_get_finalized_medical_record_detail(
+                record_id=record_id,
+                role='patient',
+                patient_id=patient.id,
+                version_number=version_number,
+            )
+
+            if error:
+                return Response({'success': False, 'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+            return Response(
+                {
+                    'success': True,
+                    'patient': {
+                        'id': str(patient.id),
+                        'full_name': patient.full_name,
+                        'email': patient.email,
+                        'phone': patient.phone,
+                    },
+                    'medical_record': NurseQueueItemSerializer(item).data,
+                    'detail': detail_bundle,
+                    'timeline': detail_bundle.get('timeline', []),
+                    'integrity': detail_bundle.get('hash', {}),
+                },
+                status=status.HTTP_200_OK,
+            )
 
         record, lab_request, detail_bundle, error = service_get_record_detail(
             record_id=record_id,
@@ -416,6 +457,33 @@ class PatientRecordHistoryAPI(APIView):
         meta = MedicalRecordMeta.objects.filter(record_id=record_id, patient_id=patient.id).first()
         if not meta:
             return Response({'success': False, 'error': 'Record history not found for your account.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if meta.record_type == MedicalRecordMeta.RECORD_TYPE_MEDICAL or not meta.lab_request:
+            version_number, version_error = _parse_version_number(request)
+            if version_error:
+                return version_error
+
+            item, detail_bundle, error = service_get_finalized_medical_record_detail(
+                record_id=record_id,
+                role='patient',
+                patient_id=patient.id,
+                version_number=version_number,
+            )
+            if error:
+                return Response({'success': False, 'error': error}, status=status.HTTP_404_NOT_FOUND)
+
+            history = detail_bundle.get('timeline', [])
+            return Response(
+                {
+                    'success': True,
+                    'record_id': str(record_id),
+                    'history_count': len(history),
+                    'history': history,
+                    'medical_record': NurseQueueItemSerializer(item).data,
+                    'integrity': detail_bundle.get('hash', {}),
+                },
+                status=status.HTTP_200_OK,
+            )
 
         history = service_get_record_history(
             record_id=record_id,
