@@ -290,7 +290,7 @@ class PatientRecordsAPI(APIView):
                 'record_id': str(lr.record_meta.first().record_id) if lr.record_meta.exists() else None,
                 'status': lr.status,
                 'status_display': lr.get_status_display(),
-                'lab_name': lr.lab.lab_name if lr.lab else 'N/A',
+                'lab_name': lr.lab.name if lr.lab else 'N/A',
                 'hospital_name': lr.lab.hospital.hospital_name if lr.lab and lr.lab.hospital else 'N/A',
                 'requested_by': lr.requested_by.full_name if lr.requested_by else 'N/A',
                 'created_at': lr.created_at,
