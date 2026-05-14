@@ -1,0 +1,264 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Audit Logs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/h_dashboard.css' %}">
+  <style>
+    .audit-toolbar {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 18px 0 22px;
+    }
+    .audit-filter {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .audit-filter label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #5f6b7a;
+    }
+    .audit-filter input,
+    .audit-filter select {
+      width: 100%;
+      border: 1px solid rgba(92, 109, 255, 0.18);
+      border-radius: 14px;
+      background: #fff;
+      padding: 12px 14px;
+      color: #17324d;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .audit-actions {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+    }
+    .audit-button,
+    .audit-reset {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      padding: 12px 16px;
+      text-decoration: none;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+    }
+    .audit-button {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+    }
+    .audit-reset {
+      background: #eef2ff;
+      color: #4338ca;
+    }
+    .audit-table-wrap {
+      overflow-x: auto;
+      background: rgba(255,255,255,0.9);
+      border-radius: 24px;
+      border: 1px solid rgba(92, 109, 255, 0.12);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+    }
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 960px;
+    }
+    .audit-table th,
+    .audit-table td {
+      padding: 16px 18px;
+      text-align: left;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      vertical-align: top;
+    }
+    .audit-table th {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      background: #f8fafc;
+    }
+    .audit-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .audit-badge-info { background: #dbeafe; color: #1d4ed8; }
+    .audit-badge-warning { background: #fef3c7; color: #b45309; }
+    .audit-badge-critical { background: #fee2e2; color: #b91c1c; }
+    .audit-meta {
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+    .audit-empty {
+      padding: 64px 24px;
+      text-align: center;
+      color: #64748b;
+    }
+    .audit-empty h3 {
+      margin: 14px 0 6px;
+      color: #0f172a;
+    }
+    @media (max-width: 1100px) {
+      .audit-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      .audit-toolbar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+{% include 'hospitals/partials/sidebar.html' with active_page='audit' %}
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="page-title">
+        <h1>Audit Logs</h1>
+        <span class="breadcrumb">Admin activity trail</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbarTime"></div>
+      <div class="topbar-avatar">{{ hospital_name|default:"A"|slice:":1"|upper }}</div>
+    </div>
+  </header>
+
+  <div class="dashboard-content">
+    <div class="dash-card card-actions">
+      <div class="card-head">
+        <span class="card-icon card-icon-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 6h18M7 12h10M10 18h4"/>
+          </svg>
+        </span>
+        <span class="card-title">Filter Logs</span>
+      </div>
+      <form method="get" class="audit-toolbar">
+        <div class="audit-filter">
+          <label for="severity">Severity</label>
+          <select id="severity" name="severity">
+            <option value="">All severities</option>
+            <option value="INFO" {% if severity_filter == 'INFO' %}selected{% endif %}>Info</option>
+            <option value="WARNING" {% if severity_filter == 'WARNING' %}selected{% endif %}>Warning</option>
+            <option value="CRITICAL" {% if severity_filter == 'CRITICAL' %}selected{% endif %}>Critical</option>
+          </select>
+        </div>
+        <div class="audit-filter">
+          <label for="action">Action</label>
+          <input id="action" name="action" value="{{ action_filter|default:'' }}" placeholder="e.g. CONSENT_CREATED">
+        </div>
+        <div class="audit-filter">
+          <label for="consent_id">Consent ID</label>
+          <input id="consent_id" name="consent_id" value="{{ consent_filter|default:'' }}" placeholder="Optional UUID">
+        </div>
+        <div class="audit-actions">
+          <button type="submit" class="audit-button">Apply Filters</button>
+          <a href="/audit-logs/" class="audit-reset">Reset</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="dash-card">
+      <div class="card-head" style="padding-bottom: 0;">
+        <span class="card-icon card-icon-activity">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12h4l3-9 4 18 3-9h4"/>
+          </svg>
+        </span>
+        <span class="card-title">Activity Stream</span>
+      </div>
+
+      {% if logs %}
+      <div class="audit-table-wrap">
+        <table class="audit-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Action</th>
+              <th>Severity</th>
+              <th>Performed By</th>
+              <th>Consent</th>
+              <th>Scope</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for log in logs %}
+            <tr>
+              <td class="audit-meta">{{ log.timestamp|date:'d M Y, h:i A' }}</td>
+              <td><strong>{{ log.get_action_display }}</strong></td>
+              <td>
+                <span class="audit-badge audit-badge-{{ log.severity|lower }}">{{ log.severity }}</span>
+              </td>
+              <td class="audit-meta">{{ log.performed_by }}</td>
+              <td class="audit-meta">{{ log.consent_id|default:'-' }}</td>
+              <td class="audit-meta">
+                {% if log.scope_hospitals %}
+                  {{ log.scope_hospitals|join:', ' }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="audit-meta">{{ log.extra_info|default:'-' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="audit-empty">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M3 6h18M3 12h18M3 18h18"/>
+        </svg>
+        <h3>No audit logs found</h3>
+        <p>Try clearing filters or wait for new activity.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</main>
+
+<script>
+  document.getElementById('sidebarToggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('sidebar-open');
+  });
+
+  function updateTime() {
+    const el = document.getElementById('topbarTime');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+  }
+  updateTime();
+  setInterval(updateTime, 30000);
+</script>
+</body>
+</html>

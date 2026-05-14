@@ -13,6 +13,7 @@ urlpatterns = [
     path('profile/update-license/',  views.hospital_update_license,  name='hospital_update_license'),
     path('profile/update-address/',  views.hospital_update_address,  name='hospital_update_address'),
     path('profile/update-password/', views.hospital_update_password, name='hospital_update_password'),
+    path('audit-logs/', views.hospital_audit_logs, name='hospital_audit_logs'),
 
 
         # Staff — Doctors

@@ -2,6 +2,8 @@ import json
 import hashlib
 import logging
 
+from django.db.models import Q
+
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import JsonResponse
@@ -80,6 +82,8 @@ from .services import (
     service_doctor_reassess_record,
    
 )
+
+from auditlog.models import AuditLog
 logger = logging.getLogger(__name__)
 
 
@@ -204,6 +208,37 @@ def hospital_dashboard(request):
         'total_technicians':   total_technicians,
         'recent_logs':         [],     # will be populated after audit log model is built
         'profile_incomplete':  getattr(request, 'profile_incomplete', False),
+    })
+
+
+@hospital_admin_required
+def hospital_audit_logs(request):
+    hospital = Hospital.objects.get(id=request.session['hospital_id'])
+
+    logs = AuditLog.objects.filter(
+        Q(performed_by=hospital.hospital_name) |
+        Q(scope_hospitals__contains=[hospital.hospital_name])
+    ).order_by('-timestamp')
+
+    severity = request.GET.get('severity', '').strip()
+    action = request.GET.get('action', '').strip()
+    consent_id = request.GET.get('consent_id', '').strip()
+
+    if severity:
+        logs = logs.filter(severity=severity)
+    if action:
+        logs = logs.filter(action=action)
+    if consent_id:
+        logs = logs.filter(consent_id=consent_id)
+
+    return render(request, 'hospitals/admin/audit_logs.html', {
+        'hospital_name': hospital.hospital_name,
+        'logs': logs,
+        'severity_filter': severity,
+        'action_filter': action,
+        'consent_filter': consent_id,
+        'active_page': 'audit',
+        'profile_incomplete': getattr(request, 'profile_incomplete', False),
     })
 
 

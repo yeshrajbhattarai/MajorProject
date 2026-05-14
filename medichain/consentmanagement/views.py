@@ -372,6 +372,7 @@ def create_consent(request):
                 hospital.hospital_name,
                 existing.consent_id,
                 extra_info='Re-request created from previously rejected consent',
+                scope_hospitals=[existing.requesting_hospital, existing.requested_to_hospital],
             )
             return Response(ConsentRequestSerializer(existing).data, status=200)
 
@@ -400,7 +401,12 @@ def create_consent(request):
     serializer = ConsentCreateSerializer(data=data)
     if serializer.is_valid():
         consent = serializer.save()
-        log_action('CONSENT_CREATED', hospital.hospital_name, consent.consent_id)
+        log_action(
+            'CONSENT_CREATED',
+            hospital.hospital_name,
+            consent.consent_id,
+            scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
+        )
         return Response(ConsentRequestSerializer(consent).data, status=201)
     return Response(serializer.errors, status=400)
 
@@ -470,6 +476,7 @@ def consent_detail(request, consent_id):
         'CONSENT_DELETED',
         hospital.hospital_name,
         consent.consent_id,
+        scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
         extra_info=(
             f"Consent between {consent.requesting_hospital} "
             f"and {consent.requested_to_hospital}"
@@ -514,7 +521,8 @@ def patient_decision(request, consent_id):
         log_action(
             action,
             f"patient:{payload.get('patient_id')}",
-            consent.consent_id
+            consent.consent_id,
+            scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
         )
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
@@ -551,7 +559,12 @@ def hospital_decision(request, consent_id):
             if request.data.get('hospital_choice') == 'APPROVED'
             else 'HOSPITAL_REJECTED'
         )
-        log_action(action, hospital.hospital_name, consent.consent_id)
+        log_action(
+            action,
+            hospital.hospital_name,
+            consent.consent_id,
+            scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
+        )
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
@@ -595,7 +608,8 @@ def fetch_record(request, consent_id):
     # ── Step 3: consent must be APPROVED ─────────────────────────────────────
     if consent.request_status != 'APPROVED':
         log_action('RECORD_ACCESS_DENIED', hospital.hospital_name, consent_id,
-                   extra_info=f"Consent status: {consent.request_status}")
+                   extra_info=f"Consent status: {consent.request_status}",
+                   scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital])
         return Response(
             {"error": "Consent is not approved. Both the patient and the owning hospital must approve before records can be shared."},
             status=403,
@@ -604,7 +618,8 @@ def fetch_record(request, consent_id):
     # ── Step 4: only the requesting hospital may pull ─────────────────────────
     if hospital.hospital_name != consent.requesting_hospital:
         log_action('RECORD_ACCESS_DENIED', hospital.hospital_name, consent_id,
-                   extra_info="Caller is not the requesting hospital")
+                   extra_info="Caller is not the requesting hospital",
+                   scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital])
         return Response(
             {"error": "Unauthorized — only the requesting hospital can fetch this record"},
             status=403,
@@ -614,10 +629,16 @@ def fetch_record(request, consent_id):
     bundle, bundle_error = _build_record_bundle(consent)
     if bundle_error:
         log_action('RECORD_ACCESS_FAILED', hospital.hospital_name, consent_id,
-                   extra_info=bundle_error)
+                   extra_info=bundle_error,
+                   scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital])
         return Response({"error": bundle_error}, status=404)
 
-    log_action('RECORD_ACCESS_SUCCESS', hospital.hospital_name, consent.consent_id)
+    log_action(
+        'RECORD_ACCESS_SUCCESS',
+        hospital.hospital_name,
+        consent.consent_id,
+        scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
+    )
 
     return Response({
         **bundle,
@@ -798,6 +819,7 @@ def verify_hash(request, consent_id):
             hospital.hospital_name,
             consent_id,
             extra_info=f"bundle_hash={recomputed_bundle_hash[:16]}…",
+            scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
         )
         summary = "All records verified. No tampering detected."
     else:
@@ -809,6 +831,7 @@ def verify_hash(request, consent_id):
             hospital.hospital_name,
             consent_id,
             extra_info=f"Tampered records: {tampered_ids}",
+            scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
         )
         summary = (
             "WARNING: Integrity check failed. "
