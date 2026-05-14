@@ -745,12 +745,19 @@ New Models Needed:
 │   ├── expires_at (24 hours)
 │   └── scope (which patient)
 │
-└── CrossHospitalAuditLog
-    ├── accessing_hospital
-    ├── owning_hospital
-    ├── data_accessed
-    ├── timestamp
-    └── purpose
+└── AuditLog
+    ├── action
+    ├── severity
+    ├── performed_by
+    ├── consent_id
+    ├── scope_hospitals
+    ├── extra_info
+    └── timestamp
+
+Current implementation notes:
+- Audit events are written through `auditlog.utils.log_action()`.
+- Hospital visibility is scoped through the `scope_hospitals` list.
+- The audit view is available at `GET /api/logs/` for hospital admins.
 
 New APIs Needed:
 ├── POST /data-request/                    # Hospital B submits request

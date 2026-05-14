@@ -6,8 +6,8 @@ from .models import AuditLog
 class AuditLogAdmin(admin.ModelAdmin):
     list_display  = ('action', 'severity', 'performed_by', 'consent_id', 'timestamp')
     list_filter   = ('severity', 'action')
-    search_fields = ('performed_by', 'action', 'consent_id')
-    readonly_fields = ('log_id', 'action', 'severity', 'performed_by', 'consent_id', 'extra_info', 'timestamp')
+    search_fields = ('performed_by', 'action', 'consent_id', 'extra_info')
+    readonly_fields = ('log_id', 'action', 'severity', 'performed_by', 'consent_id', 'scope_hospitals', 'extra_info', 'timestamp')
     ordering      = ('-timestamp',)
 
     # prevent anyone from adding or deleting logs through admin

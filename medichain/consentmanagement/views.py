@@ -245,24 +245,29 @@ def _build_record_bundle(consent: ConsentRequest):
             "custom_field_values": meta.custom_field_values or {},
             # Doctor attachment URLs (for medical records)
             "attachments":         attachments,
-            # The hash that was computed and stored when the record was originally
-            # written by the owning hospital's technician / doctor.
-            "stored_hash":         meta.sha256_hash,
             "record_payload":      record_payload,
         }
+
+        # Include both hashes in the transfer payload:
+        # - local_stored_hash: the write-time hash persisted by the owning hospital
+        # - recomputed_hash: freshly recomputed right before transfer from record_payload
+        local_stored_hash = meta.sha256_hash
+        recomputed_hash = _compute_transfer_hash(record_payload)
+        entry["local_stored_hash"] = local_stored_hash
+        entry["recomputed_hash"] = recomputed_hash
+        # Keep legacy key for backward compatibility with older clients.
+        entry["stored_hash"] = local_stored_hash
+
         records.append(entry)
 
     # The transfer bundle is the object we will hash end-to-end.
-    # It intentionally excludes per-record stored_hash values so the bundle
-    # hash covers the actual data content, not the stored hashes.
+    # Include both record data and hash fields so any in-transit mutation is
+    # detected by bundle hash verification on the receiver side.
     data_for_hashing = {
         "consent_id":     str(consent.consent_id),
         "patient_id":     str(consent.patient_id),
         "owner_hospital": consent.requested_to_hospital,
-        "records": [
-            {k: v for k, v in entry.items() if k != "stored_hash"}
-            for entry in records
-        ],
+        "records":        records,
     }
     bundle_hash = _compute_transfer_hash(data_for_hashing)
 
@@ -503,7 +508,20 @@ def patient_decision(request, consent_id):
             status=403
         )
 
+    payload_patient_id = str(payload.get('patient_id', '')).strip()
+    if not payload_patient_id:
+        return Response(
+            {"error": "Patient identity missing in token"},
+            status=401
+        )
+
     consent = get_object_or_404(ConsentRequest, consent_id=consent_id)
+
+    if payload_patient_id != str(consent.patient_id):
+        return Response(
+            {"error": "Unauthorized — this consent does not belong to you"},
+            status=403
+        )
 
     if consent.request_status != 'PENDING':
         return Response({"error": "Consent already finalised"}, status=400)
@@ -520,7 +538,7 @@ def patient_decision(request, consent_id):
         )
         log_action(
             action,
-            f"patient:{payload.get('patient_id')}",
+            f"patient:{payload_patient_id}",
             consent.consent_id,
             scope_hospitals=[consent.requesting_hospital, consent.requested_to_hospital],
         )
@@ -668,10 +686,11 @@ def verify_hash(request, consent_id):
         "bundle_hash": "<hex string>"  // the bundle_hash value from fetch_record
     }
 
-    The server recomputes the SHA-256 over the submitted records using the
-    same canonical serialisation as fetch_record.  It also cross-checks each
-    record's submitted data against the stored_hash that was saved by the
-    owning hospital at write time (in MedicalRecordMeta.sha256_hash).
+        The server recomputes the SHA-256 over the submitted bundle exactly as
+        sent by fetch_record, then validates each record using three hashes:
+            - local_stored_hash (sent by owning hospital)
+            - recomputed_hash   (freshly recomputed by owning hospital at send time)
+            - db_stored_hash    (authoritative hash in MediChain MedicalRecordMeta)
 
     Response shape:
     {
@@ -683,9 +702,10 @@ def verify_hash(request, consent_id):
         "record_integrity": [
             {
                 "record_id":       "...",
-                "stored_hash":     "<hex>",   // owning hospital's write-time hash
-                "recomputed_hash": "<hex>",   // hash of the data we were sent
-                "match":           true | false,
+                "local_stored_hash": "<hex>", // from sending hospital DB
+                "recomputed_hash":   "<hex>", // recomputed by sender pre-transfer
+                "db_stored_hash":    "<hex>", // MediChain authoritative hash
+                "triple_match":      true | false,
                 "tampered":        false | true
             },
             ...
@@ -730,16 +750,12 @@ def verify_hash(request, consent_id):
         )
 
     # ── Re-compute the bundle hash from submitted data ────────────────────────
-    # Strip stored_hash from each entry (it was not included when hashing on send).
-    records_for_hashing = [
-        {k: v for k, v in rec.items() if k != 'stored_hash'}
-        for rec in submitted_records
-    ]
+    # Hash the full records payload exactly as transferred.
     data_for_hashing = {
         "consent_id":     str(consent.consent_id),
         "patient_id":     str(consent.patient_id),
         "owner_hospital": consent.requested_to_hospital,
-        "records":        records_for_hashing,
+        "records":        submitted_records,
     }
     recomputed_bundle_hash = _compute_transfer_hash(data_for_hashing)
     bundle_match = recomputed_bundle_hash == submitted_bundle_hash
@@ -772,42 +788,37 @@ def verify_hash(request, consent_id):
     for rec in submitted_records:
         record_id = rec.get('record_id', '')
 
-        # Recompute hash of the submitted record data (excluding stored_hash).
-        rec_data_for_hashing = {k: v for k, v in rec.items() if k != 'stored_hash'}
-        # Compute the transfer hash (diagnostic) but DO NOT assume the
-        # owning hospital's write-time `sha256_hash` was computed over the
-        # same payload shape we are transferring in the bundle. The
-        # write-time hash is authoritative and lives in MedicalRecordMeta.
-        recomputed_transfer_hash = _compute_transfer_hash(rec_data_for_hashing)
-
-        submitted_stored_hash = rec.get('stored_hash', '')
+        submitted_local_stored_hash = rec.get('local_stored_hash') or rec.get('stored_hash', '')
+        submitted_recomputed_hash = rec.get('recomputed_hash', '')
         meta = stored_meta_map.get(record_id)
         db_stored_hash = meta.sha256_hash if meta else None
 
-        # Primary verification: does the owning hospital's DB-stored hash
-        # match the stored_hash included in the transfer bundle? If these
-        # differ the sender and MediChain disagree about the canonical
-        # record content (or a wrong record/version was sent).
-        db_match = bool(db_stored_hash) and (db_stored_hash == submitted_stored_hash)
+        local_vs_db_match = bool(db_stored_hash) and (submitted_local_stored_hash == db_stored_hash)
+        recomputed_vs_db_match = bool(db_stored_hash) and (submitted_recomputed_hash == db_stored_hash)
+        local_vs_recomputed_match = bool(submitted_local_stored_hash) and (
+            submitted_local_stored_hash == submitted_recomputed_hash
+        )
+        triple_match = local_vs_db_match and recomputed_vs_db_match and local_vs_recomputed_match
 
-        record_verified = db_match
+        record_verified = triple_match
         if not record_verified:
             all_records_verified = False
-
-        transfer_match = bool(submitted_stored_hash) and (recomputed_transfer_hash == submitted_stored_hash)
 
         record_integrity_results.append({
             "record_id":            record_id,
             "record_type":          rec.get('record_type'),
             "version":              rec.get('version'),
-            "submitted_stored_hash": submitted_stored_hash,
+            "local_stored_hash":    submitted_local_stored_hash,
+            "recomputed_hash":      submitted_recomputed_hash,
             "db_stored_hash":       db_stored_hash,
-            "recomputed_hash":      recomputed_transfer_hash,
-            "transfer_match":       transfer_match,
-            "db_match":             db_match,
-            # tampered = submitted stored_hash does not match owning hospital DB
-            "tampered":             not db_match,
-            "status": "✓ Verified" if db_match else "✗ TAMPERED or CORRUPTED",
+            "local_vs_db_match":    local_vs_db_match,
+            "recomputed_vs_db_match": recomputed_vs_db_match,
+            "local_vs_recomputed_match": local_vs_recomputed_match,
+            "triple_match":         triple_match,
+            # tampered = any mismatch among sender local hash, sender recompute,
+            # and MediChain authoritative hash.
+            "tampered":             not triple_match,
+            "status": "✓ Verified" if triple_match else "✗ TAMPERED or CORRUPTED",
         })
 
     overall_verified = bundle_match and all_records_verified

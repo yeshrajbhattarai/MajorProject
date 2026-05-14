@@ -211,7 +211,7 @@ class HospitalSpecificData(models.Model):
 
 - [ ] **Models**
   - [ ] `DataRequestFrom` - Request model
-  - [ ] `CrossHospitalAuditLog` - Audit trail model
+    - [x] `AuditLog` - Shared audit trail model with `scope_hospitals`
   - [ ] `DataAccessToken` - Temporary access token model
   - [ ] Create migration
 

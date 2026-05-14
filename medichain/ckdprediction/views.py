@@ -106,6 +106,7 @@ def predict_ckd(request):
             request.user_payload.get('staff_id'),
             record_id,
             extra_info='KFT record not found for patient',
+            scope_hospitals=[],
         )
         return Response(
             {'error': f'KFT record {record_id} not found for patient {patient_id}'},
@@ -123,6 +124,7 @@ def predict_ckd(request):
                 request.user_payload.get('staff_id'),
                 record_id,
                 extra_info=f"Record from non-CKD lab: {meta.lab_request.lab.lab_type}",
+                scope_hospitals=[meta.hospital.hospital_name],
             )
             return Response(
                 {
@@ -164,6 +166,7 @@ def predict_ckd(request):
             request.user_payload.get('staff_id'),
             record_id,
             extra_info=error,
+            scope_hospitals=[meta.hospital.hospital_name],
         )
         return Response(
             {'error': f'Prediction failed: {error}'},
@@ -184,6 +187,7 @@ def predict_ckd(request):
             f"Confidence: {result['confidence']}% | "
             f"Risk: {result['risk_level']}"
         ),
+        scope_hospitals=[meta.hospital.hospital_name],
     )
     
     # ═════════════════════════════════════════════════════════════════════
