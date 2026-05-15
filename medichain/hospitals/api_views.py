@@ -961,7 +961,7 @@ class TechnicianUpdatePersonalAPI(APIView):
             staff_id=request.user_payload['staff_id'],
             date_of_birth=request.data.get('date_of_birth', '').strip() or None,
             gender=request.data.get('gender', '').strip() or None,
-            years_experience=request.data.get('years_experience', '').strip() or None,
+            years_experience=request.data.get('years_experience', '') or None,
             license_number=request.data.get('license_number', '').strip(),
             home_address=request.data.get('home_address', '').strip(),
             bio=request.data.get('bio', '').strip(),
