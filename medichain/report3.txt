@@ -1,0 +1,157 @@
+MediChain Third Progress Report - Phase 3 (Code-Derived)
+
+Prepared: 2026-05-14
+Source: repository inspection and recent commit history (integration-consent-hospital branch)
+
+SECTION 1 — YOUR COMPLETED WORK (New in Phase 3)
+
+1) Modules / features I personally completed since Report 2 (one-line + scope)
+- Consent bundle workflow (request → approvals → fetch → verify): Allows hospitals to request patient records from other hospitals, obtain patient and owning-hospital approvals, fetch a signed bundle and verify integrity — (backend + frontend).
+- Audit logging: Adds `AuditLog` model, logging utilities, and the hospital admin audit log page — (backend + frontend admin UI).
+- Record integrity verification endpoints: Bundle-level and per-record verification to detect tampering (`verify-hash` and record integrity APIs) — (backend).
+- Consent UI pages: request/list/detail/record-access-test pages for hospital staff plus patient consent list/detail — (frontend + backend wiring).
+- Fixes to patient record access & dashboard counts: tightened access filters and corrected counting logic — (backend + frontend updates).
+- CKD prediction stabilization and logging: ensured CKD prediction endpoint logs events and integrates with metadata checks — (backend).
+- Support and test scripts: Added/updated scripts to simulate verification, inspect meta, and check stored meta maps for debugging cross-hospital transfers — (backend ops).
+
+For each completed item, the scope is marked as backend only, frontend only, or both in the item line above.
+
+Consent management and audit logs — specific contributions:
+- Integrated consent checks into record transfer flow: consent creation, patient decision, and owning-hospital decision endpoints now gate the `fetch-record` path.
+- Implemented `_build_record_bundle` to assemble latest MedicalRecordMeta rows owned by the hospital and canonicalize per-record payloads for transfer.
+- Exposed `verify-hash` which recomputes bundle hash and compares local_stored_hash / recomputed_hash / db_stored_hash for each record, returning a per-record integrity report.
+- Added `log_action()` usage across the consent lifecycle to record CONSENT_CREATED, PATIENT_APPROVED/REJECTED, HOSPITAL_APPROVED/REJECTED, RECORD_ACCESS_ATTEMPT/DENIED/FAILED/SUCCESS, HASH_VERIFIED_SUCCESS/FAILED, and CKD prediction events.
+
+Automated tests added? Summary:
+- Current repo test total (source tree): 137 test methods across 22 test classes plus one standalone test script `test_log_action.py`.
+- Report 2 test baseline was 81. Current total: 137 (so +56 tests since Report 2). Tests supporting consent/audit are in `consentmanagement/tests.py` and `auditlog/tests.py`.
+
+SECTION 2 — TECHNICAL DETAILS
+
+Architecture / stack changes since Report 2:
+- No new external libraries; the platform remains Django + DRF + SimpleJWT. New apps/features added and matured: `consentmanagement` and `auditlog` (code and migrations present).
+- New Python modules added/updated include: `consentmanagement/views.py`, `consentmanagement/serializers.py`, `auditlog/models.py`, `auditlog/utils.py`, and updates to `hospitals/services.py`, `hospitals/api_views.py`, and `patient` APIs to wire consent checks.
+
+Dual-database architecture changes:
+- No change to the design (hospital-local databases remain routed via `hospitals.db_router.HospitalDBRouter`).
+- Operational difference: consent fetch now actively calls `ensure_db_exists` and `set_hospital_db(hospital_id)` before reading hospital-local tables (via `lab_table_manager` functions) to assemble transfer bundles. `clear_hospital_db()` is called finally to avoid context leakage.
+
+New API endpoints (phase-3 additions / notable endpoints):
+- `/api/logs/` — audit log viewing for hospital admins (GET)
+- Consent endpoints under `/api/consent/`:
+  - `hospitals/` — hospital directory for consent UI (GET)
+  - `patients/search/` — phone lookup (GET)
+  - `request/` — create consent request (POST)
+  - `sent/`, `received/` — lists for requester/owner (GET)
+  - `<consent_id>/` — detail and DELETE for pending (GET/DELETE)
+  - `<consent_id>/patient-decision/` — patient approve/reject (PATCH)
+  - `<consent_id>/hospital-decision/` — owning hospital approve/reject (PATCH)
+  - `<consent_id>/fetch-record/` — fetch transfer bundle (GET)
+  - `<consent_id>/verify-hash/` — verify integrity (POST)
+- Integrity endpoints (exposed under hospital API):
+  - `/api/v1/staff/records/<record_id>/integrity/`
+  - `/api/v1/staff/doctor/medical-records/<record_id>/integrity/`
+
+New models / DB tables added since Report 2 (key fields):
+- `auditlog.AuditLog` (table: `audit_logs`) — `log_id (UUID PK)`, `action`, `severity`, `performed_by`, `consent_id (UUID)`, `scope_hospitals (JSON list)`, `extra_info`, `timestamp`.
+- `consentmanagement.ConsentRequest` — `consent_id (UUID)`, `patient_id`, `requesting_hospital`, `requested_to_hospital`, `record_id (optional)`, `patient_choice`, `hospital_choice`, `request_status`, `created_at`, `updated_at`.
+
+Frontend changes / new pages (server-rendered templates):
+- Hospital consent pages: `templates/hospitals/consent/request.html`, `list.html`, `detail.html`, `record_access_test.html`, `consent_lab_record_detail.html`, `consent_medical_record_detail.html`.
+- Patient consent pages: `templates/patient/consents.html`, `templates/patient/consent_detail.html`.
+- Hospital admin audit logs: `templates/hospitals/admin/audit_logs.html`.
+
+SECTION 3 — SCREENSHOTS
+
+New screens to include in report figures (these pages did NOT exist in Report 2 screenshots):
+- Hospital consent request page (hospitals/consent/request)
+- Hospital consent list page (hospitals/consent/list)
+- Hospital consent detail page (hospitals/consent/detail)
+- Consent record-access test page (hospitals/consent/record_access_test)
+- Consent lab-record detail (hospitals/consent/consent_lab_record_detail)
+- Consent medical-record detail (hospitals/consent/consent_medical_record_detail)
+- Patient consent list and detail pages (patient/consents, patient/consent_detail)
+- Hospital admin audit logs page (hospitals/admin/audit_logs)
+
+(You indicated you will provide the actual screenshots; include these page names as figure captions.)
+
+SECTION 4 — TESTING
+
+New manual test cases (report-ready format for Table 4.2)
+- Test: Consent request creation
+  - Steps: Login as Hospital A admin/staff → Consent request page → select patient → select requested-to hospital → submit.
+  - Expected: New `ConsentRequest` row with `PENDING` status and log entry `CONSENT_CREATED`.
+  - Status: Implemented / Pass (code present).
+
+- Test: Patient approval of consent
+  - Steps: Login as patient → open consent detail → approve.
+  - Expected: `patient_choice = APPROVED`, `request_status` remains `PENDING` until hospital approves; `PATIENT_APPROVED` logged.
+  - Status: Implemented / Pass.
+
+- Test: Owning hospital approval
+  - Steps: Login as owning hospital admin/staff → open received requests → approve.
+  - Expected: `hospital_choice = APPROVED`, `request_status = APPROVED`, `HOSPITAL_APPROVED` logged.
+  - Status: Implemented / Pass.
+
+- Test: Fetch record bundle after approval
+  - Steps: Requesting hospital calls `/api/consent/<id>/fetch-record/` with valid token.
+  - Expected: 200 OK with bundle JSON, `bundle_hash` field present. `RECORD_ACCESS_SUCCESS` logged.
+  - Status: Implemented / Pass.
+
+- Test: Verify hash integrity
+  - Steps: Requesting hospital POSTs to `/api/consent/<id>/verify-hash/` with `records` and `bundle_hash` received earlier.
+  - Expected: Response includes `bundle_integrity`, `record_integrity` array, and `overall_verified: true` when unchanged.
+  - Status: Implemented / Pass.
+
+Automated tests added (classes & coverage):
+- `consentmanagement/tests.py` covers model validation, serializer validation, view flows (create, patient/hospital decision, fetch/verify) — 32 tests across three classes.
+- `auditlog/tests.py` covers logging behavior and filtering — 5 tests.
+- Additional hospital and patient tests exercise access and integration points.
+
+SECTION 5 — BUGS AND CHALLENGES
+
+Major bugs / integration issues faced and resolution (3–5 specific items):
+1. Hash mismatch on transfer — fixed by canonicalising record payload serialization and computing bundle hash using hospital write-time canonicaliser (`_payload_hash`) so sender and receiver agree on canonical JSON.
+2. Incorrect record visibility for patients — resolved by tightening ownership checks in `service_get_finalized_medical_record_detail` and returning only scoped records via `MedicalRecordMeta` lookups.
+3. Dashboard counts inaccurate — fixed in `service_get_dashboard_data` logic and API view to use distinct record_id aggregation on `MedicalRecordMeta`.
+4. Lab name field mismatch (lab_name vs name) — fixed to use `Lab.name` across patient-facing APIs.
+5. Audit log scoping — initially logs were not filterable by hospital scope; added `scope_hospitals` JSON field and updated `log_action` usage and `view_logs` filters.
+
+Biggest technical challenges this phase:
+- Designing a deterministic canonicalisation for payload hashing that remains stable across DB reads and JSON serialization differences.
+- Bridging default-shared models and hospital-local tables safely (thread-local DB routing) without leaking context across requests.
+- Keeping consent state machine correct across three actors (requesting hospital, patient, owning hospital) while preserving auditability.
+
+SECTION 6 — PROJECT STATUS SUMMARY (Table 7.1 mapping)
+
+- For each major feature row from Report 2, current status is: Completed (hospital/staff/patient flows, labs, nurse queue, doctor approval, CKD predictor), and New: Consent sharing + Audit logs + Integrity verification (added in Phase 3).
+- Overall completion percentage now: ~95% (Report 2 was ~85%).
+- Remaining work (final ~5%): UI polish and consistency, screenshots/diagrams, small refactors, documentation polishing, final QA, and minor cleanups (remove dev-only view_consent endpoint before production), and possibly minor migration cleanups.
+
+SECTION 7 — DIAGRAMS
+
+Recommended updates/new diagrams for Chapter 3:
+- Update Use Case diagram: include consent request/approve/fetch/verify actors (hospital admin, patient, owning hospital).
+- Update Class diagram: add `ConsentRequest` and `AuditLog` classes and relationships to `Hospital`, `Patient`, and `MedicalRecordMeta`.
+- New Activity diagram: Consent request lifecycle (request → patient decision → owner decision → fetch → verify).
+- New Sequence Diagram: Cross-hospital fetch + verify sequence showing calls and DB context switching.
+- Keep existing lab/nurse/doctor diagrams and update where record transfer flows intersect.
+
+SECTION 8 — LITERATURE
+
+- No new academic references added in the code repository; leave unchanged unless you want to cite specific sources for the integrity design.
+
+SECTION 9 — CONCLUSION FRAMING
+
+- Single most important Phase 3 accomplishment: Implemented an end-to-end, auditable cross-hospital record-sharing workflow with cryptographic integrity checks (bundle + per-record hashes) and admin-visible audit logging.
+- Final planned completion date: (please fill with your submission date).
+
+APPENDIX: Code pointers (key files to reference in the report)
+- `consentmanagement/views.py`, `consentmanagement/serializers.py`, `consentmanagement/models.py`
+- `auditlog/models.py`, `auditlog/utils.py`, `auditlog/views.py`, `auditlog/tests.py`
+- `hospitals/services.py` (bundle assembly, DB routing usage), `hospitals/lab_table_manager.py` (local table helpers)
+- `patient/services.py` and `patient/api_views.py` (patient portal and access checks)
+- `ckdprediction` (prediction service wiring and logging)
+- Templates under `templates/hospitals/consent/` and `templates/patient/` for new UI screens
+
+END OF REPORT 3 (Phase 3 code-derived summary)

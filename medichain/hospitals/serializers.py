@@ -82,13 +82,14 @@ class HospitalRegisterSerializer(serializers.Serializer):
 # used when returning staff data — never expose password_hash
 class HospitalUserSerializer(serializers.ModelSerializer):
     hospital_name = serializers.CharField(source='hospital.hospital_name', read_only=True)
+    age = serializers.ReadOnlyField(source='age')
 
     class Meta:
         model  = HospitalUser
         fields = [
             'id', 'full_name', 'email', 'phone', 'employee_id',
             'role', 'specialization', 'status', 'hospital_name',
-            'date_of_birth', 'gender', 'home_address', 'years_experience',
+            'date_of_birth', 'age', 'gender', 'home_address', 'years_experience',
             'license_number', 'bio', 'profile_photo', 'created_at',
         ]
 
@@ -121,13 +122,14 @@ class AddTechnicianSerializer(StaffContactValidationMixin, serializers.Serialize
 class PatientSerializer(serializers.ModelSerializer):
     registered_by_name = serializers.CharField(source='registered_by.hospital_name', read_only=True)
     gov_id_type_display = serializers.CharField(source='get_gov_id_type_display', read_only=True)
+    age = serializers.ReadOnlyField(source='age')
 
     class Meta:
         model  = Patient
         fields = [
             'id', 'gov_id_type', 'gov_id_type_display', 'full_name',
             'gender', 'phone', 'email', 'address', 'date_of_birth',
-            'blood_group', 'profile_photo', 'registered_by_name',
+            'age', 'blood_group', 'profile_photo', 'registered_by_name',
             'registered_by_self', 'is_active', 'created_at',
         ]
 

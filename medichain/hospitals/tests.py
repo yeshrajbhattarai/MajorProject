@@ -368,6 +368,29 @@ class AuthTests(BaseTestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.data['success'])
 
+
+class AgeFieldTests(BaseTestCase):
+    def test_hospitaluser_age_property(self):
+        import datetime
+        user = self.make_doctor('99')
+        user.date_of_birth = datetime.date(1990, 6, 1)  # 1 June 1990
+        user.save()
+        with patch('django.utils.timezone.localdate', return_value=datetime.date(2026, 5, 15)):
+            # birthday not yet in 2026 -> 35
+            self.assertEqual(user.age, 35)
+
+    def test_patient_age_in_serializer(self):
+        import datetime
+        from hospitals.serializers import PatientSerializer
+
+        patient = self.make_patient('77')
+        patient.date_of_birth = datetime.date(2000, 5, 15)
+        patient.save()
+        with patch('django.utils.timezone.localdate', return_value=datetime.date(2026, 5, 15)):
+            data = PatientSerializer(patient).data
+            # exact birthday -> 26
+            self.assertEqual(data.get('age'), 26)
+
     # ── login ─────────────────────────────────────────────────────────────────
 
     def test_login_admin_success(self):

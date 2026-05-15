@@ -1,6 +1,7 @@
 
 import uuid
 from django.db import models
+from django.utils import timezone
 
 #####################################
 class Hospital(models.Model):
@@ -91,6 +92,18 @@ class HospitalUser(models.Model):
     def __str__(self):
         return f"{self.full_name} ({self.role})"
 
+    @property
+    def age(self):
+        """Return age in years calculated from `date_of_birth`, or None."""
+        if not self.date_of_birth:
+            return None
+        today = timezone.localdate()
+        dob = self.date_of_birth
+        years = today.year - dob.year
+        if (today.month, today.day) < (dob.month, dob.day):
+            years -= 1
+        return years if years >= 0 else None
+
 
 ######################################
 class Patient(models.Model):
@@ -133,6 +146,18 @@ class Patient(models.Model):
 
     def __str__(self):
         return self.full_name
+
+    @property
+    def age(self):
+        """Return age in years calculated from `date_of_birth`, or None."""
+        if not self.date_of_birth:
+            return None
+        today = timezone.localdate()
+        dob = self.date_of_birth
+        years = today.year - dob.year
+        if (today.month, today.day) < (dob.month, dob.day):
+            years -= 1
+        return years if years >= 0 else None
 
 
 ######################################
