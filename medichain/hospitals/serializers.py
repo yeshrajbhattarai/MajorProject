@@ -82,7 +82,7 @@ class HospitalRegisterSerializer(serializers.Serializer):
 # used when returning staff data — never expose password_hash
 class HospitalUserSerializer(serializers.ModelSerializer):
     hospital_name = serializers.CharField(source='hospital.hospital_name', read_only=True)
-    age = serializers.ReadOnlyField(source='age')
+    age = serializers.ReadOnlyField()
 
     class Meta:
         model  = HospitalUser
@@ -122,7 +122,7 @@ class AddTechnicianSerializer(StaffContactValidationMixin, serializers.Serialize
 class PatientSerializer(serializers.ModelSerializer):
     registered_by_name = serializers.CharField(source='registered_by.hospital_name', read_only=True)
     gov_id_type_display = serializers.CharField(source='get_gov_id_type_display', read_only=True)
-    age = serializers.ReadOnlyField(source='age')
+    age = serializers.ReadOnlyField()
 
     class Meta:
         model  = Patient
