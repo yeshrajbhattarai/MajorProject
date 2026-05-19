@@ -20,6 +20,7 @@ from .serializers import (
     PatientPasswordUpdateSerializer,
     PatientProfileUpdateSerializer,
     PatientRegisterSerializer,
+    PatientVerifyOTPSerializer,
     PatientCompleteProfileSerializer,
 )
 from .services import (
@@ -31,6 +32,7 @@ from .services import (
     service_get_patient_lab_requests,
     service_patient_login,
     service_patient_register,
+    service_patient_verify_otp,
     service_patient_update_password,
     service_patient_update_profile,
     service_patient_complete_profile,
@@ -105,11 +107,34 @@ class PatientRegisterAPI(APIView):
         return Response(
             {
                 'success': True,
-                'message': 'Patient registered successfully. Please login.',
+                'message': 'OTP sent to your email. Verify it to complete registration.',
+                'verification_required': True,
+                'redirect': f'/patient/verify-otp/?patient_id={patient.id}',
                 'patient_id': str(patient.id),
+                'email': patient.email,
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class PatientVerifyOTPAPI(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = PatientVerifyOTPSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'success': False, 'errors': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        d = serializer.validated_data
+        success, error = service_patient_verify_otp(
+            patient_id=d['patient_id'],
+            otp_entered=d['otp'],
+        )
+
+        if not success:
+            return Response({'success': False, 'error': error}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'success': True, 'message': 'Email verified successfully.'}, status=status.HTTP_200_OK)
 
 
 class PatientLoginAPI(APIView):

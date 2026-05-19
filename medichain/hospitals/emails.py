@@ -108,3 +108,20 @@ def send_patient_credentials(full_name, email, hospital_name, temp_password):
         recipient_list=[email],
         fail_silently=False,
     )
+
+
+def send_patient_verification_otp(full_name, email, otp):
+    send_mail(
+        subject='MediChain — Verify Your Patient Account',
+        message=(
+            f"Hello {full_name},\n\n"
+            f"Your MediChain patient verification OTP is:\n\n"
+            f"{otp}\n\n"
+            f"This OTP is valid for 10 minutes.\n"
+            f"After verification, you can log in and complete your profile later.\n\n"
+            f"- MediChain Team"
+        ),
+        from_email=None,
+        recipient_list=[email],
+        fail_silently=False,
+    )

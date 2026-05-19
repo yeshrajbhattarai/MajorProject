@@ -10,11 +10,13 @@ from .api_views import (
     PatientRecordsAPI,
     PatientProfileAPI,
     PatientRegisterAPI,
+    PatientVerifyOTPAPI,
     PatientUpdatePasswordAPI,
 )
 
 urlpatterns = [
     path('register/', PatientRegisterAPI.as_view(), name='api_patient_register'),
+    path('verify-otp/', PatientVerifyOTPAPI.as_view(), name='api_patient_verify_otp'),
     path('login/', PatientLoginAPI.as_view(), name='api_patient_login'),
     path('logout/', PatientLogoutAPI.as_view(), name='api_patient_logout'),
 

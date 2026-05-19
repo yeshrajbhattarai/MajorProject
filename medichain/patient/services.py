@@ -1,11 +1,14 @@
 import hashlib
+import random
 import re
 
 from django.contrib.auth.hashers import check_password, make_password
+from django.utils import timezone
 
 from hospitals.encryption import encrypt
-from hospitals.models import Patient, LabRequest
+from hospitals.models import Patient, PendingPatientRegistration, LabRequest
 from hospitals.utils import update_password_with_verification
+from hospitals.emails import send_patient_verification_otp
 
 
 EMAIL_REGEX = r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$'
@@ -52,7 +55,7 @@ def get_profile_completion_percent(patient):
 
 def service_patient_register(full_name, email, phone, password, confirm_password):
     """
-    Patient registration with required fields: name, email, phone, password
+    Patient self-registration with required fields: name, email, phone, password.
     """
     normalized_email = (email or '').strip().lower()
     cleaned_phone = (phone or '').replace(' ', '').strip()
@@ -65,8 +68,13 @@ def service_patient_register(full_name, email, phone, password, confirm_password
         errors['email'] = 'Email is required'
     elif not re.match(EMAIL_REGEX, normalized_email):
         errors['email'] = 'Enter a valid email address'
-    elif Patient.objects.filter(email=normalized_email).exists():
-        errors['email'] = 'A patient with this email already exists'
+    else:
+        existing_patient = Patient.objects.filter(email=normalized_email).first()
+        if existing_patient:
+            if existing_patient.registered_by_self and not existing_patient.email_verified:
+                existing_patient.delete()
+            else:
+                errors['email'] = 'A patient with this email already exists'
 
     if not cleaned_phone:
         errors['phone'] = 'Phone number is required'
@@ -86,21 +94,61 @@ def service_patient_register(full_name, email, phone, password, confirm_password
     if errors:
         return None, errors
 
-    patient = Patient.objects.create(
+    otp = str(random.randint(100000, 999999))
+    otp_expiry = timezone.now() + timezone.timedelta(minutes=10)
+
+    pending_registration, _ = PendingPatientRegistration.objects.update_or_create(
+        email=normalized_email,
+        defaults={
+            'full_name': full_name.strip(),
+            'phone': cleaned_phone,
+            'password_hash': make_password(password),
+            'otp': otp,
+            'otp_expiry': otp_expiry,
+        },
+    )
+
+    send_patient_verification_otp(pending_registration.full_name, pending_registration.email, otp)
+    return pending_registration, None
+
+
+def service_patient_verify_otp(patient_id, otp_entered):
+    try:
+        pending_registration = PendingPatientRegistration.objects.get(id=patient_id)
+    except PendingPatientRegistration.DoesNotExist:
+        return False, 'Verification session expired. Please register again.'
+
+    if timezone.now() > pending_registration.otp_expiry:
+        pending_registration.delete()
+        return False, 'OTP has expired. Please register again to receive a new one.'
+
+    if (otp_entered or '').strip() != pending_registration.otp:
+        return False, 'Incorrect OTP. Please try again.'
+
+    if Patient.objects.filter(email=pending_registration.email).exists():
+        pending_registration.delete()
+        return False, 'This email is already registered.'
+
+    Patient.objects.create(
         gov_id_type=None,
         gov_id_number=None,
         gov_id_hash=None,
-        full_name=full_name.strip(),
+        full_name=pending_registration.full_name,
         gender=None,
-        phone=cleaned_phone,
-        email=normalized_email,
+        phone=pending_registration.phone,
+        email=pending_registration.email,
         address=None,
-        password_hash=make_password(password),
+        password_hash=pending_registration.password_hash,
         registered_by=None,
         registered_by_self=True,
         is_active=True,
+        email_verified=True,
+        email_verify_otp=None,
+        email_verify_otp_expiry=None,
     )
-    return patient, None
+
+    pending_registration.delete()
+    return True, None
 
 
 def service_patient_update_profile(patient_id, full_name=None, email=None, phone=None,
@@ -219,7 +267,6 @@ def service_patient_update_password(patient_id, current_password, new_password, 
         confirm_password=confirm_password,
     )
 
-
 def service_patient_complete_profile(patient_id, phone, address, gender=None):
     """
     Step 2: Complete profile after login
@@ -270,7 +317,13 @@ def service_patient_login(email, password):
 
     patient = Patient.objects.filter(email=normalized_email).first()
     if not patient:
+        pending_registration = PendingPatientRegistration.objects.filter(email=normalized_email).first()
+        if pending_registration:
+            return None, {'email': 'Please verify your email before logging in. Check your inbox for the OTP.'}
         return None, {'email': 'No patient account found with this email'}
+
+    if patient.registered_by_self and not patient.email_verified:
+        return None, {'email': 'Please verify your email before logging in. Check your inbox for the OTP.'}
 
     if not patient.is_active:
         return None, {'email': 'Your patient account is inactive. Please contact your hospital.'}
@@ -334,6 +387,8 @@ def group_lab_requests_by_hospital(lab_requests):
         })
         bucket['total_requests'] += 1
         if req.status == LabRequest.STATUS_PENDING:
+            if patient.registered_by_self and not patient.email_verified:
+                return None, {'email': 'Please verify your email before logging in. Check your inbox for the OTP.'}
             bucket['pending_requests'] += 1
         elif req.status == LabRequest.STATUS_COMPLETED:
             bucket['completed_requests'] += 1

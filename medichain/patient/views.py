@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from consentmanagement.models import ConsentRequest
 from hospitals.encryption import decrypt
-from hospitals.models import MedicalRecordMeta, Patient
+from hospitals.models import MedicalRecordMeta, Patient, PendingPatientRegistration
 from hospitals.services import (
     service_get_record_detail,
     service_get_record_history,
@@ -17,6 +17,7 @@ from .decorators import patient_required
 from .services import (
     service_patient_login, 
     service_patient_register, 
+    service_patient_verify_otp,
     service_patient_complete_profile,
     service_patient_update_profile,
     service_patient_update_password,
@@ -69,6 +70,8 @@ def patient_login(request):
 
     return render(request, 'patient/auth/auth.html', {
         'mode': 'login',
+        'pending_patient_id': None,
+        'pending_patient_email': None,
     })
 
 
@@ -89,9 +92,11 @@ def patient_register(request):
                     'success': False,
                     'errors': errors,
                 })
+            request.session['patient_registration_pending_id'] = str(patient.id)
+            request.session['patient_registration_pending_email'] = patient.email
             return JsonResponse({
                 'success': True,
-                'redirect': '/patient/login/?mode=login',
+                'redirect': f'/patient/verify-otp/?patient_id={patient.id}',
             })
         
         # Regular form submission
@@ -102,12 +107,64 @@ def patient_register(request):
                 'form_data': request.POST,
             })
 
-        messages.success(request, f'{patient.full_name} registered successfully. Please login.')
-        return redirect('patient_login')
+        request.session['patient_registration_pending_id'] = str(patient.id)
+        request.session['patient_registration_pending_email'] = patient.email
+        messages.success(request, f'OTP sent to {patient.email}. Please verify your email to continue.')
+        return redirect(f'/patient/verify-otp/?patient_id={patient.id}')
 
     return render(request, 'patient/auth/auth.html', {
         'mode': 'register',
     })
+
+
+def patient_verify_otp(request):
+    patient_id = request.GET.get('patient_id') or request.POST.get('patient_id') or request.session.get('patient_registration_pending_id')
+
+    if request.method == 'GET':
+        if not patient_id:
+            messages.error(request, 'Verification session expired. Please register again.')
+            return redirect('patient_register')
+
+        pending_registration = PendingPatientRegistration.objects.filter(id=patient_id).first()
+        if not pending_registration:
+            messages.error(request, 'Verification session expired. Please register again.')
+            return redirect('patient_register')
+
+        return render(request, 'patient/auth/verify_otp.html', {
+            'patient': pending_registration,
+            'email': pending_registration.email,
+        })
+
+    if request.method != 'POST':
+        return redirect('patient_register')
+
+    otp = request.POST.get('otp', '').strip()
+
+    if not patient_id:
+        messages.error(request, 'Verification session expired. Please register again.')
+        return redirect('patient_register')
+
+    success, error = service_patient_verify_otp(patient_id=patient_id, otp_entered=otp)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        if not success:
+            return JsonResponse({'success': False, 'error': error})
+        request.session.pop('patient_registration_pending_id', None)
+        request.session.pop('patient_registration_pending_email', None)
+        return JsonResponse({'success': True, 'redirect': '/patient/login/?mode=login'})
+
+    if not success:
+        pending_registration = PendingPatientRegistration.objects.filter(id=patient_id).first()
+        return render(request, 'patient/auth/verify_otp.html', {
+            'patient': pending_registration,
+            'email': getattr(pending_registration, 'email', None),
+            'error': error,
+        })
+
+    request.session.pop('patient_registration_pending_id', None)
+    request.session.pop('patient_registration_pending_email', None)
+    messages.success(request, 'Email verified successfully. You can now log in.')
+    return redirect('patient_login')
 
 
 @patient_required

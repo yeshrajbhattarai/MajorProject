@@ -31,6 +31,11 @@ class PatientLoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class PatientVerifyOTPSerializer(serializers.Serializer):
+    patient_id = serializers.CharField()
+    otp = serializers.CharField(max_length=6)
+
+
 class PatientCompleteProfileSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=10, required=False, allow_blank=True)
     address = serializers.CharField(required=False, allow_blank=True)

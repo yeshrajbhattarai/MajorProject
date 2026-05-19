@@ -1,0 +1,183 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediChain | Verify Email</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/theme.css' %}">
+  <link rel="stylesheet" href="{% static 'css/register.css' %}">
+  <script>
+    (function() {
+      var t = localStorage.getItem('medichain_theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <style>
+    .right-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .otp-card {
+      width: 100%;
+      max-width: 460px;
+      padding: 48px 40px;
+    }
+    .otp-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(79, 142, 247, 0.12);
+      color: #7fb2ff;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+    .otp-help {
+      margin: 12px 0 0;
+      color: #8a94ad;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .otp-input {
+      letter-spacing: 0.35em;
+      text-align: center;
+      font-size: 22px;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .otp-error {
+      min-height: 18px;
+      color: #f7604f;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    .otp-actions {
+      margin-top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .otp-link {
+      color: #7fb2ff;
+      text-decoration: none;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-1" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow-2" aria-hidden="true"></div>
+
+  <div class="page">
+    <aside class="left-panel">
+      <div class="brand-logo">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 3a1 1 0 0 1 1 1v3h3a1 1 0 0 1 0 2h-3v3a1 1 0 0 1-2 0v-3H8a1 1 0 0 1 0-2h3V7a1 1 0 0 1 1-1z"/>
+          </svg>
+        </div>
+        <span class="brand-name">MediChain</span>
+      </div>
+
+      <h1 class="left-headline">One step away.<br><span>Verify your email.</span></h1>
+      <p class="left-sub">We sent a 6-digit code to the email you just used to create the account.</p>
+    </aside>
+
+    <main class="right-panel">
+      <div class="auth-card otp-card">
+        <div class="card-header">
+          <h2>Verify Your Email</h2>
+          <p>Enter the OTP sent to your email to activate your account</p>
+        </div>
+
+        <div class="otp-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          {{ email }}
+        </div>
+
+        {% if error %}
+          <div class="notification notification-error" style="margin-bottom:15px;">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST" action="{% url 'patient_verify_otp' %}" id="otpForm" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="patient_id" value="{{ patient.id }}">
+
+          <div class="input-group" id="grp-otp">
+            <label for="otp">OTP</label>
+            <div class="input-wrap">
+              <span class="input-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 8v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/>
+                  <path d="M3 8l9 6 9-6"/>
+                </svg>
+              </span>
+              <input type="text" id="otp" name="otp" class="otp-input" maxlength="6" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" required>
+            </div>
+            <div class="otp-error" id="otpError"></div>
+          </div>
+
+          <div class="otp-actions">
+            <button type="submit" class="auth-btn">
+              <span>Verify OTP</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+            <a href="{% url 'patient_register' %}" class="otp-link">Back to registration</a>
+          </div>
+        </form>
+
+        <p class="otp-help">If you did not receive the email, check spam or register again with the correct address.</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const otpForm = document.getElementById('otpForm');
+    const otpInput = document.getElementById('otp');
+    const otpError = document.getElementById('otpError');
+
+    otpForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const otpValue = otpInput.value.trim();
+      if (otpValue.length !== 6) {
+        otpError.textContent = 'Enter the 6-digit OTP sent to your email.';
+        return;
+      }
+
+      otpError.textContent = '';
+
+      try {
+        const response = await fetch(this.action, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || '',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: new FormData(this)
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          otpError.textContent = data.error || 'OTP verification failed.';
+        }
+      } catch (err) {
+        otpError.textContent = 'OTP verification failed.';
+      }
+    });
+  </script>
+</body>
+</html>

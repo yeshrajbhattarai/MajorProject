@@ -110,6 +110,7 @@
             <p>Register to access your health records</p>
           </div>
 
+          <div id="registerSection">
           <form method="POST" action="{% url 'patient_register' %}" id="registerForm" novalidate>
             {% csrf_token %}
 
@@ -226,6 +227,7 @@
               </svg>
             </button>
           </form>
+          </div>
 
           <p class="switch-link">
             Already registered?

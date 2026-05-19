@@ -168,7 +168,25 @@ def service_login(email, password):
     if errors:
         return None, None, errors
 
-    # check Hospital table first — admin login
+    # check HospitalUser table first — doctor/nurse login should win when the
+    # same email exists in both staff and hospital tables.
+    try:
+        staff = HospitalUser.objects.get(email=email)
+
+        # block if password is wrong
+        if not check_password(password, staff.password_hash):
+            return None, None, {'password': 'Incorrect password'}
+
+        # block deactivated staff accounts
+        if staff.status == 'inactive':
+            return None, None, {'email': 'Your account has been deactivated. Contact your hospital admin.'}
+
+        return staff.role, staff, None
+
+    except HospitalUser.DoesNotExist:
+        pass
+
+    # check Hospital table — admin login
     try:
         hospital = Hospital.objects.get(email=email)
 
@@ -187,23 +205,6 @@ def service_login(email, password):
         return 'hospital_admin', hospital, None
 
     except Hospital.DoesNotExist:
-        pass
-
-    # check HospitalUser table — doctor or nurse login
-    try:
-        staff = HospitalUser.objects.get(email=email)
-
-        # block if password is wrong
-        if not check_password(password, staff.password_hash):
-            return None, None, {'password': 'Incorrect password'}
-
-        # block deactivated staff accounts
-        if staff.status == 'inactive':
-            return None, None, {'email': 'Your account has been deactivated. Contact your hospital admin.'}
-
-        return staff.role, staff, None
-
-    except HospitalUser.DoesNotExist:
         pass
 
     # email not found in either table
@@ -556,6 +557,7 @@ def service_add_patient(hospital_id, gov_id_type, gov_id_number, full_name,
         address       = address or None,
         password_hash = make_password(temp_password),
         registered_by = hospital,
+        email_verified = True,
     )
 
     send_patient_credentials(patient.full_name, patient.email, hospital.hospital_name, temp_password)
@@ -586,14 +588,43 @@ def service_get_patient(pk):
 
 # get all info in dashboard 
 def service_get_doctor_dashboard_data(staff_id, hospital_id):
-    hospital       = Hospital.objects.get(id=hospital_id)
-    total_patients = Patient.objects.filter(is_active=True).count()
-    total_records  = MedicalRecordMeta.objects.filter(
+    hospital = Hospital.objects.get(id=hospital_id)
+
+    # My patients: distinct patients this doctor has created records for or is assigned to
+    patients_from_records = MedicalRecordMeta.objects.filter(
         hospital_id=hospital_id,
+        recorded_by_id=staff_id,
+    ).values_list('patient_id', flat=True)
+
+    patients_from_assignments = PatientAssignment.objects.filter(
+        staff_id=staff_id,
+    ).values_list('patient_id', flat=True)
+
+    # include patients for whom this doctor requested lab work (they may be recorded by lab staff)
+    patients_from_lab_requests = LabRequest.objects.filter(
+        lab__hospital_id=hospital_id,
+        requested_by_id=staff_id,
+    ).values_list('patient_id', flat=True)
+
+    # union and count distinct
+    patient_ids = set(patients_from_records) | set(patients_from_assignments) | set(patients_from_lab_requests)
+    total_patients = len(patient_ids)
+
+    # Lab reports: distinct lab record_ids requested by this doctor
+    total_lab_reports = MedicalRecordMeta.objects.filter(
+        hospital_id=hospital_id,
+        record_type=MedicalRecordMeta.RECORD_TYPE_LAB,
         lab_request__requested_by_id=staff_id,
     ).values('record_id').distinct().count()
-    total_reports  = 0   # TODO: FileUpload.objects.filter(uploaded_by_id=staff_id).count()
-    return total_patients, total_records, total_reports
+
+    # Medical records: distinct medical record_ids created/recorded by this doctor
+    total_medical_records = MedicalRecordMeta.objects.filter(
+        hospital_id=hospital_id,
+        record_type=MedicalRecordMeta.RECORD_TYPE_MEDICAL,
+        recorded_by_id=staff_id,
+    ).values('record_id').distinct().count()
+
+    return total_patients, total_lab_reports, total_medical_records
 
 
  

@@ -114,9 +114,9 @@ class Patient(models.Model):
     ]
 
     id            = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    gov_id_type   = models.CharField(max_length=10, choices=GOV_ID_CHOICES)
-    gov_id_number = models.CharField(max_length=500)   # Fernet encrypted
-    gov_id_hash   = models.CharField(max_length=64, unique=True)  # SHA-256 for dup check
+    gov_id_type   = models.CharField(max_length=10, choices=GOV_ID_CHOICES, null=True, blank=True)
+    gov_id_number = models.CharField(max_length=500, null=True, blank=True)   # Fernet encrypted
+    gov_id_hash   = models.CharField(max_length=64, unique=True, null=True, blank=True)  # SHA-256 for dup check
 
     # Hospital fills at registration
     full_name  = models.CharField(max_length=255)
@@ -130,6 +130,9 @@ class Patient(models.Model):
     blood_group   = models.CharField(max_length=5, null=True, blank=True)
     profile_photo = models.ImageField(upload_to='patient_photos/', null=True, blank=True)
     password_hash = models.CharField(max_length=255, null=True, blank=True)
+    email_verified          = models.BooleanField(default=True)
+    email_verify_otp        = models.CharField(max_length=6, null=True, blank=True)
+    email_verify_otp_expiry = models.DateTimeField(null=True, blank=True)
 
     # Meta
     registered_by      = models.ForeignKey(
@@ -158,6 +161,24 @@ class Patient(models.Model):
         if (today.month, today.day) < (dob.month, dob.day):
             years -= 1
         return years if years >= 0 else None
+
+
+class PendingPatientRegistration(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    full_name = models.CharField(max_length=255)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=10)
+    password_hash = models.CharField(max_length=255)
+    otp = models.CharField(max_length=6)
+    otp_expiry = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'pending_patient_registrations'
+
+    def __str__(self):
+        return self.email
 
 
 ######################################

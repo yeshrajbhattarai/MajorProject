@@ -85,3 +85,7 @@ Thumbs.db
 node_modules/
 npm-debug.log
 yarn-error.log
+
+# Personal/Local files (never push)
+report3.txt
+PSEUDOCODE_IMPLEMENTATION.md
