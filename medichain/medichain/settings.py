@@ -2,9 +2,8 @@ from pathlib import Path
 import os
 from datetime import timedelta
 
-# read .env file manually — no extra package needed
-from pathlib import Path as _Path
-_env_path = _Path(__file__).resolve().parent.parent / '.env'
+# ─── Load .env manually ───────────────────────────────────────────────────────
+_env_path = Path(__file__).resolve().parent.parent / '.env'
 if _env_path.exists():
     for _line in _env_path.read_text().splitlines():
         _line = _line.strip()
@@ -14,24 +13,35 @@ if _env_path.exists():
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-
 # ─── Security ─────────────────────────────────────────────────────────────────
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-key-only-for-dev')
-DEBUG      = os.environ.get('DEBUG', 'True') == 'True'
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY is not set in .env")
 
-ALLOWED_HOSTS = []
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
+
+ALLOWED_HOSTS = os.environ.get(
+    'ALLOWED_HOSTS', '127.0.0.1,localhost'
+).split(',')
+
+# ─── CORS ─────────────────────────────────────────────────────────────────────
+
+_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 CORS_ALLOWED_ORIGINS = [
+    o.strip() for o in _cors_origins.split(',') if o.strip()
+] if _cors_origins else [
     "http://localhost:5173",
-    "http://localhost:8080", 
+    "http://localhost:8080",
 ]
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization',
     'content-type', 'dnt', 'origin', 'user-agent',
     'x-csrftoken', 'x-requested-with',
 ]
+
 # ─── Apps ─────────────────────────────────────────────────────────────────────
 
 INSTALLED_APPS = [
@@ -52,10 +62,10 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',
-    
-
 ]
-    
+
+# ─── Middleware ───────────────────────────────────────────────────────────────
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -87,15 +97,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'medichain.wsgi.application'
 
-
 # ─── Database ─────────────────────────────────────────────────────────────────
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#     }
-# }
 DATABASES = {
     'default': {
         'ENGINE':   'django.db.backends.mysql',
@@ -104,12 +107,12 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST':     os.environ.get('DB_HOST', 'localhost'),
         'PORT':     os.environ.get('DB_PORT', '3306'),
+        'OPTIONS':  {'charset': 'utf8mb4'},
     }
 }
 
 DATABASE_ROUTERS = ['hospitals.db_router.HospitalDBRouter']
 HOSPITAL_DB_DIR = BASE_DIR
-
 
 # ─── Password Validation ──────────────────────────────────────────────────────
 
@@ -120,7 +123,6 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
 # ─── Internationalisation ─────────────────────────────────────────────────────
 
 LANGUAGE_CODE = 'en-us'
@@ -128,26 +130,16 @@ TIME_ZONE     = 'Asia/Kolkata'
 USE_I18N      = True
 USE_TZ        = True
 
-
 # ─── Static & Media ───────────────────────────────────────────────────────────
 
-STATIC_URL = '/static/'
-
-STATICFILES_DIRS = [
-    BASE_DIR / "static"
-]
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
+STATIC_URL  = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / 'staticfiles'   # used by collectstatic on server
 
 MEDIA_URL  = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 
 # ─── Email ────────────────────────────────────────────────────────────────────
 
@@ -159,11 +151,24 @@ EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL  = f"MediChain <{os.environ.get('EMAIL_HOST_USER', '')}>"
 
-
 # ─── Encryption ───────────────────────────────────────────────────────────────
 
-FERNET_KEYS = [os.environ.get('FERNET_KEY', '')]
+_fernet_key = os.environ.get('FERNET_KEY', '')
+if not _fernet_key:
+    raise ValueError("FERNET_KEY is not set in .env")
+FERNET_KEYS = [_fernet_key]
 
+# ─── Production security headers ──────────────────────────────────────────────
+# These only activate when DEBUG=False (i.e. on the server)
+
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER      = True
+    SECURE_CONTENT_TYPE_NOSNIFF    = True
+    X_FRAME_OPTIONS                = 'DENY'
+    SECURE_HSTS_SECONDS            = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SESSION_COOKIE_SECURE          = True
+    CSRF_COOKIE_SECURE             = True
 
 # ─── Django REST Framework ────────────────────────────────────────────────────
 
@@ -176,13 +181,12 @@ REST_FRAMEWORK = {
     ],
 }
 
-
 # ─── Simple JWT ───────────────────────────────────────────────────────────────
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME':    timedelta(hours=8),  # expires after one work shift
-    'REFRESH_TOKEN_LIFETIME':   timedelta(days=7),   # stay logged in for a week
-    'ROTATE_REFRESH_TOKENS':    True,                # old refresh token invalidated on use
-    'BLACKLIST_AFTER_ROTATION': True,                # blacklist rotated tokens
-    'AUTH_HEADER_TYPES':        ('Bearer',),         # Authorization: Bearer <token>
+    'ACCESS_TOKEN_LIFETIME':    timedelta(hours=8),
+    'REFRESH_TOKEN_LIFETIME':   timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS':    True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES':        ('Bearer',),
 }
