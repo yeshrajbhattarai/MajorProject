@@ -1,15 +1,14 @@
-import resend
-from django.conf import settings
+from django.core.mail import send_mail
 
 
 def _send(to_email, subject, body):
-    resend.api_key = settings.RESEND_API_KEY
-    resend.Emails.send({
-        "from": "MediChain <onboarding@resend.dev>",
-        "to": [to_email],
-        "subject": subject,
-        "text": body,
-    })
+    send_mail(
+        subject=subject,
+        message=body,
+        from_email=None,  # uses DEFAULT_FROM_EMAIL from settings
+        recipient_list=[to_email],
+        fail_silently=False,
+    )
 
 
 # ─── OTP Emails ───────────────────────────────────────────────────────────────
