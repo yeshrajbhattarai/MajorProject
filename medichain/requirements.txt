@@ -19,3 +19,4 @@ threadpoolctl==3.6.0
 tzdata==2025.3
 
 whitenoise==6.7.0
+resend==2.10.0
