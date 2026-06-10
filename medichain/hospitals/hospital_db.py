@@ -44,9 +44,8 @@ def register_db(hospital_id):
 
 def create_hospital_database(hospital_id):
     """Create hospital-specific DB, register alias, and migrate hospital_local app."""
-    # On PostgreSQL, skip per-hospital DB creation
+    # On PostgreSQL, migrations already ran during build — nothing to do
     if _is_postgresql():
-        call_command('migrate', 'hospital_local', database='default', interactive=False)
         return 'default'
 
     default_name = str(connections['default'].settings_dict.get('NAME') or '')
