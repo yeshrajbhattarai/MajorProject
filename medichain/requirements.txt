@@ -17,3 +17,5 @@ scipy==1.17.1
 sqlparse==0.5.5
 threadpoolctl==3.6.0
 tzdata==2025.3
+
+whitenoise==6.7.0
