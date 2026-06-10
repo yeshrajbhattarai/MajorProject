@@ -6,6 +6,11 @@ from django.db import connections
 from django.db.utils import OperationalError
 
 
+def _is_postgresql():
+    engine = settings.DATABASES['default']['ENGINE']
+    return 'postgresql' in engine
+
+
 def get_db_alias(hospital_id):
     """Return deterministic DB alias for a hospital UUID."""
     key = str(hospital_id).replace('-', '')[:8]
@@ -19,6 +24,10 @@ def _get_db_name(hospital_id):
 
 def register_db(hospital_id):
     """Register runtime DB config for one hospital if not already present."""
+    # On PostgreSQL, everything uses the default DB
+    if _is_postgresql():
+        return 'default'
+
     alias = get_db_alias(hospital_id)
     if alias in settings.DATABASES:
         return alias
@@ -34,7 +43,12 @@ def register_db(hospital_id):
 
 
 def create_hospital_database(hospital_id):
-    """Create hospital-specific MySQL DB, register alias, and migrate hospital_local app."""
+    """Create hospital-specific DB, register alias, and migrate hospital_local app."""
+    # On PostgreSQL, skip per-hospital DB creation
+    if _is_postgresql():
+        call_command('migrate', 'hospital_local', database='default', interactive=False)
+        return 'default'
+
     default_name = str(connections['default'].settings_dict.get('NAME') or '')
     if default_name.startswith('test_'):
         return 'default'
@@ -51,7 +65,11 @@ def create_hospital_database(hospital_id):
 
 
 def ensure_db_exists(hospital_id):
-    """Ensure runtime registration exists and the physical MySQL DB is present."""
+    """Ensure runtime registration exists and the physical DB is present."""
+    # On PostgreSQL, always use default
+    if _is_postgresql():
+        return 'default'
+
     default_name = str(connections['default'].settings_dict.get('NAME') or '')
     if default_name.startswith('test_'):
         return 'default'
@@ -61,7 +79,7 @@ def ensure_db_exists(hospital_id):
     try:
         connections[alias].ensure_connection()
     except OperationalError as exc:
-        # MySQL 1049 = Unknown database. Auto-provision for pre-existing hospitals.
+        # MySQL 1049 = Unknown database
         if exc.args and len(exc.args) >= 1 and exc.args[0] == 1049:
             return create_hospital_database(hospital_id)
         raise
