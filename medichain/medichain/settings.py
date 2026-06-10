@@ -33,8 +33,13 @@ CORS_ALLOWED_ORIGINS = [
 ] if _cors_origins else [
     "http://localhost:5173",
     "http://localhost:8080",
+     # Vercel frontend
+    "https://medichain-frontend-liard.vercel.app",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://medichain-frontend-liard.vercel.app",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept', 'accept-encoding', 'authorization',
